@@ -3,3 +3,6 @@ dist/
 artifacts/
 *.local
 *.bak*
+
+.vercel
+.env*
