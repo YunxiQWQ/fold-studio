@@ -11,7 +11,7 @@
 
 **在线直接用：** 打开 [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold)，无需注册。
 
-**离线单文件：** 从 [Releases](https://github.com/YunxiQWQ/fold-studio/releases) 下载 `折间.html`，双击用 Edge 或 Chrome 打开。无需安装、联网或启动服务器，全部运行代码已内联。已验证通过 `file://` 打开后的三维预览、文字编辑与草稿恢复，不请求外部网络。
+**离线单文件：** 从 [Releases](https://github.com/YunxiQWQ/fold-studio/releases) 下载 `fold-studio-v0.9.4.html`（离线单文件），双击用 Edge 或 Chrome 打开。无需安装、联网或启动服务器，全部运行代码已内联。已验证通过 `file://` 打开后的三维预览、文字编辑与草稿恢复，不请求外部网络。
 
 **本地构建：** 需要 Node.js 22 或更新版本。
 
