@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npx vite build && node scripts/standalone.mjs",
+  "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/", "destination": "/fold", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/fold", "destination": "/index.html" },
+    { "source": "/fold/", "destination": "/index.html" },
+    { "source": "/fold/:path*", "destination": "/:path*" }
+  ]
+}

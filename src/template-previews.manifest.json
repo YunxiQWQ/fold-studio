@@ -1,0 +1,134 @@
+{
+  "geometryHash": "61abea1afedee3f4a156711c56b1468bc050f3b520f0b7500d7bbad6bdeb953e",
+  "sources": [
+    "src/geometry.js",
+    "src/folding.js",
+    "src/model3d.js",
+    "src/preview3d.js",
+    "src/project.js",
+    "src/artwork.js",
+    "scripts/render-template-previews.mjs"
+  ],
+  "previews": {
+    "carton": {
+      "fold": 0.94,
+      "dimensions": {
+        "length": 110,
+        "depth": 65,
+        "height": 170
+      },
+      "panels": 13,
+      "occupied": 33113
+    },
+    "reverse-carton": {
+      "fold": 0.94,
+      "dimensions": {
+        "length": 85,
+        "depth": 50,
+        "height": 140
+      },
+      "panels": 13,
+      "occupied": 30525
+    },
+    "lock-bottom": {
+      "fold": 0.94,
+      "dimensions": {
+        "length": 90,
+        "depth": 60,
+        "height": 150
+      },
+      "panels": 13,
+      "occupied": 31193
+    },
+    "mailer": {
+      "fold": 0.88,
+      "dimensions": {
+        "length": 220,
+        "depth": 155,
+        "height": 55
+      },
+      "panels": 13,
+      "occupied": 34480
+    },
+    "lidbox": {
+      "fold": 1,
+      "dimensions": {
+        "length": 185,
+        "depth": 135,
+        "height": 65
+      },
+      "panels": 18,
+      "occupied": 44810
+    },
+    "drawer-box": {
+      "fold": 1,
+      "dimensions": {
+        "length": 150,
+        "depth": 100,
+        "height": 45
+      },
+      "panels": 14,
+      "occupied": 42679
+    },
+    "book-box": {
+      "fold": 0.9,
+      "dimensions": {
+        "length": 160,
+        "depth": 110,
+        "height": 40
+      },
+      "panels": 13,
+      "occupied": 36535
+    },
+    "shipper": {
+      "fold": 0.9,
+      "dimensions": {
+        "length": 260,
+        "depth": 180,
+        "height": 200
+      },
+      "panels": 13,
+      "occupied": 46343
+    },
+    "sleeve": {
+      "fold": 1,
+      "dimensions": {
+        "length": 140,
+        "depth": 55,
+        "height": 100
+      },
+      "panels": 5,
+      "occupied": 58842
+    },
+    "tray": {
+      "fold": 1,
+      "dimensions": {
+        "length": 170,
+        "depth": 120,
+        "height": 42
+      },
+      "panels": 9,
+      "occupied": 39433
+    },
+    "beverage-can": {
+      "fold": 1,
+      "dimensions": {
+        "length": 66,
+        "depth": 66,
+        "height": 115
+      },
+      "panels": 3,
+      "occupied": 23523
+    },
+    "glass-jar": {
+      "fold": 1,
+      "dimensions": {
+        "length": 72,
+        "depth": 72,
+        "height": 95
+      },
+      "panels": 3,
+      "occupied": 29609
+    }
+  }
+}
