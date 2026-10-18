@@ -1,0 +1,9 @@
+# Vercel CLI 只排除 node_modules 和 .git，不读 .gitignore
+# 这里把本地验证产物排除，避免每次部署白传 25 MB
+artifacts/
+dist/
+折间.html
+node_modules/
+.vercel/
+.env*
+*.bak*
