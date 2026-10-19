@@ -1,5 +1,5 @@
 {
-  "geometryHash": "61abea1afedee3f4a156711c56b1468bc050f3b520f0b7500d7bbad6bdeb953e",
+  "geometryHash": "032a8af15e0dd0810f720d5fd94d15c881ab7bc2925fd3558864c78538711085",
   "sources": [
     "src/geometry.js",
     "src/folding.js",
@@ -110,6 +110,39 @@
       "panels": 9,
       "occupied": 39433
     },
+    "arch-handle-tote": {
+      "fold": 1,
+      "dimensions": {
+        "length": 120,
+        "depth": 100,
+        "height": 100,
+        "archH": 87,
+        "flare": 28,
+        "handleW": 92
+      },
+      "panels": 15,
+      "occupied": 28854
+    },
+    "beverage-can-200-mini": {
+      "fold": 1,
+      "dimensions": {
+        "length": 53,
+        "depth": 53,
+        "height": 111
+      },
+      "panels": 3,
+      "occupied": 19591
+    },
+    "beverage-can-250-slim": {
+      "fold": 1,
+      "dimensions": {
+        "length": 53,
+        "depth": 53,
+        "height": 134
+      },
+      "panels": 3,
+      "occupied": 16748
+    },
     "beverage-can": {
       "fold": 1,
       "dimensions": {
@@ -118,7 +151,27 @@
         "height": 115
       },
       "panels": 3,
-      "occupied": 23523
+      "occupied": 22474
+    },
+    "beverage-can-330-sleek": {
+      "fold": 1,
+      "dimensions": {
+        "length": 58,
+        "depth": 58,
+        "height": 146
+      },
+      "panels": 3,
+      "occupied": 16728
+    },
+    "beverage-can-500-tall": {
+      "fold": 1,
+      "dimensions": {
+        "length": 66,
+        "depth": 66,
+        "height": 168
+      },
+      "panels": 3,
+      "occupied": 16553
     },
     "glass-jar": {
       "fold": 1,

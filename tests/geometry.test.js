@@ -33,8 +33,12 @@ for(const type of Object.keys(BOX_TYPES)){
   });
   test(`${type}: closed model has the requested outside dimensions`,()=>{
     const dimensions=BOX_TYPES[type].defaults,d=makeDieline(type,dimensions),size=foldedBounds(d,1);
-    const expected=d.cylinder?[dimensions.length+.45,dimensions.height+.45,dimensions.length+.45]:type==='drawer-box'?[dimensions.length,dimensions.depth+2.7,dimensions.height+2.7]:type==='book-box'?[dimensions.length+1.8,dimensions.depth+1.8,dimensions.height+1.8]:type==='lidbox'?[dimensions.length+2.7,dimensions.depth+2.7,dimensions.height+1.35]:BOX_TYPES[type].family==='tray'?[dimensions.length,dimensions.depth,dimensions.height]:[dimensions.length,dimensions.height,dimensions.depth];
+    const expected=d.cylinder?[dimensions.length+.45,dimensions.height+.45,dimensions.length+.45]:type==='drawer-box'?[dimensions.length,dimensions.depth+2.7,dimensions.height+2.7]:type==='book-box'?[dimensions.length+1.8,dimensions.depth+1.8,dimensions.height+1.8]:type==='lidbox'?[dimensions.length+2.7,dimensions.depth+2.7,dimensions.height+1.35]:type==='arch-handle-tote'?[size.x,dimensions.depth,size.z]:BOX_TYPES[type].family==='tray'?[dimensions.length,dimensions.depth,dimensions.height]:[dimensions.length,dimensions.height,dimensions.depth];
     size.toArray().forEach((value,i)=>assert.ok(Math.abs(value-expected[i])<1e-4,`${value} != ${expected[i]}`));
+    if(type==='arch-handle-tote'){
+      assert.ok(Math.abs(size.x-(dimensions.length+2*Math.round(dimensions.length*(28/120))))<1);
+      assert.ok(Math.abs(size.y-dimensions.depth)<1e-4);
+    }
   });
 }
 test('invalid dimensions and unknown box types are rejected',()=>{
@@ -58,3 +62,18 @@ test('history branches correctly after undo and respects its memory limit',()=>{
   p.name='branch';h.push(p);assert.equal(h.canRedo,false);assert.equal(h.undo().name,'one');assert.equal(h.redo().name,'branch');
   p.name='three';h.push(p);p.name='four';h.push(p);assert.equal(h.entries.length,3);
 });
+test('arch-handle-tote: all 4 ear flaps flare outward on 2D dieline and adjust with custom parameters',()=>{
+  const d=makeDieline('arch-handle-tote',{length:120,depth:100,height:100,flare:30,archH:90,handleW:85});
+  const base=d.panels.find(p=>p.id==='base');
+  const ble=d.panels.find(p=>p.id==='back-left-ear');
+  const bre=d.panels.find(p=>p.id==='back-right-ear');
+  const fle=d.panels.find(p=>p.id==='front-left-ear');
+  const fre=d.panels.find(p=>p.id==='front-right-ear');
+  assert.ok(Math.max(...ble.points.map(p=>p[0]))<=base.x);
+  assert.ok(Math.min(...bre.points.map(p=>p[0]))>=base.x+base.w);
+  assert.ok(Math.max(...fle.points.map(p=>p[0]))<=base.x);
+  assert.ok(Math.min(...fre.points.map(p=>p[0]))>=base.x+base.w);
+  const fh=d.panels.find(p=>p.id==='front-handle');
+  assert.equal(fh.h,90);
+});
+

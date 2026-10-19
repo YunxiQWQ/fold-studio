@@ -107,8 +107,8 @@ try {
   verifyGLBBuffer(buf3);
 
   // 6. Test Container GLB export (beverage-can and glass-jar)
-  console.log('Testing Container GLB export (beverage-can & glass-jar)...');
-  for (const containerType of ['beverage-can', 'glass-jar']) {
+  console.log('Testing Container GLB export (beverage cans & glass-jar)...');
+  for (const containerType of ['beverage-can-250-slim', 'beverage-can', 'beverage-can-500-tall', 'glass-jar']) {
     await page.locator('#open-templates').click();
     await page.waitForSelector('#templates-dialog[open]');
     await page.locator(`#box-templates button[data-template="${containerType}"]`).click();

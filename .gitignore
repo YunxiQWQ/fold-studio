@@ -7,3 +7,5 @@ artifacts/
 .vercel
 .env*
 折间.html
+standalone/
+scripts/capture-*.mjs

@@ -3,7 +3,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { foldMatrices } from './folding.js';
 import { paintArtwork } from './artwork.js';
 import { surfaceOf } from './project.js';
-import { createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories } from './model3d.js';
+import { createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, canProportions } from './model3d.js';
 
 export async function exportGLB(project, dieline, images, options = {}) {
   const {
@@ -83,10 +83,21 @@ export async function exportGLB(project, dieline, images, options = {}) {
   const cy = rootPanel.y + rootPanel.h / 2;
   const transforms = foldMatrices(dieline, fold, cx, cy);
 
+  const isCan = project.type.startsWith('beverage-can');
   for(const panel of dieline.panels){
+    if (isCan && fold > 0.12 && (panel.id === 'top-lid' || panel.id === 'bottom-rim')) continue;
     const curved=dieline.cylinder && panel.id==='body';
     const geometry=curved?createCylinderRibbonGeometry(panel.w,panel.h,dieline,panel):createPanelGeometry(panel,dieline,cx,cy);
-    if(curved)updateCylinderRibbonPositions(geometry,panel.w,panel.h,dieline.cylinder.diameter,fold);
+    if(curved){
+      let ySpan = null;
+      if (isCan) {
+        const { neckH, botH } = canProportions(dieline.cylinder.diameter, dieline.cylinder.height);
+        const yTop = dieline.cylinder.height / 2 - neckH * fold;
+        const yBottom = -dieline.cylinder.height / 2 + botH * fold;
+        ySpan = [yTop, yBottom];
+      }
+      updateCylinderRibbonPositions(geometry,panel.w,panel.h,dieline.cylinder.diameter,fold,ySpan);
+    }
     const mesh=new THREE.Mesh(geometry,[frontMaterial,innerMaterial,edgeMaterial]);
     mesh.name=panel.label+'_'+panel.id;
     if(!curved)transforms.get(panel.id)?.decompose(mesh.position,mesh.quaternion,mesh.scale);

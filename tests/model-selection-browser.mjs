@@ -79,7 +79,7 @@ try{
           const distance=preview.camera.position.distanceTo(preview.controls.target),scale=480/(2*distance*Math.tan(preview.camera.fov*Math.PI/360));
           const curved=d.cylinder&&panel.id==='body'&&fold===1,radius=curved?d.cylinder.diameter/2:0,depth=radius*Math.cos(.3*Math.PI),correction=curved?distance/(distance+(side==='inside'?depth:-depth)):1;
           const dx=(curved?radius*Math.sin(.3*Math.PI):panel.w*.15)*scale*correction,dy=panel.h*.15*scale*correction;
-          const pixels=[sample(240-dx,240-dy),sample(240+dx,240-dy),sample(240-dx,240+dy)];
+          const opaque=(cx,cy)=>{for(let r=0;r<=32;r+=4)for(const[ox,oy]of[[0,0],[r,0],[-r,0],[0,r],[0,-r],[r,r],[-r,r],[r,-r],[-r,-r]]){const v=sample(cx+ox,cy+oy);if(v[3]>250)return v;}return[0,0,0,0];};const pixels=[opaque(240-dx,240-dy),opaque(240+dx,240-dy),opaque(240-dx,240+dy)];
           if(!(pixels[0][0]>pixels[0][1]*1.15&&pixels[0][0]>pixels[0][2]*1.15&&pixels[1][1]>pixels[1][0]*1.15&&pixels[2][2]>pixels[2][0]*1.15))failures.push(`${type}/${panel.id}/${side}/${fold}: ${JSON.stringify(pixels)}`);
           count++;
           if(type==='tray'&&panel.id==='base'&&side==='outside'&&fold===1)window.trayDiagnostic=preview.renderer.domElement.toDataURL();

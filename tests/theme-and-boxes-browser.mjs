@@ -127,12 +127,12 @@ try {
 
   console.log('Passed: Multi-theme selection (Gray/Dark/Slate/Light/Warm), persistence, Shift+T, and screenshots');
 
-  // 2. Test All 12 Packaging Types via the Template Dialog
-  console.log('Testing 12 Packaging Types via Templates Dialog...');
+  // 2. Test All Packaging Types via the Template Dialog
+  console.log(`Testing ${Object.keys(BOX_TYPES).length} Packaging Types via Templates Dialog...`);
   await page.locator('#open-templates').click();
   await page.waitForSelector('#templates-dialog[open]');
   const templateButtons = await page.locator('#box-templates button[data-template]').all();
-  assert.equal(templateButtons.length, 12, 'Expected 12 packaging template buttons in the dialog');
+  assert.equal(templateButtons.length, Object.keys(BOX_TYPES).length, `Expected ${Object.keys(BOX_TYPES).length} packaging template buttons in the dialog`);
 
   // Screenshot of templates dialog
   await page.screenshot({ path: resolve(artifacts, 'templates-dialog.png') });
@@ -140,7 +140,8 @@ try {
   // Test category filtering in the dialog
   await page.locator('.filter-tab[data-filter="container"]').click();
   const visibleContainerCards = await page.locator('#box-templates button[data-template]:not([hidden])').count();
-  assert.equal(visibleContainerCards, 2, 'Expected 2 container cards when container category filter is active');
+  const expectedContainers = Object.values(BOX_TYPES).filter(t => t.category === 'container').length;
+  assert.equal(visibleContainerCards, expectedContainers, `Expected ${expectedContainers} container cards when container category filter is active`);
 
   // Switch back to all
   await page.locator('.filter-tab[data-filter="all"]').click();
@@ -178,7 +179,7 @@ try {
     console.log(`  ✓ Packaging type: ${type} (${BOX_TYPES[type].name}) - triangles: ${stats.triangles}`);
 
     await page.locator('.preview-stage').screenshot({path:resolve(artifacts,`${type}-3d-stage.png`)});
-    if (type === 'beverage-can' || type === 'glass-jar') await page.screenshot({ path: resolve(artifacts, `${type}-3d.png`) });
+    if (type.startsWith('beverage-can') || type === 'glass-jar') await page.screenshot({ path: resolve(artifacts, `${type}-3d.png`) });
   }
 
   // 3. Test Standalone Offline HTML file

@@ -11,11 +11,61 @@ export const BOX_TYPES={
   shipper:{name:'对口运输箱',english:'REGULAR SLOTTED CARTON',family:'carton',category:'shipping',printPanel:'front',description:'对口摇盖 · 运输包装',defaults:{length:260,depth:180,height:200}},
   sleeve:{name:'包装腰封',english:'PACKAGING SLEEVE',family:'carton',category:'shipping',printPanel:'front',description:'两端开放 · 四面围合',defaults:{length:140,depth:55,height:100}},
   tray:{name:'开放托盘',english:'OPEN TOP TRAY',family:'tray',category:'shipping',printPanel:'base',description:'四壁折起 · 角部粘耳',defaults:{length:170,depth:120,height:42}},
-  'beverage-can':{name:'易拉饮料罐',english:'BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'330ml 铝罐 · 360° 环绕罐标',defaults:{length:66,depth:66,height:115}},
+  'arch-handle-tote':{name:'一体成型弧顶手提盒',english:'ARCH HANDLE TOTE BOX',family:'tray',category:'gift',printPanel:'front',description:'一体成型 · 免胶自锁 · 弧顶提手 · 展开541×474mm',defaults:{length:120,depth:100,height:100,archH:87,flare:28,handleW:92}},
+  'beverage-can-200-mini':{name:'迷你便携罐 (200ml)',english:'200ML MINI BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'200ml 迷你铝罐 · 便携浓缩/咖啡 · 360° 环绕罐标',defaults:{length:53,depth:53,height:111}},
+  'beverage-can-250-slim':{name:'纤体高罐 (250ml)',english:'250ML SLIM BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'250ml 纤细铝罐 · 能量饮料/苏打水 · 360° 环绕罐标',defaults:{length:53,depth:53,height:134}},
+  'beverage-can':{name:'经典易拉罐 (330ml)',english:'330ML CLASSIC BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'330ml 标准经典铝罐 · 360° 环绕罐标',defaults:{length:66,depth:66,height:115}},
+  'beverage-can-330-sleek':{name:'纤秀摩登罐 (330ml)',english:'330ML SLEEK BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'330ml 纤秀摩登铝罐 · 精酿气泡酒 · 360° 环绕罐标',defaults:{length:58,depth:58,height:146}},
+  'beverage-can-500-tall':{name:'大容量高罐 (500ml)',english:'500ML TALL BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'500ml 工业特大高罐 · 啤酒/加大装 · 360° 环绕罐标',defaults:{length:66,depth:66,height:168}},
   'glass-jar':{name:'广口玻璃罐',english:'GLASS JAR',family:'container',category:'container',printPanel:'body',description:'通透玻璃瓶 · 围裹标签 · 金色旋盖',defaults:{length:72,depth:72,height:95}},
 };
 function rectangle(id,label,x,y,w,h,parent=null,hinge=null,angle=0,kind='body'){
   return{id,label,x,y,w,h,parent,hinge,angle,kind,points:[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],inset:['dust','tuck','glue','corner'].includes(kind)?-STACK_GAP:0};
+}
+function evalCubicBezier(p0,p1,p2,p3,steps=8){
+  const pts=[];
+  for(let i=0;i<=steps;i++){
+    const t=i/steps,mt=1-t;
+    pts.push([mt*mt*mt*p0[0]+3*mt*mt*t*p1[0]+3*mt*t*t*p2[0]+t*t*t*p3[0],mt*mt*mt*p0[1]+3*mt*mt*t*p1[1]+3*mt*t*t*p2[1]+t*t*t*p3[1]]);
+  }
+  return pts;
+}
+function createKidneyHandleHole(cx,baseY,handleW,handleH,archH,isFront){
+  const hw=handleW/2,cy=archH*0.44,capR=handleH*0.48,dir=isFront?1:-1;
+  const s1=evalCubicBezier([-hw+capR,cy-handleH*0.35],[-hw*0.45,cy+handleH*0.12],[hw*0.45,cy+handleH*0.12],[hw-capR,cy-handleH*0.35]);
+  const s2=evalCubicBezier([hw-capR,cy-handleH*0.35],[hw+capR*0.4,cy-handleH*0.35],[hw+capR*0.5,cy+handleH*0.55],[hw-capR*0.6,cy+handleH*0.72]);
+  const s3=evalCubicBezier([hw-capR*0.6,cy+handleH*0.72],[hw*0.45,cy+handleH*1.32],[-hw*0.45,cy+handleH*1.32],[-hw+capR*0.6,cy+handleH*0.72]);
+  const s4=evalCubicBezier([-hw+capR*0.6,cy+handleH*0.72],[-hw-capR*0.5,cy+handleH*0.55],[-hw-capR*0.4,cy-handleH*0.35],[-hw+capR,cy-handleH*0.35]);
+  const raw=[...s1,...s2.slice(1),...s3.slice(1),...s4.slice(1,-1)];
+  return raw.map(([x,y])=>[cx+x,baseY+dir*y]);
+}
+function createArchPath(cx,baseY,topW,archH,isFront){
+  const halfTop=topW/2,dir=isFront?1:-1,segs=24,pts=[];
+  for(let i=0;i<=segs;i++){
+    const a=(i/segs)*Math.PI;
+    pts.push([cx+halfTop*Math.cos(a),baseY+dir*(archH*Math.sin(a))]);
+  }
+  return pts;
+}
+function evalQuadBezier(p0,p1,p2,steps=6){
+  const pts=[];
+  for(let i=1;i<=steps;i++){
+    const t=i/steps,mt=1-t;
+    pts.push([mt*mt*p0[0]+2*mt*t*p1[0]+t*t*p2[0],mt*mt*p0[1]+2*mt*t*p1[1]+t*t*p2[1]]);
+  }
+  return pts;
+}
+function earPolygonPoints(baseX,baseY,angleRad,dirYSign,S,earW){
+  const s0=3.5,s1=S-2.0,hookStart=S*0.66,hookSlot=S*0.72;
+  const pStart=[s0,0],pSlant=[s0+10,earW*0.88],pPreHook=[hookStart,earW*0.92],cHook=[hookStart-4,earW];
+  const pDrop1=[hookStart,earW*0.32],pDrop2=[hookSlot,earW*0.32],pRise=[hookSlot,earW*0.95];
+  const pEndHook=[s1,earW*0.52],cEnd=[s1+2,earW*0.90],pBaseEnd=[s1,0];
+  const localPts=[pStart,pSlant,...evalQuadBezier(pSlant,cHook,pPreHook,6),pDrop1,pDrop2,pRise,...evalQuadBezier(pRise,cEnd,pEndHook,6),pBaseEnd];
+  const cosA=Math.cos(angleRad),sinA=Math.sin(angleRad);
+  return localPts.map(([lx,ly0])=>{
+    const ly=ly0*dirYSign;
+    return[baseX+lx*cosA-ly*sinA,baseY+lx*sinA+ly*cosA];
+  });
 }
 export function makeDieline(type,dimensions){
   if(!Object.hasOwn(BOX_TYPES,type))throw new Error('不支持的盒型');
@@ -38,7 +88,84 @@ export function makeDieline(type,dimensions){
     return base;
   };
   if(BOX_TYPES[type].family==='tray'){
-    rootId='base';addTray('',0,0,L,D,H);
+    rootId='base';
+    if(type==='arch-handle-tote'){
+      const flare=dimensions.flare??Math.round(L*(28/120));
+      const archH=dimensions.archH??Math.round(H*(87/100));
+      const topW=L+2*flare;
+      const S=Math.hypot(H,flare),alphaRad=Math.atan2(flare,H),alphaDeg=alphaRad*180/Math.PI;
+      const maxSideDeg=90-alphaDeg,innerLen=S-1.2,tabLen=4.8;
+      const tabW=Math.min(34,D*.34),earW=Math.min(44,D*.44);
+      const handleW=dimensions.handleW??Math.min(92,topW*.52);
+      const handleH=Math.min(25,archH*.28);
+      const sideArmTotal=S+innerLen+tabLen;
+      const x0=Math.ceil(sideArmTotal)+20,y0=H+archH+20;
+      const cx=x0+L/2;
+
+      // 1. Base panel with dual locking slots
+      const base=add('base','底面',x0,y0,L,D);
+      const slotW=2.4,slotH=tabW,slotY1=y0+(D-slotH)/2,slotY2=slotY1+slotH;
+      base.holes=[
+        [[x0+1.2,slotY1],[x0+1.2+slotW,slotY1],[x0+1.2+slotW,slotY2],[x0+1.2,slotY2]],
+        [[x0+L-1.2-slotW,slotY1],[x0+L-1.2,slotY1],[x0+L-1.2,slotY2],[x0+L-1.2-slotW,slotY2]]
+      ];
+
+      // 2. Front & Back flared trapezoids
+      const front=add('front','前壁',x0-flare,y0+D,topW,H,'base',{x:x0,y:y0+D,axis:'x'},90);front.foldWindow=[0,.40];
+      front.points=[[x0,y0+D],[x0+L,y0+D],[x0+L+flare,y0+D+H],[x0-flare,y0+D+H]];
+
+      const back=add('back','后壁',x0-flare,y0-H,topW,H,'base',{x:x0,y:y0,axis:'x'},-90);back.foldWindow=[0,.40];
+      back.points=[[x0,y0],[x0-flare,y0-H],[x0+L+flare,y0-H],[x0+L,y0]];
+
+      // 3. Arched handle domes with kidney handle cutouts
+      const fh=add('front-handle','前提手',x0-flare,y0+D+H,topW,archH,'front',{x:x0-flare,y:y0+D+H,axis:'x'},35,'tuck');
+      fh.foldWindow=[.72,1];
+      fh.points=createArchPath(cx,y0+D+H,topW,archH,true);
+      fh.holes=[createKidneyHandleHole(cx,y0+D+H,handleW,handleH,archH,true)];
+
+      const bh=add('back-handle','后提手',x0-flare,y0-H-archH,topW,archH,'back',{x:x0-flare,y:y0-H,axis:'x'},-35,'tuck');
+      bh.foldWindow=[.72,1];
+      bh.points=createArchPath(cx,y0-H,topW,archH,false);
+      bh.holes=[createKidneyHandleHole(cx,y0-H,handleW,handleH,archH,false)];
+
+      // 4. Ear flaps on slanted edges with hook locking slots
+      const fleA=[x0,y0+D],fleB=[x0-flare,y0+D+H];
+      const fle=add('front-left-ear','前左护耳',x0-flare-earW,y0+D,flare+earW,H,'front',{segment:[fleA,fleB]},90,'corner');
+      fle.foldWindow=[.15,.50];fle.points=earPolygonPoints(x0,y0+D,Math.PI/2+alphaRad,1,S,earW);
+
+      const freA=[x0+L,y0+D],freB=[x0+L+flare,y0+D+H];
+      const fre=add('front-right-ear','前右护耳',x0+L,y0+D,flare+earW,H,'front',{segment:[freA,freB]},-90,'corner');
+      fre.foldWindow=[.15,.50];fre.points=earPolygonPoints(x0+L,y0+D,Math.PI/2-alphaRad,-1,S,earW);
+
+      const bleA=[x0,y0],bleB=[x0-flare,y0-H];
+      const ble=add('back-left-ear','后左护耳',x0-flare-earW,y0-H,flare+earW,H,'back',{segment:[bleA,bleB]},-90,'corner');
+      ble.foldWindow=[.15,.50];ble.points=earPolygonPoints(x0,y0,-Math.PI/2-alphaRad,-1,S,earW);
+
+      const breA=[x0+L,y0],breB=[x0+L+flare,y0-H];
+      const bre=add('back-right-ear','后右护耳',x0+L,y0-H,flare+earW,H,'back',{segment:[breA,breB]},90,'corner');
+      bre.foldWindow=[.15,.50];bre.points=earPolygonPoints(x0+L,y0,-Math.PI/2+alphaRad,1,S,earW);
+
+      // 5. Outer side walls
+      const left=add('left','左侧外壁',x0-S,y0,S,D,'base',{x:x0,y:y0,axis:'y'},-maxSideDeg);left.foldWindow=[.30,.65];
+      const right=add('right','右侧外壁',x0+L,y0,S,D,'base',{x:x0+L,y:y0,axis:'y'},maxSideDeg);right.foldWindow=[.30,.65];
+
+      // 6. Inner rollover locking walls
+      const leftRollover=add('left-rollover','左侧内折壁',x0-S-innerLen,y0+.8,innerLen,D-1.6,'left',{x:x0-S,y:y0,axis:'y'},-180,'flap');
+      leftRollover.foldWindow=[.55,.88];leftRollover.inset=STACK_GAP;
+      const rightRollover=add('right-rollover','右侧内折壁',x0+L+S,y0+.8,innerLen,D-1.6,'right',{x:x0+L+S,y:y0,axis:'y'},180,'flap');
+      rightRollover.foldWindow=[.55,.88];rightRollover.inset=STACK_GAP;
+
+      // 7. Locking tabs at tip of inner rollover walls
+      const tabY1=y0+(D-tabW)/2,tabY2=tabY1+tabW;
+      const leftTab=add('left-lock-tab','左锁舌',x0-S-innerLen-tabLen,tabY1,tabLen,tabW,'left-rollover',{x:x0-S-innerLen,y:tabY1,axis:'y'},90,'tuck');
+      leftTab.foldWindow=[.75,1];leftTab.inset=STACK_GAP;
+      leftTab.points=[[x0-S-innerLen,tabY1],[x0-S-innerLen-tabLen,tabY1+2],[x0-S-innerLen-tabLen,tabY2-2],[x0-S-innerLen,tabY2]];
+
+      const rightTab=add('right-lock-tab','右锁舌',x0+L+S+innerLen,tabY1,tabLen,tabW,'right-rollover',{x:x0+L+S+innerLen,y:tabY1,axis:'y'},-90,'tuck');
+      rightTab.foldWindow=[.75,1];rightTab.inset=STACK_GAP;
+      rightTab.points=[[x0+L+S+innerLen,tabY1],[x0+L+S+innerLen+tabLen,tabY1+2],[x0+L+S+innerLen+tabLen,tabY2-2],[x0+L+S+innerLen,tabY2]];
+    }else{
+      addTray('',0,0,L,D,H);
     if(type==='mailer'){
       const lid=add('lid','翻盖顶面',H,-D,L,D,'back',{x:H,y:0,axis:'x'},-90,'lid');lid.foldWindow=[.40,.90];
       const tuck=Math.min(H*.65,25),p=add('lid-tuck','前插舌',H,-D-tuck,L,tuck,'lid',{x:H,y:-D,axis:'x'},-90,'tuck');
@@ -72,13 +199,14 @@ export function makeDieline(type,dimensions){
       const lip=add('lip','磁吸前舌',x,H-2*ch-cd,cw,ch,'cover',{x,y:H-ch-cd,axis:'x'},-90,'tuck');lip.foldWindow=[.65,1];lip.inset=0;
       const lipBevel=Math.min(6,cw*.08,ch*.25);lip.points=[[x,lip.y+ch],[x+cw,lip.y+ch],[x+cw-lipBevel,lip.y],[x+lipBevel,lip.y]];
     }
-  }else if(BOX_TYPES[type].family==='container'){
+  }}else if(BOX_TYPES[type].family==='container'){
     rootId='body';
     const D=L,W=Math.PI*D,topH=D,bottomH=D;
-    add('body',type==='beverage-can'?'罐身标签':'瓶身标签',0,topH,W,H);
-    const topLid=add('top-lid',type==='beverage-can'?'罐顶盖':'瓶盖顶标',(W-D)/2,0,D,topH,'body');
+    const isCan=type.startsWith('beverage-can');
+    add('body',isCan?'罐身标签':'瓶身标签',0,topH,W,H);
+    const topLid=add('top-lid',isCan?'罐顶盖':'瓶盖顶标',(W-D)/2,0,D,topH,'body');
     topLid.assembly={target:[0,H/2,0],rotationX:-90};
-    const botRim=add('bottom-rim',type==='beverage-can'?'罐底':'瓶底标',(W-D)/2,topH+H,D,bottomH,'body');
+    const botRim=add('bottom-rim',isCan?'罐底':'瓶底标',(W-D)/2,topH+H,D,bottomH,'body');
     botRim.assembly={target:[0,-H/2,0],rotationX:90};
     for(const p of [topLid,botRim]){
       p.shape='circle';
@@ -144,11 +272,24 @@ export function foldProgress(panel,progress){
   return Math.max(0,Math.min(1,(progress-window[0])/(window[1]-window[0])));
 }
 export function inPolygon(x,y,points){let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){const[xi,yi]=points[i],[xj,yj]=points[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)inside=!inside;}return inside;}
-export function panelAt(dieline,x,y){return[...dieline.panels].reverse().find(p=>inPolygon(x,y,p.points));}
-export function foldSegments(panel){if(!panel.hinge)return null;const{x,y,axis}=panel.hinge;return axis==='x'?[[panel.x,y],[panel.x+panel.w,y]]:[[x,panel.y],[x,panel.y+panel.h]];}
+export function panelAt(dieline,x,y){return[...dieline.panels].reverse().find(p=>inPolygon(x,y,p.points)&&(!p.holes||!p.holes.some(h=>inPolygon(x,y,h))));}
+export function foldSegments(panel){
+  if(!panel.hinge)return null;
+  if(panel.hinge.segment)return panel.hinge.segment;
+  const{x,y,axis}=panel.hinge;
+  return axis==='x'?[[panel.x,y],[panel.x+panel.w,y]]:[[x,panel.y],[x,panel.y+panel.h]];
+}
 export function cutSegments(dieline){
   const key=(a,b)=>[a.map(v=>v.toFixed(6)).join(','),b.map(v=>v.toFixed(6)).join(',')].sort().join('|');
   const hinges=new Set(dieline.panels.map(foldSegments).filter(Boolean).map(([a,b])=>key(a,b))),result=new Map();
-  for(const panel of dieline.panels)for(let i=0;i<panel.points.length;i++){const a=panel.points[i],b=panel.points[(i+1)%panel.points.length],id=key(a,b);if(!hinges.has(id))result.set(id,[a,b]);}
+  for(const panel of dieline.panels){
+    for(let i=0;i<panel.points.length;i++){const a=panel.points[i],b=panel.points[(i+1)%panel.points.length],id=key(a,b);if(!hinges.has(id))result.set(id,[a,b]);}
+    if(panel.holes){
+      for(const hole of panel.holes){
+        for(let i=0;i<hole.length;i++){const a=hole[i],b=hole[(i+1)%hole.length],id=key(a,b);result.set(id,[a,b]);}
+      }
+    }
+  }
   return[...result.values()];
 }
+

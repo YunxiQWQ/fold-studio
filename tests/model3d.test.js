@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {BOX_TYPES,makeDieline,BOARD_THICKNESS,panelAt} from '../src/geometry.js';
 import {foldMatrices} from '../src/folding.js';
-import {createCylinderRibbonGeometry,updateCylinderRibbonPositions,createPanelGeometry,pickPanel} from '../src/model3d.js';
+import {createCylinderRibbonGeometry,updateCylinderRibbonPositions,createPanelGeometry,pickPanel,buildContainerAccessories} from '../src/model3d.js';
+
+const CAN_TYPES = ['beverage-can-200-mini', 'beverage-can-250-slim', 'beverage-can', 'beverage-can-330-sleek', 'beverage-can-500-tall'];
 
 test('circular labels have circular cut lines, hit areas, and actual 3D vertices',()=>{
-  for(const type of ['beverage-can','glass-jar']){
+  for(const type of [...CAN_TYPES, 'glass-jar']){
     const d=makeDieline(type,BOX_TYPES[type].defaults),root=d.panels[0],cx=root.w/2,cy=root.y+root.h/2;
     for(const p of d.panels.slice(1)){
       assert.equal(panelAt(d,p.x+1,p.y+1),undefined);
@@ -62,3 +64,61 @@ test('closed nested boxes and overlapping bottom flaps have distinct planes with
     }
   }
 });
+
+test('buildContainerAccessories creates detailed 3D can parts for all sizes with stay-on tab and concave dome', () => {
+  for (const type of CAN_TYPES) {
+    const defaults = BOX_TYPES[type].defaults;
+    const cylinder = { diameter: defaults.length, height: defaults.height };
+    const group = buildContainerAccessories(type, cylinder);
+
+    assert.equal(group.name, 'ContainerAccessories');
+    assert.ok(group.children.length >= 6, `${type} should have multiple 3D accessory parts`);
+
+    const tab = group.getObjectByName('Can_StayOnTab');
+    assert.ok(tab, `${type} must have a stay-on pull tab assembly`);
+    assert.ok(tab.children.length >= 3, `${type} tab assembly must contain rivet, lever, and ring handle`);
+
+    // Verify bounding box matches expected can height
+    group.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(group);
+    const height = box.max.y - box.min.y;
+    assert.ok(Math.abs(height - defaults.height) < 1.0, `${type} accessory height ${height} must match can height ${defaults.height}`);
+  }
+});
+
+test('arch-handle-tote: creates 3D hollow handle geometry with die-cut holes and self-locking rollovers', () => {
+  const d = makeDieline('arch-handle-tote', BOX_TYPES['arch-handle-tote'].defaults);
+  const root = d.panels.find(p => p.id === d.rootId);
+  const cx = root.x + root.w / 2, cy = root.y + root.h / 2;
+
+  // 1. Verify handles have holes and extrude into 3 material groups
+  for (const id of ['front-handle', 'back-handle']) {
+    const handle = d.panels.find(p => p.id === id);
+    assert.ok(handle, `${id} must exist in dieline`);
+    assert.ok(handle.holes && handle.holes.length === 1, `${id} must define a die-cut hole`);
+
+    const geom = createPanelGeometry(handle, d, cx, cy);
+    assert.ok(geom.attributes.position.count > 300, `${id} 3D geometry must contain dense vertices for smooth arch and hole`);
+    assert.equal(geom.groups.length, 3, `${id} must have outside, inside, and cardboard edge groups`);
+
+    // Verify center of hole is not hit by panelAt, but rim is hit
+    const cxHole = handle.x + handle.w / 2;
+    const cyHole = handle.holes[0].reduce((sum, pt) => sum + pt[1], 0) / handle.holes[0].length;
+    assert.equal(panelAt(d, cxHole, cyHole), undefined, `clicking inside hole center of ${id} must register empty space`);
+    const solidPt = [handle.x + handle.w * 0.2, handle.y + (id === 'front-handle' ? handle.h * 0.2 : handle.h * 0.8)];
+    assert.equal(panelAt(d, solidPt[0], solidPt[1])?.id, id, `clicking on solid rim of ${id} must hit panel`);
+    geom.dispose();
+  }
+
+  // 2. Verify rollover inner walls and bottom lock tabs fold into base plane
+  const m = foldMatrices(d, 1, cx, cy);
+  for (const tabId of ['left-lock-tab', 'right-lock-tab']) {
+    const tab = d.panels.find(p => p.id === tabId);
+    assert.ok(tab, `${tabId} must exist`);
+    const pt = new THREE.Vector3(tab.x + tab.w / 2 - cx, -(tab.y + tab.h / 2 - cy), 0).applyMatrix4(m.get(tabId));
+    assert.ok(Math.abs(pt.x) < d.panels.find(p => p.id === 'base').w / 2, `${tabId} must center into base locking slot`);
+    assert.ok(Math.abs(pt.y) < 1e-4, `${tabId} must center along depth axis`);
+    assert.ok(pt.z < 0, `${tabId} tab inserts down into slot`);
+  }
+});
+

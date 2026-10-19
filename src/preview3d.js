@@ -4,7 +4,7 @@ import { foldMatrices } from './folding.js';
 import { paintArtwork } from './artwork.js';
 import { surfaceOf } from './project.js';
 import { BOX_TYPES } from './geometry.js';
-import {createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, pickPanel} from './model3d.js';
+import {createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, pickPanel, canProportions} from './model3d.js';
 import { proofColor } from './color.js';
 
 const QUALITY = { economy: { dpr: 1, atlas: 768 }, balanced: { dpr: 1.35, atlas: 1536 }, crisp: { dpr: 1.8, atlas: 2048 } };
@@ -81,7 +81,16 @@ export class Preview3D {
   setCameraUp(up){if(this.camera.up.distanceToSquared(up)>1e-10){this.camera.up.copy(up);this.makeControls();}}
   showAll(){
     this.frontMaterial.visible=true;
-    for(const mesh of this.root.children)mesh.visible=mesh!==this.accessories || this.foldValue>.12;
+    const isCan = this.project?.type?.startsWith('beverage-can');
+    for(const mesh of this.root.children){
+      if (mesh === this.accessories) {
+        mesh.visible = this.foldValue > 0.12;
+      } else if (isCan && (mesh.userData?.panel === 'top-lid' || mesh.userData?.panel === 'bottom-rim')) {
+        mesh.visible = this.foldValue <= 0.12;
+      } else {
+        mesh.visible = true;
+      }
+    }
     this.invalidate();
     if(this.isolatedPanel){this.isolatedPanel=null;this.onIsolation?.(false);}
   }
@@ -132,9 +141,17 @@ export class Preview3D {
     if (!this.dieline) return;
     this.foldValue=value;
     if (this.dieline.cylinder) {
+      const isCan = this.project?.type?.startsWith('beverage-can');
       const bodyMesh = this.meshes.get('body');
       if (bodyMesh) {
-        updateCylinderRibbonPositions(bodyMesh.geometry, this.dieline.cylinder.diameter * Math.PI, this.dieline.cylinder.height, this.dieline.cylinder.diameter, value);
+        let ySpan = null;
+        if (isCan) {
+          const { neckH, botH } = canProportions(this.dieline.cylinder.diameter, this.dieline.cylinder.height);
+          const yTop = this.dieline.cylinder.height / 2 - neckH * value;
+          const yBottom = -this.dieline.cylinder.height / 2 + botH * value;
+          ySpan = [yTop, yBottom];
+        }
+        updateCylinderRibbonPositions(bodyMesh.geometry, this.dieline.cylinder.diameter * Math.PI, this.dieline.cylinder.height, this.dieline.cylinder.diameter, value, ySpan);
       }
       if (this.accessories) {
         this.accessories.visible = !this.isolatedPanel && value > 0.12;
@@ -142,11 +159,15 @@ export class Preview3D {
         this.accessories.scale.set(s, s, s);
       }
     }
+    const isCan = this.project?.type?.startsWith('beverage-can');
     const transforms = foldMatrices(this.dieline,value,this.cx,this.cy);
     for (const panel of this.dieline.panels) {
       if (this.dieline.cylinder && panel.id === 'body') continue;
       const mesh = this.meshes.get(panel.id);
       if (mesh) {
+        if (isCan && (panel.id === 'top-lid' || panel.id === 'bottom-rim')) {
+          mesh.visible = this.isolatedPanel === panel.id || value <= 0.12;
+        }
         mesh.matrix.copy(transforms.get(panel.id));
         mesh.matrixWorldNeedsUpdate = true;
       }

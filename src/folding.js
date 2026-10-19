@@ -1,4 +1,4 @@
-import { Matrix4 } from 'three';
+import { Matrix4, Vector3 } from 'three';
 import { foldProgress } from './geometry.js';
 
 export function foldMatrices(dieline, progress, cx, cy) {
@@ -12,6 +12,15 @@ export function foldMatrices(dieline, progress, cx, cy) {
       if(panel.assembly){
         const x=panel.x+panel.w/2-cx,y=-(panel.y+panel.h/2-cy),[tx,ty,tz]=panel.assembly.target;
         matrix.multiply(new Matrix4().makeTranslation(x+(tx-x)*fraction,y+(ty-y)*fraction,tz*fraction)).multiply(new Matrix4().makeRotationX(panel.assembly.rotationX*Math.PI/180*fraction)).multiply(new Matrix4().makeTranslation(-x,-y,0));
+      }else if(panel.hinge.segment){
+        const [p1, p2] = panel.hinge.segment;
+        const x1 = p1[0] - cx, y1 = -(p1[1] - cy);
+        const x2 = p2[0] - cx, y2 = -(p2[1] - cy);
+        const axis = new Vector3(x2 - x1, y2 - y1, 0).normalize();
+        const angle = panel.angle * Math.PI / 180 * fraction;
+        matrix.multiply(new Matrix4().makeTranslation(x1, y1, 0))
+              .multiply(new Matrix4().makeRotationAxis(axis, angle))
+              .multiply(new Matrix4().makeTranslation(-x1, -y1, 0));
       }else{
         const x=panel.hinge.x-cx,y=-(panel.hinge.y-cy),rotation=new Matrix4(),angle=panel.angle*Math.PI/180*fraction;
         if(panel.hinge.axis==='x')rotation.makeRotationX(angle);else rotation.makeRotationY(angle);
