@@ -1,7 +1,7 @@
 import {Canvas,FabricObject,Path,ActiveSelection,util} from 'fabric';
 import {polygonPath,paintArtwork,drawLayer} from './artwork.js';
 import {ArtworkText,textOptions} from './text-layout.js';
-import {foldSegments,panelAt} from './geometry.js';
+import {creasePaths,cutSegments,panelAt} from './geometry.js';
 import {printRegions,inPrintRegions,regionPath} from './artwork-space.js';
 import {sideOf} from './project.js';
 import {proofColor} from './color.js';
@@ -90,7 +90,13 @@ export class Editor2D {
   invalidate(){for(const obj of this.objects.values())if(obj.layer?.type!=='text')obj.dirty=true;this.fabric.requestRenderAll();}
   background(){
     if(!this.project)return;const ctx=this.fabric.contextContainer,s=this.view.scale,dpr=this.fabric.getRetinaScaling(),inside=this.side==='inside',[cut,crease,active]=COLORS[this.theme];ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.translate(this.view.x+(inside?(this.dieline.minX+this.dieline.maxX)*s:0),this.view.y);ctx.scale(inside?-s:s,s);paintArtwork(ctx,{...this.project,layers:[]},this.dieline,this.images,this.side,this.colorMode);
-    for(const p of this.dieline.panels){polygonPath(ctx,p.points);ctx.strokeStyle=p.id===this.panelId?active:cut;ctx.lineWidth=(p.id===this.panelId?1.5:.8)/s;ctx.stroke();if(this.guides){const seg=foldSegments(p);if(seg){ctx.beginPath();ctx.moveTo(...seg[0]);ctx.lineTo(...seg[1]);ctx.strokeStyle=crease;ctx.lineWidth=1/s;ctx.setLineDash([4/s,3/s]);ctx.stroke();ctx.setLineDash([]);}if(!this.project.layers.some(l=>l.panel===p.id&&l.visible&&sideOf(l)===this.side)){ctx.save();ctx.translate(p.x+p.w/2,p.y+p.h/2);if(inside)ctx.scale(-1,1);ctx.font=`${9/s}px sans-serif`;ctx.textAlign='center';ctx.fillStyle=cut;ctx.fillText(p.label,0,0);ctx.restore();}}}ctx.restore();
+    ctx.beginPath();for(const [a,b]of cutSegments(this.dieline)){ctx.moveTo(...a);ctx.lineTo(...b);}ctx.strokeStyle=cut;ctx.lineWidth=.8/s;ctx.stroke();
+    const current=this.dieline.panels.find(p=>p.id===this.panelId);if(current&&!current.curvedSkin){polygonPath(ctx,current.points);ctx.strokeStyle=active;ctx.lineWidth=1.5/s;ctx.stroke();}
+    if(this.guides){
+      ctx.beginPath();for(const {points}of creasePaths(this.dieline))points.forEach((pt,i)=>i?ctx.lineTo(...pt):ctx.moveTo(...pt));
+      ctx.strokeStyle=crease;ctx.lineWidth=1/s;ctx.setLineDash([4/s,3/s]);ctx.stroke();ctx.setLineDash([]);
+      for(const p of this.dieline.panels)if(!this.project.layers.some(l=>l.panel===p.id&&l.visible&&sideOf(l)===this.side)){ctx.save();ctx.translate(p.x+p.w/2,p.y+p.h/2);if(inside)ctx.scale(-1,1);ctx.font=`${9/s}px sans-serif`;ctx.textAlign='center';ctx.fillStyle=cut;ctx.fillText(p.label,0,0);ctx.restore();}
+    }ctx.restore();
   }
   overlay(){
     if(!this.dieline)return;const ctx=this.fabric.contextContainer,dpr=this.fabric.getRetinaScaling(),s=this.view.scale,[,,,bg,fg]=COLORS[this.theme];ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);

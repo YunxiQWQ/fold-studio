@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { BOX_TYPES, makeDieline, cutSegments, foldSegments } from '../src/geometry.js';
 import { foldMatrices } from '../src/folding.js';
-import { createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions } from '../src/model3d.js';
+import { createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions,buildContainerAccessories } from '../src/model3d.js';
 import { newProject, validateProject, History } from '../src/project.js';
+import {curvedPoint} from '../src/curved-carton.js';
 
 function foldedBounds(dieline, progress) {
   if (dieline.cylinder) {
@@ -14,17 +15,19 @@ function foldedBounds(dieline, progress) {
       if(curved)updateCylinderRibbonPositions(g,panel.w,panel.h,dieline.cylinder.diameter,progress);
       const b=g.boundingBox.clone();if(!curved)b.applyMatrix4(transforms.get(panel.id));bounds.union(b);g.dispose();
     }
+    if(dieline.cylinder.sourceType&&progress>0){const g=buildContainerAccessories(dieline.type,dieline.cylinder);g.scale.setScalar(Math.min(1,Math.max(0,(progress-.12)/.88)));g.updateMatrixWorld(true);bounds.union(new THREE.Box3().setFromObject(g));for(const m of g.children){m.geometry.dispose();m.material.dispose();}}
     return bounds.getSize(new THREE.Vector3());
   }
   const root=dieline.panels.find(p=>p.id===dieline.rootId),cx=root.x+root.w/2,cy=root.y+root.h/2,matrices=foldMatrices(dieline,progress,cx,cy);
   const bounds=new THREE.Box3();
-  for(const p of dieline.panels)for(const [x,y]of p.points)bounds.expandByPoint(new THREE.Vector3(x-cx,-(y-cy),0).applyMatrix4(matrices.get(p.id)));
+  for(const p of dieline.panels)for(const [x,y]of p.points)bounds.expandByPoint(p.curvedSkin?new THREE.Vector3(...curvedPoint(x,y,dieline,progress,cx,cy)):new THREE.Vector3(x-cx,-(y-cy),0).applyMatrix4(matrices.get(p.id)));
   return bounds.getSize(new THREE.Vector3());
 }
 
 for(const type of Object.keys(BOX_TYPES)){
   test(`${type}: fold graph is connected, acyclic, and finite at supported dimension extremes`,()=>{
     for(const dimensions of [BOX_TYPES[type].defaults,{length:15,depth:15,height:15},{length:600,depth:15,height:600},{length:15,depth:600,height:15}]){
+      if(BOX_TYPES[type].square)dimensions.depth=dimensions.length;
       const d=makeDieline(type,dimensions),ids=new Set(d.panels.map(p=>p.id));
       assert.equal(ids.size,d.panels.length);
       for(const p of d.panels){const visited=new Set();let current=p;while(current.parent){assert.ok(!visited.has(current.id));visited.add(current.id);assert.ok(ids.has(current.parent));current=d.panels.find(p=>p.id===current.parent);}assert.equal(current.id,d.rootId);}
@@ -33,6 +36,16 @@ for(const type of Object.keys(BOX_TYPES)){
   });
   test(`${type}: closed model has the requested outside dimensions`,()=>{
     const dimensions=BOX_TYPES[type].defaults,d=makeDieline(type,dimensions),size=foldedBounds(d,1);
+    if(d.cylinder?.sourceType){
+      assert.ok(Math.abs(size.y-dimensions.height-.45)<1e-3);
+      for(const value of [size.x,size.z])assert.ok(value>=dimensions.length*.99&&value<=dimensions.length+.45);
+      return;
+    }
+    if(d.curvedBody){
+      assert.ok(Math.abs(size.x-Math.SQRT2*dimensions.length)<1e-4);
+      assert.ok(Math.abs(size.z-Math.SQRT2*dimensions.length)<1e-4);
+      assert.ok(Math.abs(size.y-dimensions.height)<1e-4);return;
+    }
     const expected=d.cylinder?[dimensions.length+.45,dimensions.height+.45,dimensions.length+.45]:type==='drawer-box'?[dimensions.length,dimensions.depth+2.7,dimensions.height+2.7]:type==='book-box'?[dimensions.length+1.8,dimensions.depth+1.8,dimensions.height+1.8]:type==='lidbox'?[dimensions.length+2.7,dimensions.depth+2.7,dimensions.height+1.35]:type==='arch-handle-tote'?[size.x,dimensions.depth,size.z]:BOX_TYPES[type].family==='tray'?[dimensions.length,dimensions.depth,dimensions.height]:[dimensions.length,dimensions.height,dimensions.depth];
     size.toArray().forEach((value,i)=>assert.ok(Math.abs(value-expected[i])<1e-4,`${value} != ${expected[i]}`));
     if(type==='arch-handle-tote'){

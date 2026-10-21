@@ -38,7 +38,19 @@ export function sampleLayers(type) {
       { id: uid(), type: 'text', name: '侧面文字', panel: 'right', x: 0.5, y: 0.42, w: 0.88, h: 0.4, text: '来自自然\n归于日常\n\nSLOW DOWN.\nGROW WILD.', font: 'sans', size: 4, color: '#39563c', rotation: 0, opacity: 1, visible: true, bold: false },
       { id: uid(), type: 'text', name: '背面说明', panel: 'back', x: 0.5, y: 0.35, w: 0.88, h: 0.4, text: '与自然相处的每一天\n\n留一点时间，感受季节。\n留一点空间，装下喜欢。\n\nDESIGNED TO BE SIMPLE.', font: 'sans', size: 4, color: '#39563c', rotation: 0, opacity: 1, visible: true, bold: false },
     ] : []),
-  ].map(layer => ({ ...layer, side: 'outside' }));
+  ].map(layer => {
+    if(type==='gable-handle-carton'&&layer.panel==='front'){
+      // This face lies below the tray base in the net; rotate its sample
+      // composition so its text reads upright after the wall folds up.
+      layer.x=1-layer.x;layer.y=1-layer.y;layer.rotation=180;
+    }
+    if(BOX_TYPES[type].sourceMesh||type==='blank-metal-tin'){
+      const info=BOX_TYPES[type],band=info.labelBand??[.04,.96],labelH=info.defaults.height*(band[1]-band[0]);
+      if(layer.type==='text')layer.size=Math.min(layer.size,labelH*.085);
+      if(layer.shape==='botanical')layer.w=Math.min(.25,labelH*.8/(Math.PI*info.defaults.length));
+    }
+    return{...layer,side:'outside'};
+  });
 }
 
 export function validateProject(input) {

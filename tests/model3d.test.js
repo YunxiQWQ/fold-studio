@@ -8,7 +8,7 @@ import {createCylinderRibbonGeometry,updateCylinderRibbonPositions,createPanelGe
 const CAN_TYPES = ['beverage-can-200-mini', 'beverage-can-250-slim', 'beverage-can', 'beverage-can-330-sleek', 'beverage-can-500-tall'];
 
 test('circular labels have circular cut lines, hit areas, and actual 3D vertices',()=>{
-  for(const type of [...CAN_TYPES, 'glass-jar']){
+  for(const type of CAN_TYPES){
     const d=makeDieline(type,BOX_TYPES[type].defaults),root=d.panels[0],cx=root.w/2,cy=root.y+root.h/2;
     for(const p of d.panels.slice(1)){
       assert.equal(panelAt(d,p.x+1,p.y+1),undefined);

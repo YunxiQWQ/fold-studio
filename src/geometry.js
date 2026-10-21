@@ -1,7 +1,11 @@
+import {makeCurvedCarton} from './curved-carton.js';
+import {SELECTED_BOXES,makeSelectedStructure} from './selected-structures.js';
+import {SELECTED_CONTAINERS} from './selected-containers.js';
 export const BOARD_THICKNESS=.45;
 const STACK_GAP=BOARD_THICKNESS*1.4;
 export const BOX_TYPES={
   carton:{name:'顺插舌纸盒',english:'STRAIGHT TUCK CARTON',family:'carton',category:'carton',printPanel:'front',description:'上下同向插舌',defaults:{length:110,depth:65,height:170}},
+  'curved-twist-carton':{name:'弧线扭转盒',english:'CURVED CREASE TWIST CARTON',family:'curved',category:'carton',square:true,printPanel:'front',description:'双弧压痕 · 扭转曲面 · 上下反向插盖',defaults:{length:80,depth:80,height:160}},
   'reverse-carton':{name:'反插舌纸盒',english:'REVERSE TUCK CARTON',family:'carton',category:'carton',printPanel:'front',description:'上下反向插舌',defaults:{length:85,depth:50,height:140}},
   'lock-bottom':{name:'扣底彩盒',english:'LOCK BOTTOM CARTON',family:'carton',category:'carton',printPanel:'front',description:'插舌顶盖 · 扣锁底盖',defaults:{length:90,depth:60,height:150}},
   mailer:{name:'翻盖飞机盒',english:'HINGED LID MAILER',family:'tray',category:'shipping',printPanel:'lid',description:'连体翻盖 · 插舌侧翼',defaults:{length:220,depth:155,height:55}},
@@ -17,7 +21,8 @@ export const BOX_TYPES={
   'beverage-can':{name:'经典易拉罐 (330ml)',english:'330ML CLASSIC BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'330ml 标准经典铝罐 · 360° 环绕罐标',defaults:{length:66,depth:66,height:115}},
   'beverage-can-330-sleek':{name:'纤秀摩登罐 (330ml)',english:'330ML SLEEK BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'330ml 纤秀摩登铝罐 · 精酿气泡酒 · 360° 环绕罐标',defaults:{length:58,depth:58,height:146}},
   'beverage-can-500-tall':{name:'大容量高罐 (500ml)',english:'500ML TALL BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'500ml 工业特大高罐 · 啤酒/加大装 · 360° 环绕罐标',defaults:{length:66,depth:66,height:168}},
-  'glass-jar':{name:'广口玻璃罐',english:'GLASS JAR',family:'container',category:'container',printPanel:'body',description:'通透玻璃瓶 · 围裹标签 · 金色旋盖',defaults:{length:72,depth:72,height:95}},
+  ...SELECTED_BOXES,
+  ...SELECTED_CONTAINERS,
 };
 function rectangle(id,label,x,y,w,h,parent=null,hinge=null,angle=0,kind='body'){
   return{id,label,x,y,w,h,parent,hinge,angle,kind,points:[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],inset:['dust','tuck','glue','corner'].includes(kind)?-STACK_GAP:0};
@@ -71,7 +76,7 @@ export function makeDieline(type,dimensions){
   if(!Object.hasOwn(BOX_TYPES,type))throw new Error('不支持的盒型');
   const{length:L,depth:D,height:H}=dimensions;
   for(const value of[L,D,H])if(!Number.isFinite(value)||value<15||value>600)throw new Error('尺寸需介于 15–600 mm');
-  const panels=[],add=(...args)=>{const p=rectangle(...args);panels.push(p);return p;};let rootId;
+  const panels=[],add=(...args)=>{const p=rectangle(...args);panels.push(p);return p;};let rootId,curvedBody=null,extraCreases=[];
   const addTray=(prefix,x,y,w,d,h,parent=null)=>{
     const id=name=>prefix?`${prefix}-${name}`:name,baseId=prefix==='lid'?'lid':id('base');
     const base=add(baseId,prefix?'上盖顶面':'底面',x+h,y+h,w,d,parent);
@@ -87,7 +92,12 @@ export function makeDieline(type,dimensions){
     }
     return base;
   };
-  if(BOX_TYPES[type].family==='tray'){
+  if(Object.hasOwn(SELECTED_BOXES,type)){
+    rootId=makeSelectedStructure(type,dimensions,add).rootId;
+  }else if(type==='curved-twist-carton'){
+    if(L!==D)throw new Error('弧线扭转盒采用正方形截面，长宽需相同');
+    rootId='front';const result=makeCurvedCarton(add,dimensions);curvedBody=result.body;extraCreases=result.curves;
+  }else if(BOX_TYPES[type].family==='tray'){
     rootId='base';
     if(type==='arch-handle-tote'){
       const flare=dimensions.flare??Math.round(L*(28/120));
@@ -201,12 +211,12 @@ export function makeDieline(type,dimensions){
     }
   }}else if(BOX_TYPES[type].family==='container'){
     rootId='body';
-    const D=L,W=Math.PI*D,topH=D,bottomH=D;
+    const D=L,W=Math.PI*D,topH=D,band=BOX_TYPES[type].labelBand??(type==='blank-metal-tin'?[.04,.96]:[0,1]),labelH=H*(band[1]-band[0]),lidD=type==='screw-metal-tin'?D*.45:BOX_TYPES[type].sourceMesh||type==='blank-metal-tin'?D*.90:D;
     const isCan=type.startsWith('beverage-can');
-    add('body',isCan?'罐身标签':'瓶身标签',0,topH,W,H);
-    const topLid=add('top-lid',isCan?'罐顶盖':'瓶盖顶标',(W-D)/2,0,D,topH,'body');
+    add('body',isCan||Object.hasOwn(SELECTED_CONTAINERS,type)?'罐身标签':'瓶身标签',0,topH,W,labelH);
+    const topLid=add('top-lid',isCan?'罐顶盖':'盖顶标签',(W-lidD)/2,topH-lidD,lidD,lidD,'body');
     topLid.assembly={target:[0,H/2,0],rotationX:-90};
-    const botRim=add('bottom-rim',isCan?'罐底':'瓶底标',(W-D)/2,topH+H,D,bottomH,'body');
+    const botRim=add('bottom-rim',isCan?'罐底':'底部标签',(W-lidD)/2,topH+labelH,lidD,lidD,'body');
     botRim.assembly={target:[0,-H/2,0],rotationX:90};
     for(const p of [topLid,botRim]){
       p.shape='circle';
@@ -262,9 +272,9 @@ export function makeDieline(type,dimensions){
   const points=panels.flatMap(p=>p.points),minX=Math.min(...points.map(p=>p[0])),minY=Math.min(...points.map(p=>p[1])),maxX=Math.max(...points.map(p=>p[0])),maxY=Math.max(...points.map(p=>p[1]));
   const isContainer=BOX_TYPES[type].family==='container';
   return{
-    type,panels,rootId,width:maxX-minX,height:maxY-minY,minX,minY,maxX,maxY,
+    type,panels,rootId,width:maxX-minX,height:maxY-minY,minX,minY,maxX,maxY,curvedBody,extraCreases,
     rootRotationX:BOX_TYPES[type].family==='tray'?Math.PI/2:0,
-    cylinder:isContainer?{diameter:L,height:H,labelHeight:H,topHeight:L,bottomHeight:L}:null,
+    cylinder:isContainer?{diameter:L,height:H,labelHeight:panels[0].h,topHeight:panels[1].h,bottomHeight:panels[2].h,sourceType:BOX_TYPES[type].sourceMesh?type:null}:null,
   };
 }
 export function foldProgress(panel,progress){
@@ -274,14 +284,17 @@ export function foldProgress(panel,progress){
 export function inPolygon(x,y,points){let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){const[xi,yi]=points[i],[xj,yj]=points[j];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)inside=!inside;}return inside;}
 export function panelAt(dieline,x,y){return[...dieline.panels].reverse().find(p=>inPolygon(x,y,p.points)&&(!p.holes||!p.holes.some(h=>inPolygon(x,y,h))));}
 export function foldSegments(panel){
-  if(!panel.hinge)return null;
+  if(!panel.hinge||panel.hinge.hidden)return null;
   if(panel.hinge.segment)return panel.hinge.segment;
   const{x,y,axis}=panel.hinge;
   return axis==='x'?[[panel.x,y],[panel.x+panel.w,y]]:[[x,panel.y],[x,panel.y+panel.h]];
 }
+export function creasePaths(dieline){
+  return[...dieline.panels.map(p=>{const points=foldSegments(p);return points?{id:p.id,points,d:`M${points[0].join(' ')}L${points[1].join(' ')}`}:null;}).filter(Boolean),...(dieline.extraCreases??[])];
+}
 export function cutSegments(dieline){
   const key=(a,b)=>[a.map(v=>v.toFixed(6)).join(','),b.map(v=>v.toFixed(6)).join(',')].sort().join('|');
-  const hinges=new Set(dieline.panels.map(foldSegments).filter(Boolean).map(([a,b])=>key(a,b))),result=new Map();
+  const hinges=new Set(creasePaths(dieline).flatMap(({points})=>points.slice(1).map((b,i)=>key(points[i],b)))),result=new Map();
   for(const panel of dieline.panels){
     for(let i=0;i<panel.points.length;i++){const a=panel.points[i],b=panel.points[(i+1)%panel.points.length],id=key(a,b);if(!hinges.has(id))result.set(id,[a,b]);}
     if(panel.holes){

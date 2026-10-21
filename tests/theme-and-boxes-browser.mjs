@@ -179,7 +179,7 @@ try {
     console.log(`  ✓ Packaging type: ${type} (${BOX_TYPES[type].name}) - triangles: ${stats.triangles}`);
 
     await page.locator('.preview-stage').screenshot({path:resolve(artifacts,`${type}-3d-stage.png`)});
-    if (type.startsWith('beverage-can') || type === 'glass-jar') await page.screenshot({ path: resolve(artifacts, `${type}-3d.png`) });
+    if (BOX_TYPES[type].family === 'container') await page.screenshot({ path: resolve(artifacts, `${type}-3d.png`) });
   }
 
   // 3. Test Standalone Offline HTML file

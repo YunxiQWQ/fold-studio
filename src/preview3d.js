@@ -6,6 +6,7 @@ import { surfaceOf } from './project.js';
 import { BOX_TYPES } from './geometry.js';
 import {createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, pickPanel, canProportions} from './model3d.js';
 import { proofColor } from './color.js';
+import {updateCurvedSkinGeometry} from './curved-carton-mesh.js';
 
 const QUALITY = { economy: { dpr: 1, atlas: 768 }, balanced: { dpr: 1.35, atlas: 1536 }, crisp: { dpr: 1.8, atlas: 2048 } };
 
@@ -165,6 +166,7 @@ export class Preview3D {
       if (this.dieline.cylinder && panel.id === 'body') continue;
       const mesh = this.meshes.get(panel.id);
       if (mesh) {
+        if(panel.curvedSkin)updateCurvedSkinGeometry(mesh.geometry,this.dieline,value,this.cx,this.cy);
         if (isCan && (panel.id === 'top-lid' || panel.id === 'bottom-rim')) {
           mesh.visible = this.isolatedPanel === panel.id || value <= 0.12;
         }
@@ -215,7 +217,7 @@ export class Preview3D {
     const halfFov=this.camera.fov*Math.PI/360;
     const distance=Math.max(size.y,size.x/Math.max(.25,this.camera.aspect),size.z)*.64/Math.tan(halfFov)+size.z*.6;
     this.setCameraUp(new THREE.Vector3(0,1,0));
-    const directions={iso:BOX_TYPES[this.project.type].family==='tray'?[1,1.45,1.5]:BOX_TYPES[this.project.type].family==='container'?[1,.45,1.7]:[1,.65,1.6],front:[0,0,1],reverse:[0,0,-1],bottom:[0,-1,.001],side:[1,0,0],top:[0,1,.001]};
+    const directions={iso:BOX_TYPES[this.project.type].viewDirection??(BOX_TYPES[this.project.type].family==='tray'?[1,1.45,1.5]:BOX_TYPES[this.project.type].family==='container'?[1,.45,1.7]:[1,.65,1.6]),front:[0,0,1],reverse:[0,0,-1],bottom:[0,-1,.001],side:[1,0,0],top:[0,1,.001]};
     const direction=new THREE.Vector3(...(directions[view] ?? directions.iso)).normalize();
     this.camera.position.copy(center).addScaledVector(direction,Math.max(100,distance));
     this.controls.target.copy(center); this.controls.update(); this.invalidate();
@@ -229,8 +231,10 @@ export class Preview3D {
     const curved=this.dieline.cylinder && panelId==='body';
     // In an isolated inside-label check, remove the opaque outside so the inner print is readable.
     this.frontMaterial.visible=!(curved && side==='inside' && isolate);
-    const center=curved?new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3()):new THREE.Vector3(panel.x+panel.w/2-this.cx,-(panel.y+panel.h/2-this.cy),0).applyMatrix4(mesh.matrixWorld);
+    const skin=mesh.geometry.curvedSkin,skinIndex=skin?Math.floor(skin.ny/2)*(skin.nx+1)+Math.floor(skin.nx/2):0;
+    const center=skin?new THREE.Vector3().fromBufferAttribute(mesh.geometry.attributes.position,skinIndex).applyMatrix4(mesh.matrixWorld):curved?new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3()):new THREE.Vector3(panel.x+panel.w/2-this.cx,-(panel.y+panel.h/2-this.cy),0).applyMatrix4(mesh.matrixWorld);
     const normal=new THREE.Vector3(0,0,side==='outside'?1:-1).transformDirection(mesh.matrixWorld);
+    if(skin)normal.fromBufferAttribute(mesh.geometry.attributes.normal,skinIndex).multiplyScalar(side==='outside'?1:-1).transformDirection(mesh.matrixWorld);
     const up=new THREE.Vector3(0,1,0).transformDirection(mesh.matrixWorld);
     const distance=Math.max(panel.h,(curved && this.foldValue>.9?this.dieline.cylinder.diameter:panel.w)/Math.max(.25,this.camera.aspect))*.63/Math.tan(this.camera.fov*Math.PI/360);
     if(isolate){for(const child of this.root.children)child.visible=child===mesh;this.isolatedPanel=panelId;this.onIsolation?.(true);}

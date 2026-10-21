@@ -402,3 +402,58 @@ SOFTWARE.
 - Special thanks @RyanChristian4427 who has rewritten the original library in TypeScript.
 - In order to avoid tree-shaking problems, and provide better TS support, `rgbToHex` and `hexToRgb` methods were copied from [@swiftcarrot/color-fns](https://github.com/swiftcarrot/color-fns) (MIT License).
 - `hsvToRgb` modified from https://axonflux.com/handy-rgb-to-hsl-and-rgb-to-hsv-color-model-c.
+
+## Selected packaging structures and CC0 container meshes (2026-10-21)
+
+The paper constructions in src/selected-structures.js are independent Fold Studio
+implementations of the selected construction types. They do not include Neal's
+embedded O0421/K016A commercial-platform capture arrays or the reference folders.
+The gable handle carton preserves the pitched roof and straight handle concept;
+it is not represented as a byte-identical K016A manufacturer dieline.
+
+PackBox Studio was studied for the reopenable card-deck lock flap and glued-base
+closure arrangement. No PackBox application modules are bundled. Its reference
+license is retained below:
+
+Project: https://github.com/sbarrak/packbox
+
+MIT License
+
+Copyright (c) 2026 sbarrak
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Poly Haven mesh sources, licensed CC0-1.0:
+- Russian Food Cans 01: https://polyhaven.com/a/russian_food_cans_01
+- Cleaner Tin 01: https://polyhaven.com/a/cleaner_tin_01
+- Official license: https://polyhaven.com/license
+- CC0 legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+src/source-containers.generated.js contains normalized original mesh positions,
+normals, triangle indices, source URLs, original bounds and source SHA-256 hashes.
+scripts/prepare-source-containers.py documents the conversion. The printable
+shell is clipped at the label band and texture seam, rescaled parametrically,
+and given shared outside/inside artwork UVs. Hardware retains the remaining
+original mesh. Original worn graphics, textures and branding are not bundled.
+The salt pack is an independent tuck-carton net sized from the reference bounds.
+
+C1 Blank Round Metal Tin is an original Fold Studio parametric reconstruction.
+The peeet/Can BlendSwap listing (https://blendswap.com/blend/4290) is a CC0
+candidate reference; its download requires a user login. That .blend file was
+not obtained or bundled, and this reconstruction is not claimed to be that file.

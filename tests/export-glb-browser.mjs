@@ -106,9 +106,9 @@ try {
   const buf3 = readFileSync(glbPath3);
   verifyGLBBuffer(buf3);
 
-  // 6. Test Container GLB export (beverage-can and glass-jar)
-  console.log('Testing Container GLB export (beverage cans & glass-jar)...');
-  for (const containerType of ['beverage-can-250-slim', 'beverage-can', 'beverage-can-500-tall', 'glass-jar']) {
+  // 6. Test Container GLB export (beverage cans and screw-top metal tin)
+  console.log('Testing Container GLB export (beverage cans & screw-top metal tin)...');
+  for (const containerType of ['beverage-can-250-slim', 'beverage-can', 'beverage-can-500-tall', 'screw-metal-tin']) {
     await page.locator('#open-templates').click();
     await page.waitForSelector('#templates-dialog[open]');
     await page.locator(`#box-templates button[data-template="${containerType}"]`).click();

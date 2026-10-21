@@ -3,6 +3,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { foldMatrices } from './folding.js';
 import { paintArtwork } from './artwork.js';
 import { surfaceOf } from './project.js';
+import {updateCurvedSkinGeometry} from './curved-carton-mesh.js';
 import { createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, canProportions } from './model3d.js';
 
 export async function exportGLB(project, dieline, images, options = {}) {
@@ -88,6 +89,7 @@ export async function exportGLB(project, dieline, images, options = {}) {
     if (isCan && fold > 0.12 && (panel.id === 'top-lid' || panel.id === 'bottom-rim')) continue;
     const curved=dieline.cylinder && panel.id==='body';
     const geometry=curved?createCylinderRibbonGeometry(panel.w,panel.h,dieline,panel):createPanelGeometry(panel,dieline,cx,cy);
+    if(panel.curvedSkin)updateCurvedSkinGeometry(geometry,dieline,fold,cx,cy);
     if(curved){
       let ySpan = null;
       if (isCan) {

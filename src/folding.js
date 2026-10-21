@@ -1,5 +1,6 @@
 import { Matrix4, Vector3 } from 'three';
 import { foldProgress } from './geometry.js';
+import {curvedPoint} from './curved-carton.js';
 
 export function foldMatrices(dieline, progress, cx, cy) {
   const transforms=new Map(),byId=new Map(dieline.panels.map(p=>[p.id,p]));
@@ -12,6 +13,14 @@ export function foldMatrices(dieline, progress, cx, cy) {
       if(panel.assembly){
         const x=panel.x+panel.w/2-cx,y=-(panel.y+panel.h/2-cy),[tx,ty,tz]=panel.assembly.target;
         matrix.multiply(new Matrix4().makeTranslation(x+(tx-x)*fraction,y+(ty-y)*fraction,tz*fraction)).multiply(new Matrix4().makeRotationX(panel.assembly.rotationX*Math.PI/180*fraction)).multiply(new Matrix4().makeTranslation(-x,-y,0));
+      }else if(panel.bodyAttachment){
+        const {x,y}=panel.hinge,a=new Vector3(...curvedPoint(x,y,dieline,progress,cx,cy)),b=new Vector3(...curvedPoint(x+panel.w,y,dieline,progress,cx,cy));
+        const ex=b.sub(a).normalize(),ey=new Vector3(0,1,0),ez=new Vector3().crossVectors(ex,ey).normalize();
+        matrix.makeBasis(ex,ey,ez).setPosition(a)
+          .multiply(new Matrix4().makeRotationX(panel.angle*Math.PI/180*fraction))
+          .multiply(new Matrix4().makeTranslation(-(x-cx),-(cy-y),0));
+      }else if(panel.hinge.hidden){
+        // Curved body pieces deform their vertices in sheet coordinates.
       }else if(panel.hinge.segment){
         const [p1, p2] = panel.hinge.segment;
         const x1 = p1[0] - cx, y1 = -(p1[1] - cy);

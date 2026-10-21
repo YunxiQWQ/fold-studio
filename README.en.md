@@ -7,6 +7,8 @@ A local-first web workbench for packaging design, built around keeping editing f
 **Live demo:** [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold)
 **License:** MIT, copyright Yun-xi, OpenAI Codex and DeepSeek Harness. Third-party code and icon licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+![Fold Studio workspace: structure and dimensions on the left, flat dieline editing in the center, and live 3D folding preview on the right](docs/images/fold-studio-workspace.png)
+
 ## Quick start
 
 **Use it online:** open [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold). No account needed.
@@ -33,15 +35,16 @@ Defaults to `http://127.0.0.1:4186` and walks to the next port when occupied —
 
 ### Parametric structures
 
-- **Twelve parametric packaging structures and containers**, 15–600 mm, grouped into four industry categories:
-  - **Folding cartons**: straight tuck carton, reverse tuck carton, lock-bottom carton
-  - **Premium gift boxes**: two-piece lid box, sliding drawer box, book-style flip box
-  - **E-commerce and shipping**: hinged-lid mailer, regular slotted carton (RSC), packaging sleeve, open-top tray
-  - **Bottles and cans**: beverage can, wide-mouth glass jar
+- **Twenty-seven parametric packaging structures and containers**, 15–600 mm, grouped into four industry categories:
+  - **Folding cartons**: straight tuck carton, reverse tuck carton, lock-bottom carton, curved crease twist carton, lock-lid deck box, hinged display carton, glued-base tuck-top carton, salt carton
+  - **Premium gift boxes**: two-piece lid box, sliding drawer box, book-style flip box, one-piece arch-handle tote, gable handle carton
+  - **E-commerce and shipping**: hinged-lid mailer, regular slotted carton (RSC), full-overlap slotted container, packaging sleeve, open-top tray
+  - **Bottles and cans**: mini can, slim can, classic beverage can, sleek can, tall can, blank metal tin, tall food tin, low food tin, screw-cap metal tin
 - **Structure library dialog**: the sidebar keeps the current template card plus a “browse library” entry. A full-screen modal filters by category — all / folding cartons / gift boxes / e-commerce / containers — and each card carries a category badge, bilingual naming, default dimensions and a confirmation step.
 - **Thumbnails from the real model**: library, sidebar and inspector share one set of images rendered from the actual geometry, generated at build time and inlined at runtime, with no extra WebGL context.
-- **Cylindrical containers**: wrap size derives from $W = \pi \times D$; the flat canvas provides top and bottom label alignment; 3D curls non-linearly from 0% flat to 100% wrapped. Cans get realistic metal rims, a recessed lid and a pull tab; jars use a Transmission physical material with a gold threaded cap.
+- **Cylindrical containers**: wrap size derives from $W = \pi \times D$; the flat canvas provides top and bottom label alignment; 3D curls non-linearly from 0% flat to 100% wrapped. Cans get realistic metal rims, a recessed lid and a pull tab.
 - **Board-thickness clearance**: lid boxes, drawer sleeves and hardcover shells keep a board gap; tuck flaps, dust flaps and walls get a physical micro-offset so coplanar z-fighting and face bleed do not appear when closed.
+- **Curved crease twist carton**: eight quadratic scores, a center score, a 13 mm glue seam, opposed tuck lids and rounded tongues. Defaults retain four 80 mm bays and a 160 mm body, with 80 mm lids and 16 mm tongues (333 × 352 mm sheet). The blurry reference has conflicting totals; bay dimensions follow the user's confirmation. Square sides are linked; the top square turns 45° relative to the bottom. Curved meshes, two-sided artwork, selection, SVG scores and GLB export share the same construction. This is a geometric preview without material-strain, contact or physical-prototype validation.
 
 ### Flat editing
 
@@ -123,7 +126,7 @@ A note on reading the OpenBox3D source: its `src/render3d/engine.js` runs a pers
 
 ## Current limitations
 
-- Twelve parametric templates and containers are supported. **Automatic recognition of arbitrary external SVG / PDF / DXF dielines, manual crease annotation and cut-line node editing are not implemented**; opening an SVG only works for files this application exported with project metadata. An importer interface is reserved and the plan is in [DXF-IMPORT-PLAN.md](DXF-IMPORT-PLAN.md).
+- Twenty-seven parametric templates and containers are supported. **Automatic recognition of arbitrary external SVG / PDF / DXF dielines, manual crease annotation and cut-line node editing are not implemented**; opening an SVG only works for files this application exported with project metadata. An importer interface is reserved and the plan is in [DXF-IMPORT-PLAN.md](DXF-IMPORT-PLAN.md).
 - Artwork can span the whole dieline or be clipped to the reference panel, but stays on the current print side; it will not wrap around a cut edge or across to the reverse of the sheet.
 - A fixed 0.45 mm thickness is used for display, with a micro-offset on tucks and overlaps to avoid z-fighting. Industrial paper-thickness compensation, die-cutting tolerances and board spring-back are not modelled.
 - Dieline dimensions are based on geometric panels and **must not be treated as verified production data**. There is no CMYK separation, spot colour, bleed, safe area, foil or UV layer output.
@@ -156,3 +159,5 @@ Vercel builds from the repository root with `dist` as the output directory. `ver
 ## License
 
 MIT, see [LICENSE](LICENSE). References and third-party licenses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+See [SELECTED_MODELS.md](SELECTED_MODELS.md) for the P1–P5 / C1–C3 additions and exact source status. Paper constructions and C1 are original parametric reconstructions; C2's high/low food tins and C3 retain Poly Haven CC0 source geometry with editable artwork UVs and clean materials. C2 also includes a separate salt-carton net. Printable label height is distinct from total container height, and handle holes are preserved in 2D print masks, editing, 3D and exports.

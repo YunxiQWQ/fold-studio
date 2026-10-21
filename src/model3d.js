@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import {BOARD_THICKNESS} from './geometry.js';
+import {createCurvedSkinGeometry} from './curved-carton-mesh.js';
+import {SELECTED_CONTAINERS,createSourceRibbonGeometry,updateSourceRibbonGeometry,buildSourceHardware,buildBlankTin} from './selected-containers.js';
 
 export function createPanelGeometry(panel, dieline, cx, cy) {
+  if(panel.curvedSkin)return createCurvedSkinGeometry(panel,dieline,cx,cy,BOARD_THICKNESS);
   const shape = new THREE.Shape(panel.points.map(([x,y]) => new THREE.Vector2(x-cx, -(y-cy))));
   if (panel.holes) {
     for (const hole of panel.holes) {
@@ -37,6 +40,7 @@ export function pickPanel(raycaster, root) {
 }
 
 export function createCylinderRibbonGeometry(W, H, dieline, panel) {
+  if(dieline.cylinder.sourceType){const g=createSourceRibbonGeometry(dieline.cylinder.sourceType,panel,dieline);g.sourceRibbon.totalHeight=dieline.cylinder.height;return g;}
   const segX = 64, segY = 1;
   const geom = new THREE.BufferGeometry();
   const vertCount = (segX + 1) * (segY + 1) * 2;
@@ -101,6 +105,7 @@ export function canProportions(D, H) {
 }
 
 export function updateCylinderRibbonPositions(geometry, W, H, D, t, ySpan = null) {
+  if(geometry.sourceRibbon){updateSourceRibbonGeometry(geometry,D,geometry.sourceRibbon.totalHeight,t);return;}
   const pos = geometry.attributes.position;
   const norm = geometry.attributes.normal;
   const segX = 64, segY = 1;
@@ -145,6 +150,8 @@ export function updateCylinderRibbonPositions(geometry, W, H, D, t, ySpan = null
 }
 
 export function buildContainerAccessories(type, cylinder) {
+  if(SELECTED_CONTAINERS[type]?.sourceMesh)return buildSourceHardware(type,cylinder);
+  if(type==='blank-metal-tin')return buildBlankTin(cylinder);
   const { diameter: D, height: H } = cylinder;
   const R = D / 2;
   const group = new THREE.Group();
@@ -260,34 +267,6 @@ export function buildContainerAccessories(type, cylinder) {
     const domeApex = new THREE.Mesh(domeApexGeom, aluMat);
     domeApex.position.y = -H / 2 + domeH;
     group.add(domeApex);
-  } else if (type === 'glass-jar') {
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      transmission: 0.92,
-      opacity: 1,
-      transparent: true,
-      roughness: 0.08,
-      ior: 1.5,
-      thickness: 3.5,
-      name: 'Jar_Glass',
-    });
-
-    const bodyGlassGeom = new THREE.CylinderGeometry(R * 0.985, R * 0.985, H * 0.96, 48, 1, false);
-    const bodyGlass = new THREE.Mesh(bodyGlassGeom, glassMat);
-    bodyGlass.position.y = -H * 0.02;
-    group.add(bodyGlass);
-
-    const lidMat = new THREE.MeshStandardMaterial({
-      color: 0xdfb443,
-      metalness: 0.85,
-      roughness: 0.25,
-      name: 'Jar_Lid_Gold',
-    });
-    const lidH = Math.max(9, H * 0.12);
-    const lidGeom = new THREE.CylinderGeometry(R * 1.015, R * 1.015, lidH, 48);
-    const lid = new THREE.Mesh(lidGeom, lidMat);
-    lid.position.y = H / 2 - lidH / 2;
-    group.add(lid);
   }
 
   return group;

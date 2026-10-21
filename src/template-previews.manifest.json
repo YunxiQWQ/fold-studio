@@ -1,12 +1,18 @@
 {
-  "geometryHash": "032a8af15e0dd0810f720d5fd94d15c881ab7bc2925fd3558864c78538711085",
+  "geometryHash": "46298e4b0e7ed85f7e0789808174ebe99560a5f3bcbc0bc83cc96843c57572ba",
   "sources": [
     "src/geometry.js",
+    "src/selected-structures.js",
+    "src/selected-containers.js",
+    "src/source-containers.generated.js",
+    "src/curved-carton.js",
+    "src/curved-carton-mesh.js",
     "src/folding.js",
     "src/model3d.js",
     "src/preview3d.js",
     "src/project.js",
     "src/artwork.js",
+    "src/artwork-space.js",
     "scripts/render-template-previews.mjs"
   ],
   "previews": {
@@ -19,6 +25,16 @@
       },
       "panels": 13,
       "occupied": 33113
+    },
+    "curved-twist-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 80,
+        "depth": 80,
+        "height": 160
+      },
+      "panels": 19,
+      "occupied": 25235
     },
     "reverse-carton": {
       "fold": 0.94,
@@ -173,15 +189,105 @@
       "panels": 3,
       "occupied": 16553
     },
-    "glass-jar": {
+    "card-deck-lock": {
+      "fold": 0.96,
+      "dimensions": {
+        "length": 70,
+        "depth": 24,
+        "height": 100
+      },
+      "panels": 15,
+      "occupied": 28127
+    },
+    "display-hinged": {
+      "fold": 0.82,
+      "dimensions": {
+        "length": 180,
+        "depth": 120,
+        "height": 65
+      },
+      "panels": 17,
+      "occupied": 48450
+    },
+    "full-overlap-shipper": {
       "fold": 1,
       "dimensions": {
-        "length": 72,
-        "depth": 72,
-        "height": 95
+        "length": 260,
+        "depth": 180,
+        "height": 200
+      },
+      "panels": 13,
+      "occupied": 61583
+    },
+    "gable-handle-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 160,
+        "depth": 90,
+        "height": 140
+      },
+      "panels": 13,
+      "occupied": 46037
+    },
+    "glued-base-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 110,
+        "depth": 65,
+        "height": 170
+      },
+      "panels": 13,
+      "occupied": 33278
+    },
+    "salt-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 34,
+        "depth": 27,
+        "height": 85
+      },
+      "panels": 13,
+      "occupied": 22826
+    },
+    "blank-metal-tin": {
+      "fold": 1,
+      "dimensions": {
+        "length": 82,
+        "depth": 82,
+        "height": 105
       },
       "panels": 3,
-      "occupied": 29609
+      "occupied": 30302
+    },
+    "food-tin-tall": {
+      "fold": 1,
+      "dimensions": {
+        "length": 74,
+        "depth": 74,
+        "height": 72
+      },
+      "panels": 3,
+      "occupied": 35313
+    },
+    "food-tin-low": {
+      "fold": 1,
+      "dimensions": {
+        "length": 86,
+        "depth": 86,
+        "height": 38
+      },
+      "panels": 3,
+      "occupied": 19211
+    },
+    "screw-metal-tin": {
+      "fold": 1,
+      "dimensions": {
+        "length": 88,
+        "depth": 88,
+        "height": 131
+      },
+      "panels": 3,
+      "occupied": 25824
     }
   }
 }

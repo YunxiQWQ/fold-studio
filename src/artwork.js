@@ -8,8 +8,10 @@ import {printRegions,inPrintRegions} from './artwork-space.js';
 export {fontFamily} from './text-layout.js';
 
 
-export function polygonPath(ctx, points) {
+export function polygonPath(ctx, points,holes=[]) {
   ctx.beginPath(); points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+  const area=pts=>pts.reduce((sum,[x,y],i)=>{const q=pts[(i+1)%pts.length];return sum+x*q[1]-q[0]*y;},0);
+  for(const hole of holes){const ordered=area(hole)*area(points)>0?[...hole].reverse():hole;ordered.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();}
 }
 
 export class ImageCache {
@@ -93,7 +95,7 @@ export function drawLayer(ctx, layer, panel, images, colorMode = 'rgb') {
 export function paintArtwork(ctx, project, dieline, images, side = 'outside', colorMode = 'rgb') {
   const surface=surfaceOf(project,side);
   for (const panel of dieline.panels) {
-    ctx.save(); polygonPath(ctx, panel.points); ctx.clip();
+    ctx.save(); polygonPath(ctx, panel.points,panel.holes); ctx.clip();
     ctx.fillStyle = proofColor(surface.colors[panel.id] ?? surface.paper, colorMode); ctx.fill();
     if (panel.kind === 'glue') {
       ctx.fillStyle = proofColor('#deddd0', colorMode); ctx.fill();
@@ -105,14 +107,14 @@ export function paintArtwork(ctx, project, dieline, images, side = 'outside', co
   // Fill the paper first, then composite each layer once in sheet coordinates.
   ctx.save();ctx.beginPath();
   for(const points of printRegions(dieline,{},side)){
-    const area=points.reduce((n,[x,y],i)=>{const q=points[(i+1)%points.length];return n+x*q[1]-q[0]*y;},0),ordered=area<0?[...points].reverse():points;
+    const area=points.reduce((n,[x,y],i)=>{const q=points[(i+1)%points.length];return n+x*q[1]-q[0]*y;},0),ordered=(area<0)!==!!points.hole?[...points].reverse():points;
     ordered.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();
   }
   ctx.clip();
   for(const layer of project.layers){
     if(sideOf(layer)!==side||!layer.visible)continue;
     const anchor=dieline.panels.find(p=>p.id===layer.panel);if(!anchor)continue;
-    if(layer.clipToPanel){ctx.save();polygonPath(ctx,anchor.points);ctx.clip();}
+    if(layer.clipToPanel){ctx.save();polygonPath(ctx,anchor.points,anchor.holes);ctx.clip();}
     drawLayer(ctx,layer,anchor,images,colorMode);
     if(layer.clipToPanel)ctx.restore();
   }

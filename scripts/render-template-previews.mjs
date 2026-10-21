@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 
-const sources=['src/geometry.js','src/folding.js','src/model3d.js','src/preview3d.js','src/project.js','src/artwork.js','scripts/render-template-previews.mjs'];
+const sources=['src/geometry.js','src/selected-structures.js','src/selected-containers.js','src/source-containers.generated.js','src/curved-carton.js','src/curved-carton-mesh.js','src/folding.js','src/model3d.js','src/preview3d.js','src/project.js','src/artwork.js','src/artwork-space.js','scripts/render-template-previews.mjs'];
 const hash=createHash('sha256');for(const file of sources)hash.update(await readFile(file));const geometryHash=hash.digest('hex');
 const manifestPath='src/template-previews.manifest.json',modulePath='src/template-previews.generated.js';
 try{const old=JSON.parse(await readFile(manifestPath,'utf8'));if(old.geometryHash===geometryHash&&existsSync(modulePath)){console.log('结构预览与当前模型一致，无需重新生成');process.exit(0);}}catch{}
@@ -19,7 +19,7 @@ try{
    const [{Preview3D},{ImageCache},{BOX_TYPES,makeDieline},{newProject}]=await Promise.all([import('/src/preview3d.js'),import('/src/artwork.js'),import('/src/geometry.js'),import('/src/project.js')]);
    const THREE=await import('/node_modules/three/build/three.module.js');
    const preview=new Preview3D(document.querySelector('#host'),new ImageCache(),()=>{},()=>{});preview.setQuality('economy');preview.renderer.toneMappingExposure=.95;
-   const result={},folds={carton:.94,'reverse-carton':.94,'lock-bottom':.94,mailer:.88,lidbox:1,'drawer-box':1,'book-box':.90,shipper:.90};
+   const result={},folds={carton:.94,'reverse-carton':.94,'lock-bottom':.94,mailer:.88,lidbox:1,'drawer-box':1,'book-box':.90,shipper:.90,'display-hinged':.82,'card-deck-lock':.96};
    try{for(const [type,info]of Object.entries(BOX_TYPES)){
      const project=newProject(type);project.layers=[];project.paper='#9bb184';project.insidePaper='#e4e4cb';project.fold=folds[type]??1;
      const geometry=makeDieline(type,project.dimensions);preview.build(project,geometry);

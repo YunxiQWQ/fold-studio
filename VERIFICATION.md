@@ -146,3 +146,35 @@
 
 机器可读报告：`artifacts/verification.json`、`artifacts/surfaces-verification.json`。视觉验证截图见 `artifacts/`。
 
+
+## 2026-10-21 弧线扭转盒
+
+- 新增 `curved-twist-carton`，分类为卡纸彩盒，结构库共 18 款。默认盒身 80 × 80 × 160 mm；参考图总尺寸模糊且互相冲突，依用户确认保留 80 和 160，粘口/盖片适当调整。默认粘口 13 mm、盖片 80 mm、圆角插舌 16 mm，展开 333 × 352 mm。
+- 八条二次曲线压痕、中心直压痕、上下反向插盖与圆角插舌；SVG 导出使用原生 Q 曲线，曲线采样段不进入 cut 组。平面改为分别绘制裁切线与压痕，避免将内部弧线显示为实切线。
+- 曲面网格按弧线连续变形，保留原刀版 UV、双面纸厚与面板选择；上口相对下口旋转 45°，上下盖片跟随变形后的边缘。防尘翼有层间间隙，插舌两肩收窄以避让弧形转角。GLB 与实时预览共用变形函数；折叠不重建几何或重烘贴图。
+- `npm test`：81 项通过；最终插舌微调后重跑几何/曲面 44 项通过。原 12 套浏览器专项均通过，模型专项为 704 次实际 WebGL 面板/印刷面/姿态取样；新增 `curved-carton-browser.mjs` 验证五档折叠、内外选面、长宽联动、SVG 八条矢量曲线往返、闭合/展开 GLB 顶点与双面贴图、离线零 HTTP 请求。旧矩形四象限测试对弧瓣改为在实际曲面位置投影取样，缩略图数量改为随 BOX_TYPES 变化。
+- `npm run build` 通过，项目根目录 `折间.html` 已重建。证据：`artifacts/curved-carton-verification.json`、`curved-carton-review.png`、`curved-carton-workspace.png`、`curved-carton-export.svg`、`curved-carton-closed.glb`、`curved-carton-flat.glb`。
+- 三维为几何变形预览；尚未实物打样或验证纸材应变、模切公差及接触碰撞。没有发布线上版本。
+
+## 2026-10-21 选型模型接入（P1–P5、C1–C3）
+
+- 本轮按聊天最终编号加入锁盖卡牌盒、翻盖展示盒、全搭盖运输箱、直顶提手盒、胶底插盖零售盒；食品组合含高罐、矮罐、盐纸盒，并加入空白圆罐、旋盖金属罐。8 组选型共新增 10 个模型，结构库 28 款。
+- 纸盒采用独立参数化重建，不打包 Neal 生成器中嵌入的商业捕获样本。C1 原 .blend 需登录下载，当前为明确标注的独立重建版本；C2/C3 罐体来自官方下载并校验的 CC0 网格。具体差异见 SELECTED_MODELS.md；原始旧化标签纹理未打包。
+- 提手孔保留在平面、联合印刷遮罩、命中、3D、SVG/GLB；盖片与层间隙、全搭接摇盖、直顶提手高度和孔位均有数值检查。源网格在标签边界与环绕接缝分割，闭合坐标保持原始网格，展开 UV 与接缝没有跨整张标签的三角形。示例罐标按可印刷高度缩放，提手盒正面示例在展开图中旋转以保证成型阅读方向。
+- 最终 npm test：104 项通过；构建通过。原有 13 套浏览器专项通过，模型取样为 1088 次；新增 selected-models-browser 验证 10 款四档折叠、内外鼠标选面、文字编辑、SVG 往返，20 份闭合/展开 GLB 由 GLTFLoader 重载核对尺寸/厚度/贴图，离线版零外网请求。最终示例图文调整后重新通过单元及新增浏览器专项。
+- 产物：折间.html（约 1937 KiB）；artifacts/selected-models-overview.png、selected-gable-workspace.png、selected-tin-workspace.png、selected-models-verification.json。许可记录：THIRD_PARTY_NOTICES.md；转换：scripts/prepare-source-containers.py。
+- 未实物打样；未提交、未推送、未部署。
+
+
+## 2026-10-21 移除广口玻璃罐
+
+- 按用户要求删除 glass-jar 结构入口、玻璃罐及金色旋盖渲染分支、生成缩略图和帮助说明中的旧名称；结构库现为 27 款（瓶罐 9 款）。
+- npm test：102 项通过；模型库浏览器专项通过 1076 次 WebGL 面板/印刷面/折叠姿态检查及响应式选型流程；GLB 专项通过在线/离线、三款饮料罐及旋盖金属罐导出。
+- 构建完成，折间.html 约 1917 KiB；另核验入口、内嵌缩略图及离线 HTML 均无 glass-jar。未提交、未推送、未部署。
+
+
+## 2026-10-21 GitHub 更新检查
+
+- 从真实工作台重新截取 1600 × 1000 的直顶提手盒编辑界面，保存为 docs/images/fold-studio-workspace.png，中英文 README 均引用该文件；复现脚本为 scripts/screenshot-readme.mjs。
+- 推送前重新通过 102 项单元测试、workspace-layout-browser（27 张结构卡、紧凑/手机布局）、selected-models-browser（全部 10 款、20 份 GLB 重载及离线零网络）。项目文本文件凭据模式扫描及 git diff --check 通过。
+- 更新 CHANGELOG.md，说明当前 27 款模型与原 v0.9.4 Release 附件的差别。
