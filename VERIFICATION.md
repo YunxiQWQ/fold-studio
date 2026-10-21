@@ -178,3 +178,10 @@
 - 从真实工作台重新截取 1600 × 1000 的直顶提手盒编辑界面，保存为 docs/images/fold-studio-workspace.png，中英文 README 均引用该文件；复现脚本为 scripts/screenshot-readme.mjs。
 - 推送前重新通过 102 项单元测试、workspace-layout-browser（27 张结构卡、紧凑/手机布局）、selected-models-browser（全部 10 款、20 份 GLB 重载及离线零网络）。项目文本文件凭据模式扫描及 git diff --check 通过。
 - 更新 CHANGELOG.md，说明当前 27 款模型与原 v0.9.4 Release 附件的差别。
+
+
+## v0.10.0 发布验证（2026-10-21）
+
+- package.json、lockfile、界面标记与双语 README 同步为 v0.10.0，项目截图重新生成。
+- npm test 102 项通过；npm run build 完成。实际发布 HTML（1962934 字节）通过 file:// 测试：版本号、27 个模型入口、移除玻璃罐、弧线/提手/旋盖罐折叠、文字编辑及 SVG/GLB 下载，零 HTTP 请求与页面异常。
+- scripts/package-release.py 生成离线 HTML、便携 ZIP（含 HTML/使用说明/更新日志/许可证）与 SHA256SUMS.txt。ZIP CRC、显式文件清单、HTML 一致性和两项 SHA-256 校验均通过。

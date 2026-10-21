@@ -13,7 +13,9 @@ A local-first web workbench for packaging design, built around keeping editing f
 
 **Use it online:** open [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold). No account needed.
 
-**Offline single file:** download `fold-studio-v0.9.4.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined. Verified over `file://` for 3D preview, text editing and draft restore with zero external requests.
+**Offline single file:** download `fold-studio-v0.10.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined. Verified over `file://` for 3D preview, text editing and draft restore with zero external requests.
+
+**Portable bundle:** [download the v0.10.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.10.0/fold-studio-v0.10.0.zip), containing the same offline HTML, quick-start instructions, changelog and licenses. SHA-256 checksums are available on the release page.
 
 **Build locally:** Node.js 22 or newer.
 
