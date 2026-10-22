@@ -1,0 +1,24 @@
+.project-library-trigger{white-space:nowrap;margin-left:auto;font-size:11px;padding:6px 10px}
+.workspace-nav .help-link{margin-left:0}
+.project-library-dialog{width:min(680px,calc(100vw - 24px));max-height:min(82vh,760px);overflow:auto;padding:24px;color:inherit}
+.project-library-head{display:flex;align-items:start;justify-content:space-between;gap:20px}
+.project-library-head h2{font-size:23px;margin-top:6px}
+.project-library-head .dialog-close{position:static;font-size:25px;line-height:1;padding:0 5px}
+.project-library-note{font-size:12px;line-height:1.7;color:var(--muted);margin:14px 0}
+.project-library-toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
+.project-library-list{display:grid;gap:8px}
+.project-library-item,.project-revision-item{display:flex;align-items:center;justify-content:space-between;gap:14px;border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;background:var(--surface)}
+.project-library-item.is-current{border-color:var(--green)}
+.project-library-info,.project-revision-item>div{min-width:0;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.project-library-info strong,.project-revision-item strong{font-size:13px;overflow-wrap:anywhere}
+.project-library-info small,.project-revision-item small{font-size:11px;color:var(--muted);width:100%}
+.project-library-current{font-size:10px;color:var(--green)}
+.project-library-row-actions{display:flex;flex:none;gap:5px;flex-wrap:wrap}
+.project-library-row-actions button,.project-revision-item button{font-size:11px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--soft)}
+.project-library-row-actions button:hover,.project-revision-item button:hover{border-color:var(--green);color:var(--green)}
+.project-revisions{border-top:1px solid var(--border);margin-top:20px;padding-top:17px}
+.project-revisions h3{font-size:14px;margin-bottom:10px}
+#project-revisions-list{display:grid;gap:7px}
+.project-library-empty{font-size:12px;color:var(--muted);padding:14px 2px}
+@media(max-width:760px){.project-library-dialog{padding:16px}.project-library-item,.project-revision-item{align-items:flex-start;flex-direction:column}.project-library-row-actions{width:100%}}
+@media(max-width:600px){.workspace-nav .nav-description{display:none}.project-library-trigger{padding:5px 8px}}

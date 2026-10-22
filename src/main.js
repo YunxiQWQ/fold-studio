@@ -16,7 +16,9 @@ import { encodeLayers, decodeLayers, layersForPaste, CLIPBOARD_MIME } from './cl
 import { ImageCache, paintArtwork } from './artwork.js';
 import { Editor2D } from './editor2d.js';
 import { Preview3D } from './preview3d.js';
-import { loadDraft, saveDraft, download } from './storage.js';
+import { download } from './storage.js';
+import { createDocument, getActiveDocument, getDocument, getRevision, listDocuments, listRevisions, saveDocument, saveRevision, setActiveDocument } from './project-library-storage.js';
+import { mountProjectLibrary } from './project-library-ui.js';
 import { exportGLB } from './export3d.js';
 import { icon, escapeHtml as esc } from './icons.js';
 import { PACKAGING_SYMBOLS } from './symbols.js';
@@ -27,6 +29,8 @@ const $$=selector=>document.querySelectorAll(selector);
 const button=(id,glyph,title,extra='')=>`<button id="${id}" class="icon-button ${extra}" title="${title}" aria-label="${title}">${icon(glyph)}</button>`;
 let project=newProject(),dieline=makeDieline(project.type,project.dimensions),selected=null,panelId='front',history=new History(project);
 let preview,editor,saveTimer,renderRaf,textureDirty=false,saveSequence=0,playing=false,animationRaf=0,lastStatsAt=0;
+let activeProjectId=null,lastSnapshotAt=0,unsaved=false,writeQueue=Promise.resolve();
+const SNAPSHOT_INTERVAL=5*60*1000;
 let geometryTimer,confirmAction=null,activeSide='outside',pasteInPlace=false,lastPasteText='',pasteCount=0;
 let colorMode='rgb';
 let selectionIds=[],editorUI,packagingUI,colorUI;
@@ -189,10 +193,73 @@ try{preview=new Preview3D($('#preview-host'),images,(id,side)=>{stopAnimation();
 
 function notify(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>$('#toast').hidden=true,3300);}
 function schedule(){if(textureDirty){dirtySides.add(activeSide);textureDirty=false;}if(renderRaf)return;renderRaf=requestAnimationFrame(()=>{renderRaf=0;editor.update(project,dieline,selected,panelId,activeSide,getSelectedIds());if(dirtySides.size){preview?.paint(project,[...dirtySides]);dirtySides.clear();}updateLayerProperties();});}
-function markSaving(){ $('#save-status').innerHTML='<span class="pending-dot"></span>保存中…'; }
+function markSaving(){unsaved=true;$('#save-status').innerHTML='<span class="pending-dot"></span>保存中…';}
 function commit(){history.push(project);renderHistory();renderLayers();scheduleSave();}
 function scheduleSave(){markSaving();clearTimeout(saveTimer);saveTimer=setTimeout(persist,550);}
-async function persist(){const sequence=++saveSequence;try{await saveDraft(clone(project));if(sequence===saveSequence)$('#save-status').innerHTML=`${icon('check')}已在本机保存`;}catch{$('#save-status').textContent='本机保存失败，请下载工程备份';}}
+function persist(){
+  if(!activeProjectId)return Promise.resolve(false);
+  const id=activeProjectId,copy=clone(project),sequence=++saveSequence;
+  const task=writeQueue.then(async()=>{
+    try{
+      await saveDocument(id,copy);
+      if(sequence===saveSequence&&id===activeProjectId){unsaved=false;$('#save-status').innerHTML=`${icon('check')}已在本机保存`;}
+      if(id===activeProjectId&&Date.now()-lastSnapshotAt>=SNAPSHOT_INTERVAL){
+        try{const revision=await saveRevision(id,copy);lastSnapshotAt=revision.createdAt;}
+        catch{notify('工程已保存，但历史版本写入失败；请下载 .fold 备份');}
+      }
+      return true;
+    }catch{if(sequence===saveSequence&&id===activeProjectId)$('#save-status').textContent='本机保存失败，请下载工程备份';return false;}
+  });
+  writeQueue=task.then(()=>{});
+  return task;
+}
+async function flushSave(){
+  editor?.up();
+  clearTimeout(saveTimer);
+  if(unsaved)return persist();
+  await writeQueue;
+  return true;
+}
+async function snapshotCurrent(label='手动版本'){
+  if(!await flushSave())throw new Error('当前工程尚未保存，请先下载 .fold 备份');
+  const revision=await saveRevision(activeProjectId,clone(project),label);
+  lastSnapshotAt=revision.createdAt;
+  notify('历史版本已保存在当前浏览器');
+}
+function showDocument(id,next){
+  activeProjectId=id;project=next;history=new History(project);selected=null;selectionIds=[];activeSide='outside';
+  panelId=BOX_TYPES[project.type].printPanel;lastSnapshotAt=0;unsaved=false;
+  refresh({fit:true});$('#save-status').innerHTML=`${icon('check')}已在本机保存`;
+}
+async function openLibraryDocument(id){
+  if(id===activeProjectId)return;
+  const stored=await getDocument(id);
+  if(!stored)throw new Error('此工程已不存在');
+  const next=validateProject(stored);await images.preload(next.layers);
+  if(!await flushSave())throw new Error('当前工程尚未保存，请先下载 .fold 备份');
+  await setActiveDocument(id);showDocument(id,next);
+  const revisions=await listRevisions(id);lastSnapshotAt=revisions[0]?.createdAt??0;
+}
+async function newLibraryDocument(source=null){
+  if(!await flushSave())throw new Error('当前工程尚未保存，请先下载 .fold 备份');
+  const next=source??{...newProject(project.type),name:'未命名工程',layers:[]};
+  const id=await createDocument(next);showDocument(id,next);
+  try{const revision=await saveRevision(id,clone(next),'初始版本');lastSnapshotAt=revision.createdAt;}
+  catch{notify('新工程已建立，历史版本未能保存；请下载 .fold 备份');}
+}
+async function restoreLibraryRevision(id,revisionId){
+  const revision=await getRevision(revisionId);
+  if(!revision||revision.projectId!==id)throw new Error('历史版本不存在');
+  const next=validateProject(revision.project);await images.preload(next.layers);
+  if(!await flushSave())throw new Error('当前工程尚未保存，请先下载 .fold 备份');
+  const previous=await getDocument(id);
+  if(!previous)throw new Error('原工程已不存在');
+  await saveRevision(id,previous,'恢复前版本');
+  await saveDocument(id,next);await setActiveDocument(id);showDocument(id,next);
+  try{const saved=await saveRevision(id,clone(next),'恢复后的版本');lastSnapshotAt=saved.createdAt;}
+  catch{notify('工程已恢复，但新历史版本未能保存；请下载 .fold 备份');return;}
+  notify('已恢复历史版本，恢复前的内容也已保留');
+}
 function renderHistory(){$('#undo').disabled=!history.canUndo;$('#redo').disabled=!history.canRedo;}
 function selectLayer(id,nextPanel,ids){if(nextPanel&&!dieline.panels.some(p=>p.id===nextPanel))return;if(editor?.isEditing&&id!==editor.selected)editor.up();selected=id;selectionIds=id?(ids??expandGroups(project,[id])):[];panelId=nextPanel??panelId;if(id){const layer=project.layers.find(l=>l.id===id);if(layer)activeSide=sideOf(layer);}renderSurface();renderLayers();renderInspector();schedule();}
 function renderSurface(){
@@ -420,7 +487,11 @@ $('#box-templates').addEventListener('click',e=>{
     return;
   }
   const type=btn.dataset.template;
-  confirmAction=()=>{stopAnimation();clearTimeout(geometryTimer);editor.up();project=newProject(type);panelId=BOX_TYPES[type].printPanel;activeSide='outside';selected=null;dirtySides.clear();refresh({fit:true});commit();notify(`已切换为${BOX_TYPES[type].name}`);$('#templates-dialog').close();};
+  confirmAction=async()=>{
+    try{await snapshotCurrent('切换盒型前');}
+    catch(error){notify(`无法安全切换盒型：${error.message}`);return;}
+    stopAnimation();clearTimeout(geometryTimer);editor.up();project=newProject(type);panelId=BOX_TYPES[type].printPanel;activeSide='outside';selected=null;dirtySides.clear();refresh({fit:true});commit();notify(`已切换为${BOX_TYPES[type].name}`);$('#templates-dialog').close();
+  };
   $('#confirm-dialog').showModal();
 });
 $('#cancel-confirm').onclick=()=>$('#confirm-dialog').close();
@@ -640,7 +711,8 @@ $('#project-input').onchange=async e=>{
       input=JSON.parse(metadata.textContent);
       if(metadata.getAttribute('data-surface')==='inside')importSide='inside';
     }else input=JSON.parse(content);
-    const next=validateProject(input);await images.preload(next.layers);stopAnimation();clearTimeout(geometryTimer);project=next;selected=null;activeSide=importSide;panelId=BOX_TYPES[project.type].printPanel;refresh({fit:true});commit();notify('工程已打开');
+    const next=validateProject(input);await images.preload(next.layers);stopAnimation();clearTimeout(geometryTimer);
+    await newLibraryDocument(next);if(importSide==='inside')setSide('inside');notify('工程已导入为新工程，原工程已保留');
   }catch(error){notify(`打开失败：${error.message}`);}
 };
 function safeName(){return project.name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').slice(0,80)||'折间工程';}
@@ -803,8 +875,9 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('keyup',e=>{if(e.code==='Space'){editor.space=false;editor.canvas.style.cursor=editor.tool==='pan'?'grab':'default';}});
 window.addEventListener('blur',()=>{editor.space=false;});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){stopAnimation();clearTimeout(saveTimer);persist();}});
-window.addEventListener('pagehide',()=>{clearTimeout(saveTimer);persist();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopAnimation();if(unsaved){clearTimeout(saveTimer);persist();}}});
+window.addEventListener('pagehide',()=>{if(unsaved){clearTimeout(saveTimer);persist();}});
+window.addEventListener('beforeunload',event=>{if(unsaved){event.preventDefault();event.returnValue='';}});
 
 const THEMES = [
   { id: 'gray', name: '工业中灰', desc: '3D与包装推荐 · 中度灰', icon: 'palette' },
@@ -919,9 +992,23 @@ compactWorkspace();
 initWorkspaceResizers();
 
 async function init(){
-  try{const draft=await loadDraft();if(draft){const next=validateProject(draft);await images.preload(next.layers);project=next;history=new History(project);panelId=BOX_TYPES[project.type].printPanel;$('#save-status').innerHTML=`${icon('check')}已在本机保存`;}}
-  catch{notify('未能恢复本机草稿，已打开示例工程');}
-  refresh({fit:true});await document.fonts.ready;textureDirty=true;schedule();
+  $('#app').inert=true;
+  try{
+    const saved=await getActiveDocument(project),next=validateProject(saved.project);
+    await images.preload(next.layers);activeProjectId=saved.id;project=next;history=new History(project);panelId=BOX_TYPES[project.type].printPanel;
+    const revisions=await listRevisions(saved.id);lastSnapshotAt=revisions[0]?.createdAt??0;
+    if(!revisions.length){try{const revision=await saveRevision(saved.id,clone(project),'初始版本');lastSnapshotAt=revision.createdAt;}catch{notify('历史版本未能保存，请下载 .fold 备份');}}
+    $('#save-status').innerHTML=`${icon('check')}已在本机保存`;
+  }catch(error){notify(`未能恢复本机工程：${error.message}`);$('#save-status').textContent='本机工程未载入';}
+  mountProjectLibrary({
+    currentId:()=>activeProjectId,listProjects:listDocuments,listRevisions,notify,
+    create:()=>newLibraryDocument(),
+    open:openLibraryDocument,
+    duplicate:async id=>{if(!await flushSave())throw new Error('当前工程尚未保存，请先下载 .fold 备份');const source=await getDocument(id);if(!source)throw new Error('此工程已不存在');const copy=validateProject(source);copy.name=`${copy.name} 副本`.slice(0,80);await newLibraryDocument(copy);},
+    snapshot:()=>snapshotCurrent(),
+    restore:restoreLibraryRevision,
+  });
+  refresh({fit:true});$('#app').inert=false;await document.fonts.ready;textureDirty=true;schedule();
   applyColorMode(getSavedColorMode());
   window.__foldStudio={
     get project(){return clone(project);},
