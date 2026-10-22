@@ -31,7 +31,7 @@ npm run dev
 node server.mjs --open
 ```
 
-Defaults to `http://127.0.0.1:4186` and walks to the next port when occupied — trust the address printed in the terminal. The server binds `127.0.0.1` only and serves `dist/` as static files. Stop it by closing the window or pressing `Ctrl+C`. In the same browser, the offline file and the HTTP build keep separate drafts; move designs between them with `.fold` project files.
+Defaults to `http://127.0.0.1:4186` and walks to the next port when occupied — trust the address printed in the terminal. The server binds `127.0.0.1` only and serves `dist/` as static files. Stop it by closing the window or pressing `Ctrl+C`. In the same browser, the offline file and the HTTP build keep separate project libraries; move designs between them with `.fold` project files.
 
 ## What's implemented
 
@@ -97,8 +97,12 @@ Flat interaction runs on **Fabric.js 7.4.0 (MIT)**; the selection rationale is i
 
 ### Projects and storage
 
+The project library below is in unreleased source code. The v0.10.0 download still uses a single draft.
+
 - Undo and redo (40 steps), up to 120 layers.
-- Drafts autosave to IndexedDB in the current browser and are bound to that origin; download a `.fold` backup for anything important.
+- The local project library can create, open, and duplicate multiple projects. Importing a `.fold` project creates a new entry instead of replacing the current one.
+- IndexedDB autosaves the current project and keeps up to 12 local revisions per project. An initial revision is kept, another is saved about every five minutes while editing, and versions can be saved or restored manually. The former single draft is copied into the library without deleting the old record.
+- Projects and revisions stay in this browser and origin. Download a `.fold` backup for anything important or for moving work to another browser or device.
 - Everything runs locally: no account, no backend, no external fonts, no cloud image service.
 
 ## Keyboard shortcuts
@@ -133,7 +137,7 @@ A note on reading the OpenBox3D source: its `src/render3d/engine.js` runs a pers
 - A fixed 0.45 mm thickness is used for display, with a micro-offset on tucks and overlaps to avoid z-fighting. Industrial paper-thickness compensation, die-cutting tolerances and board spring-back are not modelled.
 - Dieline dimensions are based on geometric panels and **must not be treated as verified production data**. There is no CMYK separation, spot colour, bleed, safe area, foil or UV layer output.
 - Typefaces come from the system and may differ across machines; SVG keeps the exported bitmaps as they looked at export time.
-- Drafts are tied to the current browser and origin; download a `.fold` backup for anything important. A memory-only sample is shown until the first edit writes a draft.
+- The project library is tied to the current browser and origin; download a `.fold` backup for anything important. Clearing site data also clears the local library and its revisions.
 - Fully local: no account, backend, external fonts or cloud image service.
 
 ## Development and verification
