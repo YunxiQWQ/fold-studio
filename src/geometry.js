@@ -1,6 +1,8 @@
 import {makeCurvedCarton} from './curved-carton.js';
 import {SELECTED_BOXES,makeSelectedStructure} from './selected-structures.js';
 import {SELECTED_CONTAINERS} from './selected-containers.js';
+import {makePaperBag,PAPER_BAG_PRESETS} from './paper-bag.js';
+import {REFERENCE_CARTONS,makeReferenceCarton} from './reference-cartons.js';
 export const BOARD_THICKNESS=.45;
 const STACK_GAP=BOARD_THICKNESS*1.4;
 export const BOX_TYPES={
@@ -16,6 +18,7 @@ export const BOX_TYPES={
   sleeve:{name:'包装腰封',english:'PACKAGING SLEEVE',family:'carton',category:'shipping',printPanel:'front',description:'两端开放 · 四面围合',defaults:{length:140,depth:55,height:100}},
   tray:{name:'开放托盘',english:'OPEN TOP TRAY',family:'tray',category:'shipping',printPanel:'base',description:'四壁折起 · 角部粘耳',defaults:{length:170,depth:120,height:42}},
   'arch-handle-tote':{name:'一体成型弧顶手提盒',english:'ARCH HANDLE TOTE BOX',family:'tray',category:'gift',printPanel:'front',description:'一体成型 · 免胶自锁 · 弧顶提手 · 展开541×474mm',defaults:{length:120,depth:100,height:100,archH:87,flare:28,handleW:92}},
+  'paper-shopping-bag':{name:'手提纸袋',english:'PAPER SHOPPING BAG',family:'bag',category:'gift',printPanel:'front',description:'横/方/竖三预设 · 侧风琴折 · 连续折底 · 绳/缎带提手',defaults:Object.fromEntries(Object.entries(PAPER_BAG_PRESETS.square).filter(([key])=>key!=='name'))},
   'beverage-can-200-mini':{name:'迷你便携罐 (200ml)',english:'200ML MINI BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'200ml 迷你铝罐 · 便携浓缩/咖啡 · 360° 环绕罐标',defaults:{length:53,depth:53,height:111}},
   'beverage-can-250-slim':{name:'纤体高罐 (250ml)',english:'250ML SLIM BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'250ml 纤细铝罐 · 能量饮料/苏打水 · 360° 环绕罐标',defaults:{length:53,depth:53,height:134}},
   'beverage-can':{name:'经典易拉罐 (330ml)',english:'330ML CLASSIC BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'330ml 标准经典铝罐 · 360° 环绕罐标',defaults:{length:66,depth:66,height:115}},
@@ -23,6 +26,7 @@ export const BOX_TYPES={
   'beverage-can-500-tall':{name:'大容量高罐 (500ml)',english:'500ML TALL BEVERAGE CAN',family:'container',category:'container',printPanel:'body',description:'500ml 工业特大高罐 · 啤酒/加大装 · 360° 环绕罐标',defaults:{length:66,depth:66,height:168}},
   ...SELECTED_BOXES,
   ...SELECTED_CONTAINERS,
+  ...REFERENCE_CARTONS,
 };
 function rectangle(id,label,x,y,w,h,parent=null,hinge=null,angle=0,kind='body'){
   return{id,label,x,y,w,h,parent,hinge,angle,kind,points:[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],inset:['dust','tuck','glue','corner'].includes(kind)?-STACK_GAP:0};
@@ -76,7 +80,7 @@ export function makeDieline(type,dimensions){
   if(!Object.hasOwn(BOX_TYPES,type))throw new Error('不支持的盒型');
   const{length:L,depth:D,height:H}=dimensions;
   for(const value of[L,D,H])if(!Number.isFinite(value)||value<15||value>600)throw new Error('尺寸需介于 15–600 mm');
-  const panels=[],add=(...args)=>{const p=rectangle(...args);panels.push(p);return p;};let rootId,curvedBody=null,extraCreases=[];
+  const panels=[],add=(...args)=>{const p=rectangle(...args);panels.push(p);return p;};let rootId,curvedBody=null,paperBag=null,triangle=null,ropeGable=null,ropeHandles=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[];
   const addTray=(prefix,x,y,w,d,h,parent=null)=>{
     const id=name=>prefix?`${prefix}-${name}`:name,baseId=prefix==='lid'?'lid':id('base');
     const base=add(baseId,prefix?'上盖顶面':'底面',x+h,y+h,w,d,parent);
@@ -92,7 +96,11 @@ export function makeDieline(type,dimensions){
     }
     return base;
   };
-  if(Object.hasOwn(SELECTED_BOXES,type)){
+  if(Object.hasOwn(REFERENCE_CARTONS,type)){
+    const result=makeReferenceCarton(type,dimensions,add);({rootId,triangle=null,ropeGable=null,ropeHandles=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[]}=result);
+  }else if(type==='paper-shopping-bag'){
+    const result=makePaperBag(dimensions,add);rootId=result.rootId;paperBag=result.paperBag;extraCreases=result.extraCreases;
+  }else if(Object.hasOwn(SELECTED_BOXES,type)){
     rootId=makeSelectedStructure(type,dimensions,add).rootId;
   }else if(type==='curved-twist-carton'){
     if(L!==D)throw new Error('弧线扭转盒采用正方形截面，长宽需相同');
@@ -272,8 +280,8 @@ export function makeDieline(type,dimensions){
   const points=panels.flatMap(p=>p.points),minX=Math.min(...points.map(p=>p[0])),minY=Math.min(...points.map(p=>p[1])),maxX=Math.max(...points.map(p=>p[0])),maxY=Math.max(...points.map(p=>p[1]));
   const isContainer=BOX_TYPES[type].family==='container';
   return{
-    type,panels,rootId,width:maxX-minX,height:maxY-minY,minX,minY,maxX,maxY,curvedBody,extraCreases,
-    rootRotationX:BOX_TYPES[type].family==='tray'?Math.PI/2:0,
+    type,panels,rootId,width:maxX-minX,height:maxY-minY,minX,minY,maxX,maxY,curvedBody,paperBag,triangle,ropeGable,ropeHandles,nonCutEdges,extraCreases,
+    rootRotationX:rootRotationX??(BOX_TYPES[type].family==='tray'?Math.PI/2:0),rootRotationZ,
     cylinder:isContainer?{diameter:L,height:H,labelHeight:panels[0].h,topHeight:panels[1].h,bottomHeight:panels[2].h,sourceType:BOX_TYPES[type].sourceMesh?type:null}:null,
   };
 }
@@ -294,7 +302,7 @@ export function creasePaths(dieline){
 }
 export function cutSegments(dieline){
   const key=(a,b)=>[a.map(v=>v.toFixed(6)).join(','),b.map(v=>v.toFixed(6)).join(',')].sort().join('|');
-  const hinges=new Set(creasePaths(dieline).flatMap(({points})=>points.slice(1).map((b,i)=>key(points[i],b)))),result=new Map();
+  const hinges=new Set([...creasePaths(dieline).flatMap(({points})=>points.slice(1).map((b,i)=>key(points[i],b))),...(dieline.nonCutEdges??[]).map(([a,b])=>key(a,b))]),result=new Map();
   for(const panel of dieline.panels){
     for(let i=0;i<panel.points.length;i++){const a=panel.points[i],b=panel.points[(i+1)%panel.points.length],id=key(a,b);if(!hinges.has(id))result.set(id,[a,b]);}
     if(panel.holes){

@@ -9,6 +9,8 @@ import {initWorkspaceResizers} from './workspace-resizer.js';
 import {TEMPLATE_PREVIEWS} from './template-previews.generated.js';
 import {expandGroups,layerRect} from './editor-commands.js';
 import { BOX_TYPES, makeDieline, creasePaths, cutSegments } from './geometry.js';
+import {PAPER_BAG_PRESETS,paperBagSettings} from './paper-bag.js';
+import {triangleSettings,ropeGableSettings} from './reference-cartons.js';
 import { newProject, History, uid, clone, validateProject, PALETTES, SIDES, sideOf, surfaceOf } from './project.js';
 import { encodeLayers, decodeLayers, layersForPaste, CLIPBOARD_MIME } from './clipboard.js';
 import { ImageCache, paintArtwork } from './artwork.js';
@@ -217,6 +219,9 @@ function refresh({fit=false,build=true}={}){
   if(fit)editor.fit();
   $('#project-name').value=project.name;
   for(const key of ['length','depth','height'])$(`#dim-${key}`).value=project.dimensions[key];
+  const dimensionNames=project.type==='triangular-prism-carton'?[['柱长','L'],['底边','B'],['斜边','S']]:project.type==='rope-gable-carton'?[['长','L'],['侧宽','W'],['身高','H']]:[['长','L'],['宽','W'],['高','H']];
+  ['length','depth','height'].forEach((key,i)=>{const input=$(`#dim-${key}`),[label,letter]=dimensionNames[i];input.closest('label').querySelector('span').innerHTML=`${label}<em>${letter}</em>`;input.setAttribute('aria-label',project.type==='triangular-prism-carton'||project.type==='rope-gable-carton'?label:`成品${label}度`);input.min=key==='height'&&project.type==='triangular-prism-carton'?Math.max(15,Math.floor(project.dimensions.depth/2)+1):15;});
+  $('.dimension-section h2').textContent=project.type==='triangular-prism-carton'||project.type==='rope-gable-carton'?'结构尺寸':'成品尺寸';
   const paperCmyk=colorMode==='cmyk'?` · ${formatCmyk(project.paper)}`:'';
   $('#paper-color').value=project.paper;$('#paper-hex').textContent=`${project.paper.toUpperCase()}${paperCmyk}`;$('#material').value=project.material;$('#quality').value=project.quality;
   $('#sheet-size').textContent=`${dieline.width.toFixed(0)} × ${dieline.height.toFixed(0)} mm`;
@@ -232,7 +237,45 @@ function refresh({fit=false,build=true}={}){
 function renderExtraDimensions(){
   const container=$('#extra-dimensions');
   if(!container)return;
-  if(project.type==='arch-handle-tote'){
+  if(project.type==='triangular-prism-carton'||project.type==='rope-gable-carton'){
+    container.hidden=false;
+    const row=(key,label,value,min,max)=>`<div class="extra-dim-row"><div class="extra-dim-label"><span>${label}</span><strong id="val-${key}">${Number(value.toFixed(1))} mm</strong></div><div class="extra-dim-control"><input type="range" class="extra-dim-slider" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}"/><input type="number" class="extra-dim-num" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}数值"/></div></div>`;
+    let content;
+    if(project.type==='triangular-prism-carton'){
+      const b=triangleSettings(project.dimensions);
+      content=`<div class="extra-dim-heading"><span>三角柱结构</span></div><p class="field-note reference-note">尺寸为柱长、底边、等腰斜边。实际截面高 ${b.altitude.toFixed(1)} mm，展开 ${dieline.width.toFixed(1)} × ${dieline.height.toFixed(1)} mm。</p><label class="select-label">摆放姿态<select id="reference-orientation" data-reference-option="orientation"><option value="lying" ${b.orientation==='lying'?'selected':''}>平放展示</option><option value="standing" ${b.orientation==='standing'?'selected':''}>竖立展示</option></select></label>${row('glueWidth','接缝粘舌',b.G,2,Math.min(40,b.S*.4))}`;
+    }else{
+      const b=ropeGableSettings(project.dimensions);
+      content=`<div class="extra-dim-heading"><span>绳提手折顶结构</span></div><p class="field-note reference-note">身高不含折顶和提绳。折顶增加 ${b.rise.toFixed(1)} mm，盒体总高 ${(b.H+b.rise).toFixed(1)} mm；窄顶舌保留穿槽。</p>${row('roofDepth','斜顶展开宽',b.R,b.run+2,Math.max(b.run+3,Math.min(240,b.H)))}${row('topTab','折返顶盖宽',b.F,4,b.D*.8)}${row('bottomFlap','锁底展开深',b.B,b.D/2+2,b.D*.95)}${row('glueWidth','侧粘口',b.G,3,Math.min(65,b.L*.3,b.D*.6))}${row('handleRise','提绳弧高',b.handleRise,10,250)}${row('handleSpan','绳孔间距',b.handleSpan,8,b.L*.8)}`;
+    }
+    const markup=`<div data-reference-controls="${project.type}">${content}</div>`;
+    if(!container.querySelector(`[data-reference-controls="${project.type}"]`))container.innerHTML=markup;
+    else{
+      const template=document.createElement('template');template.innerHTML=markup;
+      for(const input of container.querySelectorAll('[data-extra-dim]')){const next=template.content.querySelector(`input[type="${input.type}"][data-extra-dim="${input.dataset.extraDim}"]`);input.min=next.min;input.max=next.max;if(input!==document.activeElement)input.value=next.value;}
+      for(const label of container.querySelectorAll('[id^="val-"]'))label.textContent=template.content.querySelector('#'+label.id).textContent;
+      for(const select of container.querySelectorAll('[data-reference-option]'))select.value=template.content.querySelector('#'+select.id).value;
+      container.querySelector('.reference-note').textContent=template.content.querySelector('.reference-note').textContent;
+    }
+  }else if(project.type==='paper-shopping-bag'){
+    container.hidden=false;
+    const b=paperBagSettings(project.dimensions);
+    const row=(key,label,value,min,max)=>`<div class="extra-dim-row"><div class="extra-dim-label"><span>${label}</span><strong id="val-${key}">${value} mm</strong></div><div class="extra-dim-control"><input type="range" class="extra-dim-slider" data-extra-dim="${key}" min="${min}" max="${max}" step="1" value="${value}" aria-label="${label}"/><input type="number" class="extra-dim-num" data-extra-dim="${key}" min="${min}" max="${max}" step="1" value="${value}" aria-label="${label}数值"/></div></div>`;
+    const markup=`<div class="extra-dim-heading"><span>纸袋尺寸预设</span><span class="extra-dim-sub">一个模型 · 三种比例</span></div><div class="bag-size-presets">${Object.entries(PAPER_BAG_PRESETS).map(([id,p])=>`<button type="button" data-bag-preset="${id}" aria-pressed="${['length','depth','height'].every(k=>p[k]===project.dimensions[k])}">${p.name}<small>${p.length}×${p.depth}<br>×${p.height} mm</small></button>`).join('')}</div><p class="field-note">尺寸为袋身长 × 侧宽 × 高，不含提手。可继续输入任意尺寸。</p><label class="select-label">提手材质<select id="bag-handle-style" data-bag-option="handleStyle"><option value="rope" ${b.handleStyle==='rope'?'selected':''}>圆绳 · 穿孔</option><option value="ribbon" ${b.handleStyle==='ribbon'?'selected':''}>缎带 · 粘贴</option></select></label><label class="select-label">提手姿态<select id="bag-handle-pose" data-bag-option="handlePose"><option value="raised" ${b.handlePose==='raised'?'selected':''}>提起</option><option value="dropped" ${b.handlePose==='dropped'?'selected':''}>垂落</option></select></label>${row('topFold','袋口内折',b.topFold,2,Math.min(100,b.H*.45))}${row('bottomFold','底部折边',b.bottomFold,Math.ceil(b.D/2+Math.min(2,b.D*.1)),Math.floor(b.D*.95))}${row('glueWidth','侧粘口宽度',b.glueWidth,2,Math.min(50,b.L*.3,b.D*.6))}${row('handleRise','提手弧高',b.handleRise,5,Math.min(250,b.H*.8))}${row('handleSpan','提手间距',b.handleSpan,4,b.L*.85)}`;
+      if(!container.querySelector('[data-bag-preset]'))container.innerHTML=markup;
+    else{
+      // Refresh constraints without replacing an input the user is editing.
+      const template=document.createElement('template');template.innerHTML=markup;
+      for(const input of container.querySelectorAll('[data-extra-dim]')){
+        const next=template.content.querySelector(`input[type="${input.type}"][data-extra-dim="${input.dataset.extraDim}"]`);
+        input.min=next.min;input.max=next.max;
+        if(input!==document.activeElement)input.value=next.value;
+      }
+      for(const button of container.querySelectorAll('[data-bag-preset]'))button.setAttribute('aria-pressed',template.content.querySelector(`[data-bag-preset="${button.dataset.bagPreset}"]`).getAttribute('aria-pressed'));
+      for(const label of container.querySelectorAll('[id^="val-"]'))label.textContent=template.content.querySelector('#'+label.id).textContent;
+      for(const select of container.querySelectorAll('[data-bag-option]'))select.value=template.content.querySelector('#'+select.id).value;
+    }
+  }else if(project.type==='arch-handle-tote'){
     container.hidden=false;
     const archH=project.dimensions.archH??87;
     const flare=project.dimensions.flare??28;
@@ -386,7 +429,9 @@ $('#accept-confirm').onclick=()=>{const action=confirmAction;confirmAction=null;
 for(const input of document.querySelectorAll('[data-dimension]')){
   input.addEventListener('input',()=>{
     const value=+input.value;if(!Number.isFinite(value)||value<15||value>600){input.setAttribute('aria-invalid','true');return;}
+    if(project.type==='triangular-prism-carton'&&input.dataset.dimension==='height'&&value<=project.dimensions.depth/2){input.setAttribute('aria-invalid','true');return;}
     input.removeAttribute('aria-invalid');project.dimensions[input.dataset.dimension]=value;
+    if(project.type==='triangular-prism-carton'&&input.dataset.dimension==='depth'){project.dimensions.height=Math.max(project.dimensions.height,Math.floor(value/2)+1);$('#dim-height').value=project.dimensions.height;}
     if(BOX_TYPES[project.type].family==='container'||BOX_TYPES[project.type].square){
       const dim=input.dataset.dimension;
       if(dim==='length'){
@@ -539,6 +584,8 @@ document.querySelectorAll('.fold-preset-btn').forEach(btn=>{
 $('#extra-dimensions').addEventListener('input',e=>{
   const input=e.target,key=input.dataset.extraDim;
   if(!key)return;
+  if(!input.checkValidity()){input.setAttribute('aria-invalid','true');return;}
+  input.removeAttribute('aria-invalid');
   const val=+input.value;
   if(!Number.isFinite(val))return;
   project.dimensions[key]=val;
@@ -548,7 +595,18 @@ $('#extra-dimensions').addEventListener('input',e=>{
   clearTimeout(geometryTimer);
   geometryTimer=setTimeout(()=>refresh({fit:true}),80);
 });
-$('#extra-dimensions').addEventListener('change',()=>commit());
+$('#extra-dimensions').addEventListener('change',e=>{
+  if(e.target.dataset.bagOption){project.dimensions[e.target.dataset.bagOption]=e.target.value;refresh({fit:true});}
+  if(e.target.dataset.referenceOption){project.dimensions[e.target.dataset.referenceOption]=e.target.value;refresh({fit:true});}
+  if(e.target.dataset.extraDim&&!e.target.checkValidity()){renderExtraDimensions();return;}
+  commit();
+});
+$('#extra-dimensions').addEventListener('click',e=>{
+  const id=e.target.closest('[data-bag-preset]')?.dataset.bagPreset;
+  if(!id||project.type!=='paper-shopping-bag')return;
+  stopAnimation();clearTimeout(geometryTimer);editor.up();
+  const {name,...dimensions}=PAPER_BAG_PRESETS[id];project.dimensions={...dimensions};refresh({fit:true});commit();notify(`已应用${name}纸袋尺寸`);
+});
 $('#quality').onchange=e=>{project.quality=e.target.value;preview?.setQuality(project.quality);preview?.paint(project);commit();};
 $('#image-input').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(file)await importImage(file);};
 

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import {BOARD_THICKNESS} from './geometry.js';
 import {createCurvedSkinGeometry} from './curved-carton-mesh.js';
+import {updateBagBottomGeometry} from './paper-bag.js';
+import {subdivideRoofCorners,updateRoofGussetGeometry} from './reference-cartons.js';
 import {SELECTED_CONTAINERS,createSourceRibbonGeometry,updateSourceRibbonGeometry,buildSourceHardware,buildBlankTin} from './selected-containers.js';
 
 export function createPanelGeometry(panel, dieline, cx, cy) {
@@ -11,7 +13,7 @@ export function createPanelGeometry(panel, dieline, cx, cy) {
       shape.holes.push(new THREE.Path(hole.map(([x,y]) => new THREE.Vector2(x-cx, -(y-cy)))));
     }
   }
-  const geometry = new THREE.ExtrudeGeometry(shape, {depth:BOARD_THICKNESS, bevelEnabled:false, steps:1, curveSegments:1});
+  let geometry = new THREE.ExtrudeGeometry(shape, {depth:BOARD_THICKNESS, bevelEnabled:false, steps:1, curveSegments:1});
   geometry.translate(0,0,-BOARD_THICKNESS/2);
   const {position,uv,normal}=geometry.attributes;
   for(let i=0;i<position.count;i++)uv.setXY(i,(position.getX(i)+cx-dieline.minX)/dieline.width,1-(cy-position.getY(i)-dieline.minY)/dieline.height);
@@ -24,6 +26,8 @@ export function createPanelGeometry(panel, dieline, cx, cy) {
   }
   geometry.addGroup(start,position.count-start,last);
   geometry.computeBoundingBox();geometry.computeBoundingSphere();
+  if(panel.bagBottom)updateBagBottomGeometry(geometry,panel,dieline,0,cx,cy);
+  if(panel.roofGusset){if(panel.roofGusset.role!=='center')geometry=subdivideRoofCorners(geometry);updateRoofGussetGeometry(geometry,panel,dieline,0,cx,cy);}
   return geometry;
 }
 

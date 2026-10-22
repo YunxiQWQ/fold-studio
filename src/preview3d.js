@@ -7,6 +7,8 @@ import { BOX_TYPES } from './geometry.js';
 import {createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, pickPanel, canProportions} from './model3d.js';
 import { proofColor } from './color.js';
 import {updateCurvedSkinGeometry} from './curved-carton-mesh.js';
+import {updateBagBottomGeometry,bagBottomFrame,buildPaperBagHandles,updatePaperBagHandles} from './paper-bag.js';
+import {updateRoofGussetGeometry,roofGussetFrame} from './reference-cartons.js';
 
 const QUALITY = { economy: { dpr: 1, atlas: 768 }, balanced: { dpr: 1.35, atlas: 1536 }, crisp: { dpr: 1.8, atlas: 2048 } };
 
@@ -84,7 +86,9 @@ export class Preview3D {
     this.frontMaterial.visible=true;
     const isCan = this.project?.type?.startsWith('beverage-can');
     for(const mesh of this.root.children){
-      if (mesh === this.accessories) {
+      if (mesh === this.bagHandles) {
+        mesh.visible=this.foldValue>.55;
+      } else if (mesh === this.accessories) {
         mesh.visible = this.foldValue > 0.12;
       } else if (isCan && (mesh.userData?.panel === 'top-lid' || mesh.userData?.panel === 'bottom-rim')) {
         mesh.visible = this.foldValue <= 0.12;
@@ -119,6 +123,7 @@ export class Preview3D {
     this.cx = rootPanel.x + rootPanel.w/2; this.cy = rootPanel.y + rootPanel.h/2;
     this.meshes = new Map();
     this.accessories = null;
+    this.bagHandles = null;
 
     for(const panel of dieline.panels){
       const geometry=dieline.cylinder && panel.id==='body'
@@ -132,7 +137,8 @@ export class Preview3D {
       this.accessories=buildContainerAccessories(project.type,dieline.cylinder);
       this.root.add(this.accessories);
     }
-    this.root.rotation.x = dieline.rootRotationX;
+    if(dieline.paperBag||dieline.ropeHandles){this.bagHandles=buildPaperBagHandles(dieline,this.cx,this.cy);this.root.add(this.bagHandles);}
+    this.root.rotation.set(dieline.rootRotationX,0,dieline.rootRotationZ??0,'ZXY');
     this.stats.geometryBuilds++;
     this.setFold(project.fold); this.paint(project); this.fit();
     if(!this.compiled){this.compiled=true;this.renderer.compileAsync(this.scene,this.camera).then(()=>this.invalidate()).catch(error=>console.error('三维材质初始化失败',error));}
@@ -167,6 +173,8 @@ export class Preview3D {
       const mesh = this.meshes.get(panel.id);
       if (mesh) {
         if(panel.curvedSkin)updateCurvedSkinGeometry(mesh.geometry,this.dieline,value,this.cx,this.cy);
+        if(panel.bagBottom)updateBagBottomGeometry(mesh.geometry,panel,this.dieline,value,this.cx,this.cy);
+        if(panel.roofGusset)updateRoofGussetGeometry(mesh.geometry,panel,this.dieline,value,this.cx,this.cy);
         if (isCan && (panel.id === 'top-lid' || panel.id === 'bottom-rim')) {
           mesh.visible = this.isolatedPanel === panel.id || value <= 0.12;
         }
@@ -174,6 +182,7 @@ export class Preview3D {
         mesh.matrixWorldNeedsUpdate = true;
       }
     }
+    if(this.bagHandles)updatePaperBagHandles(this.bagHandles,transforms,value);
     this.root.updateMatrixWorld(true);
     if(this.isolatedPanel)this.inspectPanel(this.isolatedPanel,this.inspectedSide,true);
     this.invalidate();
@@ -213,7 +222,7 @@ export class Preview3D {
     if (!this.dieline) return;
     this.showAll();
     this.root.updateMatrixWorld(true);
-    const bounds=new THREE.Box3().setFromObject(this.root), size=bounds.getSize(new THREE.Vector3()), center=bounds.getCenter(new THREE.Vector3());
+    const bounds=new THREE.Box3().setFromObject(this.root,!!(this.dieline?.triangle||this.dieline?.ropeGable)), size=bounds.getSize(new THREE.Vector3()), center=bounds.getCenter(new THREE.Vector3());
     const halfFov=this.camera.fov*Math.PI/360;
     const distance=Math.max(size.y,size.x/Math.max(.25,this.camera.aspect),size.z)*.64/Math.tan(halfFov)+size.z*.6;
     this.setCameraUp(new THREE.Vector3(0,1,0));
@@ -236,6 +245,8 @@ export class Preview3D {
     const normal=new THREE.Vector3(0,0,side==='outside'?1:-1).transformDirection(mesh.matrixWorld);
     if(skin)normal.fromBufferAttribute(mesh.geometry.attributes.normal,skinIndex).multiplyScalar(side==='outside'?1:-1).transformDirection(mesh.matrixWorld);
     const up=new THREE.Vector3(0,1,0).transformDirection(mesh.matrixWorld);
+    if(panel.bagBottom){const frame=bagBottomFrame(panel,this.dieline,this.foldValue,this.cx,this.cy);center.copy(frame.center).applyMatrix4(mesh.matrixWorld);normal.copy(frame.normal).multiplyScalar(side==='outside'?1:-1).transformDirection(mesh.matrixWorld);up.copy(frame.up).transformDirection(mesh.matrixWorld);}
+    if(panel.roofGusset){const frame=roofGussetFrame(panel,this.dieline,this.foldValue,this.cx,this.cy);center.copy(frame.center).applyMatrix4(mesh.matrixWorld);normal.copy(frame.normal).multiplyScalar(side==='outside'?1:-1).transformDirection(mesh.matrixWorld);up.copy(frame.up).transformDirection(mesh.matrixWorld);}
     const distance=Math.max(panel.h,(curved && this.foldValue>.9?this.dieline.cylinder.diameter:panel.w)/Math.max(.25,this.camera.aspect))*.63/Math.tan(this.camera.fov*Math.PI/360);
     if(isolate){for(const child of this.root.children)child.visible=child===mesh;this.isolatedPanel=panelId;this.onIsolation?.(true);}
     this.setCameraUp(up);this.camera.position.copy(center).addScaledVector(normal,Math.max(15,distance));

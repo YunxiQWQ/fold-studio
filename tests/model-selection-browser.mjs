@@ -71,25 +71,45 @@ try{
     const sample=(x,y)=>[...ctx.getImageData(Math.round(x),Math.round(y),1,1).data];
     for(const type of Object.keys(BOX_TYPES)){
       const p=newProject(type),d=makeDieline(type,p.dimensions);p.layers=[];p.paper=p.insidePaper='#ffffff';
+      const reference=!!(d.triangle||d.ropeGable),samples=new Map();preview.setQuality(reference?'crisp':'economy');
+      if(reference)for(const panel of d.panels){
+        const contour=panel.points.map(p=>new THREE.Vector2(...p)),holes=(panel.holes??[]).map(h=>h.map(p=>new THREE.Vector2(...p))),points=[...contour,...holes.flat()],triangles=THREE.ShapeUtils.triangulateShape(contour,holes);
+        const largest=triangles.map(indices=>indices.map(i=>points[i])).sort((a,b)=>Math.abs(new THREE.Vector2().subVectors(b[1],b[0]).cross(new THREE.Vector2().subVectors(b[2],b[0])))-Math.abs(new THREE.Vector2().subVectors(a[1],a[0]).cross(new THREE.Vector2().subVectors(a[2],a[0]))))[0];
+        const locations=[[.6,.2,.2],[.2,.6,.2],[.2,.2,.6],[1/3,1/3,1/3]].map(weights=>largest.reduce((sum,v,i)=>sum.addScaledVector(v,weights[i]),new THREE.Vector2()));
+        let radius=Infinity;for(let i=0;i<4;i++)for(let j=i+1;j<4;j++)radius=Math.min(radius,locations[i].distanceTo(locations[j])/4);
+        samples.set(panel.id,locations.map(v=>({x:v.x,y:v.y,w:2*radius,h:2*radius})));
+      }
       const skinSample=(panel,i)=>{
         const v=i<2?.35:.65,[a,b]=skinInterval(panel.curvedSkin.region,panel.curvedSkin.index,v);
         return{x:d.curvedBody.x+d.curvedBody.side*(a+(b-a)*(i%2?.7:.3)),y:d.curvedBody.y+v*d.curvedBody.h,w:(b-a)*d.curvedBody.side*.18};
       };
       for(const panel of d.panels)for(const side of ['outside','inside'])for(let i=0;i<4;i++){
-        const s=panel.curvedSkin?skinSample(panel,i):null,x=s?(s.x-panel.x)/panel.w:null;
-        p.layers.push({id:crypto.randomUUID(),name:'quadrant',type:'shape',shape:'rect',panel:panel.id,side,x:s?(side==='inside'?1-x:x):i%2?.65:.35,y:s?(s.y-panel.y)/panel.h:i<2?.35:.65,w:s?s.w/panel.w:.3,h:s?.08:.3,color:colors[i],visible:true,opacity:1,rotation:0,clipToPanel:!!s});
+        const s=reference?samples.get(panel.id)[i]:panel.curvedSkin?skinSample(panel,i):panel.bagBottom?{x:panel.x+(i%2?.65:.35)*panel.w,y:panel.y+(i<2?.35:.65)*panel.h,w:panel.w*.18}:null,x=s?(s.x-panel.x)/panel.w:null;
+        p.layers.push({id:crypto.randomUUID(),name:'quadrant',type:'shape',shape:'rect',panel:panel.id,side,x:s?(side==='inside'?1-x:x):i%2?.65:.35,y:s?(s.y-panel.y)/panel.h:i<2?.35:.65,w:s?s.w/panel.w:.3,h:s?(s.h??panel.h*.08)/panel.h:.3,color:colors[i],visible:true,opacity:1,rotation:0,clipToPanel:!!s});
       }
       preview.build(p,d);await new Promise(r=>requestAnimationFrame(r));
       for(const fold of [0,1]){
         preview.setFold(fold);
         if(d.cylinder && fold===0){preview.fit();if(preview.accessories.visible)failures.push(type+' flat hardware unexpectedly visible');}
         for(const panel of d.panels)for(const side of ['outside','inside']){
+          // Glued side gussets overlap themselves after closing: test their
+          // full artwork flat here; the bag suite checks deformed UVs and GLBs.
+          if(panel.bagBottom?.side&&fold===1)continue;
+          if(panel.roofGusset&&panel.roofGusset.role!=='center'&&fold===1)continue; // Tucked pleats are intentionally hidden behind themselves.
           preview.inspectPanel(panel.id,side,true);preview.render();ctx.clearRect(0,0,480,480);ctx.drawImage(preview.renderer.domElement,0,0,480,480);
           const distance=preview.camera.position.distanceTo(preview.controls.target),scale=480/(2*distance*Math.tan(preview.camera.fov*Math.PI/360));
           const curved=d.cylinder&&panel.id==='body'&&fold===1,radius=curved?d.cylinder.diameter/2:0,depth=radius*Math.cos(.3*Math.PI),correction=curved?distance/(distance+(side==='inside'?depth:-depth)):1;
           const dx=(curved?radius*Math.sin(.3*Math.PI):panel.w*.15)*scale*correction,dy=panel.h*.15*scale*correction;
           const opaque=(cx,cy)=>{for(let r=0;r<=32;r+=4)for(const[ox,oy]of[[0,0],[r,0],[-r,0],[0,r],[0,-r],[r,r],[-r,r],[r,-r],[-r,-r]]){const v=sample(cx+ox,cy+oy);if(v[3]>250)return v;}return[0,0,0,0];};
-          const pixels=panel.curvedSkin?[0,1,2].map(i=>{
+          const pixels=reference||panel.bagBottom?[0,1,2].map(i=>{
+            // Project the actual UV triangle, including the folded gusset skew.
+            const s=reference?samples.get(panel.id)[i]:{x:panel.x+(i%2?.65:.35)*panel.w,y:panel.y+(i<2?.35:.65)*panel.h},g=preview.meshes.get(panel.id).geometry,uv=g.attributes.uv,pos=g.attributes.position,u=(s.x-d.minX)/d.width,v=1-(s.y-d.minY)/d.height,target=new THREE.Vector3(u,v,0),weights=new THREE.Vector3();
+            for(const group of g.groups.filter(g=>g.materialIndex===(side==='inside'?1:0)))for(let j=group.start;j<group.start+group.count;j+=3){
+              const point=k=>new THREE.Vector3(uv.getX(k),uv.getY(k),0),triangle=new THREE.Triangle(point(j),point(j+1),point(j+2));triangle.getBarycoord(target,weights);
+              if(weights.x>=-1e-5&&weights.y>=-1e-5&&weights.z>=-1e-5){const pt=new THREE.Vector3().fromBufferAttribute(pos,j).multiplyScalar(weights.x).addScaledVector(new THREE.Vector3().fromBufferAttribute(pos,j+1),weights.y).addScaledVector(new THREE.Vector3().fromBufferAttribute(pos,j+2),weights.z).applyMatrix4(preview.meshes.get(panel.id).matrixWorld).project(preview.camera);return sample((pt.x+1)*240,(1-pt.y)*240);}
+            }
+            return[0,0,0,0];
+          }):panel.curvedSkin?[0,1,2].map(i=>{
             const s=skinSample(panel,i),pt=new THREE.Vector3(...curvedPoint(s.x,s.y,d,fold,preview.cx,preview.cy)).applyMatrix4(preview.meshes.get(panel.id).matrixWorld).project(preview.camera);
             return sample((pt.x+1)*240,(1-pt.y)*240);
           }):[opaque(240-dx,240-dy),opaque(240+dx,240-dy),opaque(240-dx,240+dy)];

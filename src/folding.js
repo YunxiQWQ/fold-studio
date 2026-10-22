@@ -10,6 +10,7 @@ export function foldMatrices(dieline, progress, cx, cy) {
     if(panel.parent){
       matrix.copy(compute(byId.get(panel.parent)));
       const fraction=foldProgress(panel,progress);
+      if(panel.hingeOffset){const offset=panel.hingeOffset,f=Math.max(0,Math.min(1,(progress-offset.window[0])/(offset.window[1]-offset.window[0]))),dy=offset.angle!==undefined?offset.height*(Math.cos(offset.angle*f)-1):offset.y*f;matrix.multiply(new Matrix4().makeTranslation(0,dy,0));}
       if(panel.assembly){
         const x=panel.x+panel.w/2-cx,y=-(panel.y+panel.h/2-cy),[tx,ty,tz]=panel.assembly.target;
         matrix.multiply(new Matrix4().makeTranslation(x+(tx-x)*fraction,y+(ty-y)*fraction,tz*fraction)).multiply(new Matrix4().makeRotationX(panel.assembly.rotationX*Math.PI/180*fraction)).multiply(new Matrix4().makeTranslation(-x,-y,0));

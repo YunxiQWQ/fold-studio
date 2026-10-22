@@ -4,6 +4,7 @@ Run npm run build first, then python scripts/package-release.py.
 """
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -15,6 +16,10 @@ if f'v{version}'.encode() not in html:
 
 target = root / 'artifacts' / 'releases' / f'v{version}'
 target.mkdir(parents=True, exist_ok=True)
+model_count = int(subprocess.check_output([
+    'node', '--input-type=module', '-e',
+    "import {BOX_TYPES} from './src/geometry.js'; console.log(Object.keys(BOX_TYPES).length)",
+], cwd=root, text=True).strip())
 name = f'fold-studio-v{version}'
 offline = target / f'{name}.html'
 offline.write_bytes(html)
@@ -24,8 +29,8 @@ instructions = f'''折间 Fold Studio v{version}
 解压后用 Edge 或 Chrome 双击打开 {name}.html。
 Extract the ZIP, then open {name}.html with Edge or Chrome.
 无需安装、联网或启动服务器。No install, network or server required.
-27 款包装结构与瓶罐容器，支持平面设计、三维折叠、SVG 与 GLB 导出。
-27 packaging templates and containers with flat artwork, 3D folding and exports.
+{model_count} 款包装结构与瓶罐容器，支持平面设计、三维折叠、SVG 与 GLB 导出。
+{model_count} packaging templates and containers with flat artwork, 3D folding and exports.
 
 项目 / Project: https://github.com/YunxiQWQ/fold-studio
 许可 / Licenses: LICENSE, THIRD_PARTY_NOTICES.md

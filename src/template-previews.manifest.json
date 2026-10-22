@@ -1,7 +1,9 @@
 {
-  "geometryHash": "46298e4b0e7ed85f7e0789808174ebe99560a5f3bcbc0bc83cc96843c57572ba",
+  "geometryHash": "e0af4d9241d8e739464eeb4b1b7b2c90533a6cdcb9f9063706bfe4f5aed0bcfe",
   "sources": [
     "src/geometry.js",
+    "src/reference-cartons.js",
+    "src/paper-bag.js",
     "src/selected-structures.js",
     "src/selected-containers.js",
     "src/source-containers.generated.js",
@@ -138,6 +140,23 @@
       },
       "panels": 15,
       "occupied": 28854
+    },
+    "paper-shopping-bag": {
+      "fold": 1,
+      "dimensions": {
+        "length": 330,
+        "depth": 100,
+        "height": 250,
+        "topFold": 35,
+        "bottomFold": 65,
+        "glueWidth": 25,
+        "handleRise": 95,
+        "handleSpan": 140,
+        "handleStyle": "rope",
+        "handlePose": "raised"
+      },
+      "panels": 21,
+      "occupied": 35734
     },
     "beverage-can-200-mini": {
       "fold": 1,
@@ -288,6 +307,34 @@
       },
       "panels": 3,
       "occupied": 25824
+    },
+    "triangular-prism-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 200,
+        "depth": 74,
+        "height": 74,
+        "glueWidth": 15,
+        "orientation": "lying"
+      },
+      "panels": 10,
+      "occupied": 26667
+    },
+    "rope-gable-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 300,
+        "depth": 120,
+        "height": 202,
+        "roofDepth": 61,
+        "topTab": 56,
+        "bottomFlap": 84,
+        "glueWidth": 45,
+        "handleRise": 100,
+        "handleSpan": 120
+      },
+      "panels": 24,
+      "occupied": 31824
     }
   }
 }

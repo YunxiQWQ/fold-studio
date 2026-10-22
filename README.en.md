@@ -37,14 +37,16 @@ Defaults to `http://127.0.0.1:4186` and walks to the next port when occupied —
 
 ### Parametric structures
 
-- **Twenty-seven parametric packaging structures and containers**, 15–600 mm, grouped into four industry categories:
-  - **Folding cartons**: straight tuck carton, reverse tuck carton, lock-bottom carton, curved crease twist carton, lock-lid deck box, hinged display carton, glued-base tuck-top carton, salt carton
-  - **Premium gift boxes**: two-piece lid box, sliding drawer box, book-style flip box, one-piece arch-handle tote, gable handle carton
+- **Thirty parametric packaging structures and containers**, 15–600 mm, grouped into four industry categories:
+  - **Folding cartons**: straight tuck carton, reverse tuck carton, lock-bottom carton, curved crease twist carton, lock-lid deck box, hinged display carton, glued-base tuck-top carton, salt carton, triangular prism carton
+  - **Premium gift boxes**: two-piece lid box, sliding drawer box, book-style flip box, one-piece arch-handle tote, gable handle carton, paper shopping bag, rope-handle fold-top carton
   - **E-commerce and shipping**: hinged-lid mailer, regular slotted carton (RSC), full-overlap slotted container, packaging sleeve, open-top tray
   - **Bottles and cans**: mini can, slim can, classic beverage can, sleek can, tall can, blank metal tin, tall food tin, low food tin, screw-cap metal tin
 - **Structure library dialog**: the sidebar keeps the current template card plus a “browse library” entry. A full-screen modal filters by category — all / folding cartons / gift boxes / e-commerce / containers — and each card carries a category badge, bilingual naming, default dimensions and a confirmation step.
 - **Thumbnails from the real model**: library, sidebar and inspector share one set of images rendered from the actual geometry, generated at build time and inlined at runtime, with no extra WebGL context.
 - **Cylindrical containers**: wrap size derives from $W = \pi \times D$; the flat canvas provides top and bottom label alignment; 3D curls non-linearly from 0% flat to 100% wrapped. Cans get realistic metal rims, a recessed lid and a pull tab.
+- **Paper shopping bag (new in source)**: one model with landscape 425×129×322, square 330×100×250 and portrait 220×80×311 mm presets; body dimensions, folded top, bottom allowance, glue seam and handles are editable. Rope/ribbon and raised/dropped handles are selectable; holes align with the reinforced top. The net remains one rectangular blank with scored gussets and bottom diagonals. Flat exports omit the separate handles. This addition is not included in the v0.10.0 assets.
+- **Additional reference constructions (new in source)**: the triangular prism uses a 200 mm length, 74 mm base and 74 mm equal sloping edges (326×237 mm net; actual cross-section height about 64.1 mm), with lying/standing views and folding triangular end caps. The rope-handle fold-top carton has a 300×120×202 mm straight body, 61 mm roof band, 56 mm folded cap, 84 mm bottom flaps and 45 mm glue seam (885×403 mm net). The roof adds about 51.9 mm to the paper body; handle height is separate. Punch holes, eyelets, slotted narrow tabs, diagonal scores and shaped bottom tabs are retained. Parameter meanings follow the reference net segments where product labels conflict.
 - **Board-thickness clearance**: lid boxes, drawer sleeves and hardcover shells keep a board gap; tuck flaps, dust flaps and walls get a physical micro-offset so coplanar z-fighting and face bleed do not appear when closed.
 - **Curved crease twist carton**: eight quadratic scores, a center score, a 13 mm glue seam, opposed tuck lids and rounded tongues. Defaults retain four 80 mm bays and a 160 mm body, with 80 mm lids and 16 mm tongues (333 × 352 mm sheet). The blurry reference has conflicting totals; bay dimensions follow the user's confirmation. Square sides are linked; the top square turns 45° relative to the bottom. Curved meshes, two-sided artwork, selection, SVG scores and GLB export share the same construction. This is a geometric preview without material-strain, contact or physical-prototype validation.
 
@@ -128,7 +130,7 @@ A note on reading the OpenBox3D source: its `src/render3d/engine.js` runs a pers
 
 ## Current limitations
 
-- Twenty-seven parametric templates and containers are supported. **Automatic recognition of arbitrary external SVG / PDF / DXF dielines, manual crease annotation and cut-line node editing are not implemented**; opening an SVG only works for files this application exported with project metadata. An importer interface is reserved and the plan is in [DXF-IMPORT-PLAN.md](DXF-IMPORT-PLAN.md).
+- Thirty parametric templates and containers are supported. **Automatic recognition of arbitrary external SVG / PDF / DXF dielines, manual crease annotation and cut-line node editing are not implemented**; opening an SVG only works for files this application exported with project metadata. An importer interface is reserved and the plan is in [DXF-IMPORT-PLAN.md](DXF-IMPORT-PLAN.md).
 - Artwork can span the whole dieline or be clipped to the reference panel, but stays on the current print side; it will not wrap around a cut edge or across to the reverse of the sheet.
 - A fixed 0.45 mm thickness is used for display, with a micro-offset on tucks and overlaps to avoid z-fighting. Industrial paper-thickness compensation, die-cutting tolerances and board spring-back are not modelled.
 - Dieline dimensions are based on geometric panels and **must not be treated as verified production data**. There is no CMYK separation, spot colour, bleed, safe area, foil or UV layer output.

@@ -6,6 +6,8 @@ import { foldMatrices } from '../src/folding.js';
 import { createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions,buildContainerAccessories } from '../src/model3d.js';
 import { newProject, validateProject, History } from '../src/project.js';
 import {curvedPoint} from '../src/curved-carton.js';
+import {bagBottomPoint} from '../src/paper-bag.js';
+import {roofGussetPoint} from '../src/reference-cartons.js';
 
 function foldedBounds(dieline, progress) {
   if (dieline.cylinder) {
@@ -20,7 +22,7 @@ function foldedBounds(dieline, progress) {
   }
   const root=dieline.panels.find(p=>p.id===dieline.rootId),cx=root.x+root.w/2,cy=root.y+root.h/2,matrices=foldMatrices(dieline,progress,cx,cy);
   const bounds=new THREE.Box3();
-  for(const p of dieline.panels)for(const [x,y]of p.points)bounds.expandByPoint(p.curvedSkin?new THREE.Vector3(...curvedPoint(x,y,dieline,progress,cx,cy)):new THREE.Vector3(x-cx,-(y-cy),0).applyMatrix4(matrices.get(p.id)));
+  for(const p of dieline.panels)for(const [x,y]of p.points)bounds.expandByPoint(p.curvedSkin?new THREE.Vector3(...curvedPoint(x,y,dieline,progress,cx,cy)):(p.roofGusset?roofGussetPoint(x,y,p,dieline,progress,cx,cy):p.bagBottom?bagBottomPoint(x,y,p,dieline.paperBag,progress,cx,cy):new THREE.Vector3(x-cx,-(y-cy),0)).applyMatrix4(matrices.get(p.id)));
   return bounds.getSize(new THREE.Vector3());
 }
 
@@ -41,6 +43,8 @@ for(const type of Object.keys(BOX_TYPES)){
       for(const value of [size.x,size.z])assert.ok(value>=dimensions.length*.99&&value<=dimensions.length+.45);
       return;
     }
+    if(d.triangle){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,dimensions.depth,d.triangle.altitude][i])<1e-4,`${v} triangular bound`));return;}
+    if(d.ropeGable){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,dimensions.height+d.ropeGable.rise,dimensions.depth][i])<1e-4,`${v} roof bound`));return;}
     if(d.curvedBody){
       assert.ok(Math.abs(size.x-Math.SQRT2*dimensions.length)<1e-4);
       assert.ok(Math.abs(size.z-Math.SQRT2*dimensions.length)<1e-4);

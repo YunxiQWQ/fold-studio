@@ -5,6 +5,8 @@ import { paintArtwork } from './artwork.js';
 import { surfaceOf } from './project.js';
 import {updateCurvedSkinGeometry} from './curved-carton-mesh.js';
 import { createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, canProportions } from './model3d.js';
+import {updateBagBottomGeometry,buildPaperBagHandles,updatePaperBagHandles} from './paper-bag.js';
+import {updateRoofGussetGeometry} from './reference-cartons.js';
 
 export async function exportGLB(project, dieline, images, options = {}) {
   const {
@@ -90,6 +92,8 @@ export async function exportGLB(project, dieline, images, options = {}) {
     const curved=dieline.cylinder && panel.id==='body';
     const geometry=curved?createCylinderRibbonGeometry(panel.w,panel.h,dieline,panel):createPanelGeometry(panel,dieline,cx,cy);
     if(panel.curvedSkin)updateCurvedSkinGeometry(geometry,dieline,fold,cx,cy);
+    if(panel.bagBottom)updateBagBottomGeometry(geometry,panel,dieline,fold,cx,cy);
+    if(panel.roofGusset)updateRoofGussetGeometry(geometry,panel,dieline,fold,cx,cy);
     if(curved){
       let ySpan = null;
       if (isCan) {
@@ -111,7 +115,8 @@ export async function exportGLB(project, dieline, images, options = {}) {
     rootGroup.add(accessories);
   }
 
-  rootGroup.rotation.x = dieline.rootRotationX;
+  if((dieline.paperBag||dieline.ropeHandles)&&fold>.55){const handles=buildPaperBagHandles(dieline,cx,cy);updatePaperBagHandles(handles,transforms,fold);for(const mesh of handles.children){mesh.matrix.decompose(mesh.position,mesh.quaternion,mesh.scale);mesh.matrixAutoUpdate=true;}rootGroup.add(handles);}
+  rootGroup.rotation.set(dieline.rootRotationX,0,dieline.rootRotationZ??0,'ZXY');
   rootGroup.updateMatrixWorld(true);
 
   // 5. Binary GLTF export

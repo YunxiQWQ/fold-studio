@@ -44,6 +44,7 @@ export function sampleLayers(type) {
       // composition so its text reads upright after the wall folds up.
       layer.x=1-layer.x;layer.y=1-layer.y;layer.rotation=180;
     }
+    if(type==='triangular-prism-carton'&&layer.type==='text')layer.size=Math.min(layer.size,BOX_TYPES[type].defaults.height*.10);
     if(BOX_TYPES[type].sourceMesh||type==='blank-metal-tin'){
       const info=BOX_TYPES[type],band=info.labelBand??[.04,.96],labelH=info.defaults.height*(band[1]-band[0]);
       if(layer.type==='text')layer.size=Math.min(layer.size,labelH*.085);
