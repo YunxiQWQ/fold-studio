@@ -42,7 +42,7 @@ $('#app').innerHTML=`
   <div class="brand-group">
     <a class="brand" href="#" aria-label="折间工作台"> <span class="brand-mark">${icon('box')}</span><span class="brand-name">折间<span>FOLD STUDIO</span></span></a>
     <div class="brand-badges">
-      <span class="version-tag">v0.10.0</span>
+      <span class="version-tag">v0.11.0</span>
       <span class="local-badge"><span class="local-dot"></span>文件留在本地</span>
     </div>
   </div>

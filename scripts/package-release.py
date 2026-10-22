@@ -34,13 +34,14 @@ Extract the ZIP, then open {name}.html with Edge or Chrome.
 
 项目 / Project: https://github.com/YunxiQWQ/fold-studio
 许可 / Licenses: LICENSE, THIRD_PARTY_NOTICES.md
+贡献者 / Contributors: CONTRIBUTORS.md
 更新记录 / Changes: CHANGELOG.md
 '''
 archive = target / f'{name}.zip'
 with ZipFile(archive, 'w', compression=ZIP_DEFLATED, compresslevel=9) as bundle:
     bundle.write(offline, offline.name)
     bundle.writestr('README.txt', instructions)
-    for filename in ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md']:
+    for filename in ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'CONTRIBUTORS.md', f'RELEASE_NOTES_v{version}.md']:
         bundle.write(root / filename, filename)
 checksums = target / 'SHA256SUMS.txt'
 checksums.write_text(''.join(

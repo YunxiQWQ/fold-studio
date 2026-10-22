@@ -6,6 +6,7 @@ A local-first web workbench for packaging design, built around keeping editing f
 
 **Live demo:** [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold)
 **License:** MIT, copyright Yun-xi, OpenAI Codex and DeepSeek Harness. Third-party code and icon licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+**Contributors:** [Yun-xi and OpenAI Codex](CONTRIBUTORS.md).
 
 ![Fold Studio workspace: structure and dimensions on the left, flat dieline editing in the center, and live 3D folding preview on the right](docs/images/fold-studio-workspace.png)
 
@@ -13,9 +14,9 @@ A local-first web workbench for packaging design, built around keeping editing f
 
 **Use it online:** open [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold). No account needed.
 
-**Offline single file:** download `fold-studio-v0.10.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined. Verified over `file://` for 3D preview, text editing and draft restore with zero external requests.
+**Offline single file:** download `fold-studio-v0.11.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined.
 
-**Portable bundle:** [download the v0.10.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.10.0/fold-studio-v0.10.0.zip), containing the same offline HTML, quick-start instructions, changelog and licenses. SHA-256 checksums are available on the release page.
+**Portable bundle:** [download the v0.11.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.11.0/fold-studio-v0.11.0.zip), containing the same offline HTML, quick-start instructions, changelog, contributor credits and licenses. SHA-256 checksums are available on the release page.
 
 **Build locally:** Node.js 22 or newer.
 
@@ -45,8 +46,8 @@ Defaults to `http://127.0.0.1:4186` and walks to the next port when occupied —
 - **Structure library dialog**: the sidebar keeps the current template card plus a “browse library” entry. A full-screen modal filters by category — all / folding cartons / gift boxes / e-commerce / containers — and each card carries a category badge, bilingual naming, default dimensions and a confirmation step.
 - **Thumbnails from the real model**: library, sidebar and inspector share one set of images rendered from the actual geometry, generated at build time and inlined at runtime, with no extra WebGL context.
 - **Cylindrical containers**: wrap size derives from $W = \pi \times D$; the flat canvas provides top and bottom label alignment; 3D curls non-linearly from 0% flat to 100% wrapped. Cans get realistic metal rims, a recessed lid and a pull tab.
-- **Paper shopping bag (new in source)**: one model with landscape 425×129×322, square 330×100×250 and portrait 220×80×311 mm presets; body dimensions, folded top, bottom allowance, glue seam and handles are editable. Rope/ribbon and raised/dropped handles are selectable; holes align with the reinforced top. The net remains one rectangular blank with scored gussets and bottom diagonals. Flat exports omit the separate handles. This addition is not included in the v0.10.0 assets.
-- **Additional reference constructions (new in source)**: the triangular prism uses a 200 mm length, 74 mm base and 74 mm equal sloping edges (326×237 mm net; actual cross-section height about 64.1 mm), with lying/standing views and folding triangular end caps. The rope-handle fold-top carton has a 300×120×202 mm straight body, 61 mm roof band, 56 mm folded cap, 84 mm bottom flaps and 45 mm glue seam (885×403 mm net). The roof adds about 51.9 mm to the paper body; handle height is separate. Punch holes, eyelets, slotted narrow tabs, diagonal scores and shaped bottom tabs are retained. Parameter meanings follow the reference net segments where product labels conflict.
+- **Paper shopping bag**: one model with landscape 425×129×322, square 330×100×250 and portrait 220×80×311 mm presets; body dimensions, folded top, bottom allowance, glue seam and handles are editable. Rope/ribbon and raised/dropped handles are selectable; holes align with the reinforced top. The net remains one rectangular blank with scored gussets and bottom diagonals. Flat exports omit the separate handles.
+- **Triangular prism and rope-handle fold-top carton**: the triangular prism uses a 200 mm length, 74 mm base and 74 mm equal sloping edges (326×237 mm net; actual cross-section height about 64.1 mm), with lying/standing views and folding triangular end caps. The rope-handle fold-top carton has a 300×120×202 mm straight body, 61 mm roof band, 56 mm folded cap, 84 mm bottom flaps and 45 mm glue seam (885×403 mm net). The roof adds about 51.9 mm to the paper body; handle height is separate. Punch holes, eyelets, slotted narrow tabs, diagonal scores and shaped bottom tabs are retained. Parameter meanings follow the reference net segments where product labels conflict.
 - **Board-thickness clearance**: lid boxes, drawer sleeves and hardcover shells keep a board gap; tuck flaps, dust flaps and walls get a physical micro-offset so coplanar z-fighting and face bleed do not appear when closed.
 - **Curved crease twist carton**: eight quadratic scores, a center score, a 13 mm glue seam, opposed tuck lids and rounded tongues. Defaults retain four 80 mm bays and a 160 mm body, with 80 mm lids and 16 mm tongues (333 × 352 mm sheet). The blurry reference has conflicting totals; bay dimensions follow the user's confirmation. Square sides are linked; the top square turns 45° relative to the bottom. Curved meshes, two-sided artwork, selection, SVG scores and GLB export share the same construction. This is a geometric preview without material-strain, contact or physical-prototype validation.
 
@@ -98,8 +99,6 @@ Flat interaction runs on **Fabric.js 7.4.0 (MIT)**; the selection rationale is i
 - **.fold projects**: import and export, both sides included; single-side projects from earlier versions load as outside.
 
 ### Projects and storage
-
-The project library below is in unreleased source code. The v0.10.0 download still uses a single draft.
 
 - Undo and redo (40 steps), up to 120 layers.
 - The local project library can create, open, and duplicate multiple projects. Importing a `.fold` project creates a new entry instead of replacing the current one.
