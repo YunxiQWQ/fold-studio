@@ -13,7 +13,7 @@ async function fold(page,n){await page.locator('#fold-slider').fill(String(n));a
 try{
  browser=await chromium.launch({headless:true,...(existsSync(installed)?{executablePath:installed}:{}),args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
  const page=await browser.newPage({viewport:{width:1600,height:1050},acceptDownloads:true});page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.waitForSelector('html[data-ready="true"]');
- await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),30);await page.keyboard.press('Escape');
+ await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),32);await page.keyboard.press('Escape');
  for(const type of types){
   await choose(page,type);const before=await page.evaluate(()=>window.__foldStudio.stats);
   for(const value of [0,45,78,100])await fold(page,value);
@@ -32,7 +32,7 @@ try{
   await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await page.locator('#export-svg').click();const file=resolve('artifacts',type+'-export.svg');await(await download).saveAs(file);await page.locator('#project-input').setInputFiles(file);await page.waitForFunction(()=>window.__foldStudio.project.layers.some(l=>l.text==='结构新增实测'));
   await page.locator('#panel-selector').selectOption('front');await page.locator('#fit-3d').click();await page.waitForTimeout(3200);await page.screenshot({path:resolve('artifacts',type+'-workspace.png')});
  }
- checks.push('30 library entries; both reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking; custom dimensions, prism orientation and valid sides; undo/redo and SVG project round trips');
+ checks.push('32 library entries; both existing reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking; custom dimensions, prism orientation and valid sides; undo/redo and SVG project round trips');
  const harness=await browser.newPage({viewport:{width:1800,height:900}});harness.on('pageerror',e=>errors.push(e.message));await harness.route('**/reference-harness',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));await harness.goto(url+'/reference-harness');
  const results=await harness.evaluate(async()=>{
   const [{exportGLB},{makeDieline},{newProject},{ImageCache},{GLTFLoader},{Preview3D},THREE]=await Promise.all([import('/src/export3d.js'),import('/src/geometry.js'),import('/src/project.js'),import('/src/artwork.js'),import('/node_modules/three/examples/jsm/loaders/GLTFLoader.js'),import('/src/preview3d.js'),import('/node_modules/three/build/three.module.js')]);

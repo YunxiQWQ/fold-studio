@@ -11,6 +11,7 @@ import {expandGroups,layerRect} from './editor-commands.js';
 import { BOX_TYPES, makeDieline, creasePaths, cutSegments } from './geometry.js';
 import {PAPER_BAG_PRESETS,paperBagSettings} from './paper-bag.js';
 import {triangleSettings,ropeGableSettings} from './reference-cartons.js';
+import {candyTwistSettings,triangleSliceSettings} from './rigid-reference-cartons.js';
 import { newProject, History, uid, clone, validateProject, PALETTES, SIDES, sideOf, surfaceOf } from './project.js';
 import { encodeLayers, decodeLayers, layersForPaste, CLIPBOARD_MIME } from './clipboard.js';
 import { ImageCache, paintArtwork } from './artwork.js';
@@ -42,7 +43,7 @@ $('#app').innerHTML=`
   <div class="brand-group">
     <a class="brand" href="#" aria-label="折间工作台"> <span class="brand-mark">${icon('box')}</span><span class="brand-name">折间<span>FOLD STUDIO</span></span></a>
     <div class="brand-badges">
-      <span class="version-tag">v0.11.0</span>
+      <span class="version-tag">v0.12.0</span>
       <span class="local-badge"><span class="local-dot"></span>文件留在本地</span>
     </div>
   </div>
@@ -286,9 +287,10 @@ function refresh({fit=false,build=true}={}){
   if(fit)editor.fit();
   $('#project-name').value=project.name;
   for(const key of ['length','depth','height'])$(`#dim-${key}`).value=project.dimensions[key];
-  const dimensionNames=project.type==='triangular-prism-carton'?[['柱长','L'],['底边','B'],['斜边','S']]:project.type==='rope-gable-carton'?[['长','L'],['侧宽','W'],['身高','H']]:[['长','L'],['宽','W'],['高','H']];
-  ['length','depth','height'].forEach((key,i)=>{const input=$(`#dim-${key}`),[label,letter]=dimensionNames[i];input.closest('label').querySelector('span').innerHTML=`${label}<em>${letter}</em>`;input.setAttribute('aria-label',project.type==='triangular-prism-carton'||project.type==='rope-gable-carton'?label:`成品${label}度`);input.min=key==='height'&&project.type==='triangular-prism-carton'?Math.max(15,Math.floor(project.dimensions.depth/2)+1):15;});
-  $('.dimension-section h2').textContent=project.type==='triangular-prism-carton'||project.type==='rope-gable-carton'?'结构尺寸':'成品尺寸';
+  const customDimensions=['triangular-prism-carton','rope-gable-carton','candy-twist-carton','triangle-slice-box'].includes(project.type);
+  const dimensionNames=project.type==='triangular-prism-carton'?[['柱长','L'],['底边','B'],['斜边','S']]:project.type==='rope-gable-carton'?[['长','L'],['侧宽','W'],['身高','H']]:project.type==='candy-twist-carton'?[['盒身长','L'],['截宽','W'],['截高','H']]:project.type==='triangle-slice-box'?[['底边','L'],['三角高','D'],['盒厚','H']]:[['长','L'],['宽','W'],['高','H']];
+  ['length','depth','height'].forEach((key,i)=>{const input=$(`#dim-${key}`),[label,letter]=dimensionNames[i];input.closest('label').querySelector('span').innerHTML=`${label}<em>${letter}</em>`;input.setAttribute('aria-label',customDimensions?label:`成品${label}度`);input.min=key==='height'&&project.type==='triangular-prism-carton'?Math.max(15,Math.floor(project.dimensions.depth/2)+1):15;});
+  $('.dimension-section h2').textContent=customDimensions?'结构尺寸':'成品尺寸';
   const paperCmyk=colorMode==='cmyk'?` · ${formatCmyk(project.paper)}`:'';
   $('#paper-color').value=project.paper;$('#paper-hex').textContent=`${project.paper.toUpperCase()}${paperCmyk}`;$('#material').value=project.material;$('#quality').value=project.quality;
   $('#sheet-size').textContent=`${dieline.width.toFixed(0)} × ${dieline.height.toFixed(0)} mm`;
@@ -304,16 +306,22 @@ function refresh({fit=false,build=true}={}){
 function renderExtraDimensions(){
   const container=$('#extra-dimensions');
   if(!container)return;
-  if(project.type==='triangular-prism-carton'||project.type==='rope-gable-carton'){
+  if(['triangular-prism-carton','rope-gable-carton','candy-twist-carton','triangle-slice-box'].includes(project.type)){
     container.hidden=false;
     const row=(key,label,value,min,max)=>`<div class="extra-dim-row"><div class="extra-dim-label"><span>${label}</span><strong id="val-${key}">${Number(value.toFixed(1))} mm</strong></div><div class="extra-dim-control"><input type="range" class="extra-dim-slider" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}"/><input type="number" class="extra-dim-num" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}数值"/></div></div>`;
     let content;
     if(project.type==='triangular-prism-carton'){
       const b=triangleSettings(project.dimensions);
       content=`<div class="extra-dim-heading"><span>三角柱结构</span></div><p class="field-note reference-note">尺寸为柱长、底边、等腰斜边。实际截面高 ${b.altitude.toFixed(1)} mm，展开 ${dieline.width.toFixed(1)} × ${dieline.height.toFixed(1)} mm。</p><label class="select-label">摆放姿态<select id="reference-orientation" data-reference-option="orientation"><option value="lying" ${b.orientation==='lying'?'selected':''}>平放展示</option><option value="standing" ${b.orientation==='standing'?'selected':''}>竖立展示</option></select></label>${row('glueWidth','接缝粘舌',b.G,2,Math.min(40,b.S*.4))}`;
-    }else{
+    }else if(project.type==='rope-gable-carton'){
       const b=ropeGableSettings(project.dimensions);
       content=`<div class="extra-dim-heading"><span>绳提手折顶结构</span></div><p class="field-note reference-note">身高不含折顶和提绳。折顶增加 ${b.rise.toFixed(1)} mm，盒体总高 ${(b.H+b.rise).toFixed(1)} mm；窄顶舌保留穿槽。</p>${row('roofDepth','斜顶展开宽',b.R,b.run+2,Math.max(b.run+3,Math.min(240,b.H)))}${row('topTab','折返顶盖宽',b.F,4,b.D*.8)}${row('bottomFlap','锁底展开深',b.B,b.D/2+2,b.D*.95)}${row('glueWidth','侧粘口',b.G,3,Math.min(65,b.L*.3,b.D*.6))}${row('handleRise','提绳弧高',b.handleRise,10,250)}${row('handleSpan','绳孔间距',b.handleSpan,8,b.L*.8)}`;
+    }else if(project.type==='candy-twist-carton'){
+      const b=candyTwistSettings(project.dimensions);
+      content=`<div class="extra-dim-heading"><span>糖果扭结结构</span></div><p class="field-note reference-note">盒身长不含两端外伸燕尾；闭合后总长约 ${(b.L+2*b.T).toFixed(1)} mm。扭结锁合为视觉近似，不是生产刀模。</p>${row('neckWidth','收脊颈宽',b.N,4,b.W-4)}${row('endRise','端部收脊长',b.E,4,1.5*Math.min(b.W,b.H))}${row('tailLength','燕尾外伸',b.T,6,.6*b.L)}${row('tailFlare','燕尾外扩',b.F,0,Math.max(0,(b.W-b.N)/2-1))}${row('glueWidth','侧粘口',b.G,3,Math.min(24,.3*b.W))}`;
+    }else{
+      const b=triangleSliceSettings(project.dimensions);
+      content=`<div class="extra-dim-heading"><span>三角切片盒结构</span></div><p class="field-note reference-note">三角高是底边到顶点的垂直距离，不是斜边。闭合厚度约 ${b.H.toFixed(1)} mm，两个盖插舌按摩擦插入近似。</p>${row('lockTab','盖插舌长',b.K,4,b.H-2)}`;
     }
     const markup=`<div data-reference-controls="${project.type}">${content}</div>`;
     if(!container.querySelector(`[data-reference-controls="${project.type}"]`))container.innerHTML=markup;
@@ -994,7 +1002,13 @@ initWorkspaceResizers();
 async function init(){
   $('#app').inert=true;
   try{
-    const saved=await getActiveDocument(project),next=validateProject(saved.project);
+    let saved=await getActiveDocument(project);
+    if(saved.project?.type&&!Object.hasOwn(BOX_TYPES,saved.project.type)){
+      const fallback=newProject();
+      saved={id:await createDocument(fallback),project:fallback};
+      notify('原工程的盒型已不再提供，已新建工程；原记录仍保留在本机');
+    }
+    const next=validateProject(saved.project);
     await images.preload(next.layers);activeProjectId=saved.id;project=next;history=new History(project);panelId=BOX_TYPES[project.type].printPanel;
     const revisions=await listRevisions(saved.id);lastSnapshotAt=revisions[0]?.createdAt??0;
     if(!revisions.length){try{const revision=await saveRevision(saved.id,clone(project),'初始版本');lastSnapshotAt=revision.createdAt;}catch{notify('历史版本未能保存，请下载 .fold 备份');}}

@@ -10,7 +10,7 @@ import {foldMatrices} from '../src/folding.js';
 import {printRegions,inPrintRegions,regionPath} from '../src/artwork-space.js';
 
 test('selected groups include all five box types and the complete food-can set',()=>{
-  assert.equal(Object.keys(BOX_TYPES).length,30);
+  assert.equal(Object.keys(BOX_TYPES).length,32);
   assert.equal(Object.keys(SELECTED_BOXES).length,6); // Five selections plus the salt carton in C2.
   assert.equal(Object.keys(SELECTED_CONTAINERS).length,4); // C1, C2 high/low and C3.
   const d=makeDieline('card-deck-lock',BOX_TYPES['card-deck-lock'].defaults);

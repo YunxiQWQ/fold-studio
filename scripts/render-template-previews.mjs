@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 
-const sources=['src/geometry.js','src/reference-cartons.js','src/paper-bag.js','src/selected-structures.js','src/selected-containers.js','src/source-containers.generated.js','src/curved-carton.js','src/curved-carton-mesh.js','src/folding.js','src/model3d.js','src/preview3d.js','src/project.js','src/artwork.js','src/artwork-space.js','scripts/render-template-previews.mjs'];
+const sources=['src/geometry.js','src/reference-cartons.js','src/rigid-reference-cartons.js','src/paper-bag.js','src/selected-structures.js','src/selected-containers.js','src/source-containers.generated.js','src/curved-carton.js','src/curved-carton-mesh.js','src/folding.js','src/model3d.js','src/preview3d.js','src/project.js','src/artwork.js','src/artwork-space.js','scripts/render-template-previews.mjs'];
 const hash=createHash('sha256');for(const file of sources)hash.update(await readFile(file));const geometryHash=hash.digest('hex');
 const manifestPath='src/template-previews.manifest.json',modulePath='src/template-previews.generated.js';
 try{const old=JSON.parse(await readFile(manifestPath,'utf8'));if(old.geometryHash===geometryHash&&existsSync(modulePath)){console.log('结构预览与当前模型一致，无需重新生成');process.exit(0);}}catch{}

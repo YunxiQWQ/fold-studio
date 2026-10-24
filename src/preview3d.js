@@ -222,7 +222,8 @@ export class Preview3D {
     if (!this.dieline) return;
     this.showAll();
     this.root.updateMatrixWorld(true);
-    const bounds=new THREE.Box3().setFromObject(this.root,!!(this.dieline?.triangle||this.dieline?.ropeGable)), size=bounds.getSize(new THREE.Vector3()), center=bounds.getCenter(new THREE.Vector3());
+    const exactBounds=['candy-twist-carton','triangle-slice-box'].includes(this.dieline?.type);
+    const bounds=new THREE.Box3().setFromObject(this.root,!!(this.dieline?.triangle||this.dieline?.ropeGable||exactBounds)), size=bounds.getSize(new THREE.Vector3()), center=bounds.getCenter(new THREE.Vector3());
     const halfFov=this.camera.fov*Math.PI/360;
     const distance=Math.max(size.y,size.x/Math.max(.25,this.camera.aspect),size.z)*.64/Math.tan(halfFov)+size.z*.6;
     this.setCameraUp(new THREE.Vector3(0,1,0));

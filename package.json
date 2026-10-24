@@ -1,6 +1,6 @@
 {
   "name": "fold-studio",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "private": false,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "postbuild": "node scripts/standalone.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.js",
-    "test:browser": "node tests/browser.mjs && node tests/surfaces-browser.mjs && node tests/export-glb-browser.mjs && node tests/theme-and-boxes-browser.mjs && node tests/packaging-features-browser.mjs && node tests/cmyk-browser.mjs && node tests/model-selection-browser.mjs && node tests/editor-browser.mjs && node tests/cross-panel-browser.mjs && node tests/packaging-edit-browser.mjs && node tests/color-ui-browser.mjs && node tests/workspace-layout-browser.mjs && node tests/curved-carton-browser.mjs && node tests/selected-models-browser.mjs && node tests/paper-bag-browser.mjs && node tests/reference-cartons-browser.mjs",
+    "test:browser": "node tests/browser.mjs && node tests/surfaces-browser.mjs && node tests/export-glb-browser.mjs && node tests/theme-and-boxes-browser.mjs && node tests/packaging-features-browser.mjs && node tests/cmyk-browser.mjs && node tests/model-selection-browser.mjs && node tests/editor-browser.mjs && node tests/cross-panel-browser.mjs && node tests/packaging-edit-browser.mjs && node tests/color-ui-browser.mjs && node tests/workspace-layout-browser.mjs && node tests/curved-carton-browser.mjs && node tests/selected-models-browser.mjs && node tests/paper-bag-browser.mjs && node tests/reference-cartons-browser.mjs && node tests/rigid-reference-cartons-browser.mjs",
     "prebuild": "node scripts/render-template-previews.mjs",
     "build:previews": "node scripts/render-template-previews.mjs"
   },

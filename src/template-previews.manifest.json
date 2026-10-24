@@ -1,8 +1,9 @@
 {
-  "geometryHash": "e0af4d9241d8e739464eeb4b1b7b2c90533a6cdcb9f9063706bfe4f5aed0bcfe",
+  "geometryHash": "ec503f2845f153db7009fb826660edfe8f0898a66393597d722e59fa623c0f21",
   "sources": [
     "src/geometry.js",
     "src/reference-cartons.js",
+    "src/rigid-reference-cartons.js",
     "src/paper-bag.js",
     "src/selected-structures.js",
     "src/selected-containers.js",
@@ -335,6 +336,32 @@
       },
       "panels": 24,
       "occupied": 31824
+    },
+    "candy-twist-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 110,
+        "depth": 42,
+        "height": 30,
+        "neckWidth": 14,
+        "endRise": 18,
+        "tailLength": 22,
+        "tailFlare": 6,
+        "glueWidth": 12
+      },
+      "panels": 17,
+      "occupied": 20711
+    },
+    "triangle-slice-box": {
+      "fold": 1,
+      "dimensions": {
+        "length": 120,
+        "depth": 104,
+        "height": 32,
+        "lockTab": 12
+      },
+      "panels": 7,
+      "occupied": 18526
     }
   }
 }

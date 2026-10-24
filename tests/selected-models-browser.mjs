@@ -17,7 +17,7 @@ try{
   browser=await chromium.launch({headless:true,...(existsSync(installed)?{executablePath:installed}:{}),args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
   const page=await browser.newPage({viewport:{width:1600,height:1000},acceptDownloads:true});page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url);await page.waitForSelector('html[data-ready="true"]');
-  await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),30);await page.keyboard.press('Escape');
+  await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),32);await page.keyboard.press('Escape');
   for(const type of types){
     await choose(page,type);const before=await page.evaluate(()=>window.__foldStudio.stats);
     for(const progress of [0,45,78,100])await fold(page,progress);
@@ -29,7 +29,7 @@ try{
     await page.locator('#project-input').setInputFiles(dest);await page.waitForFunction(t=>window.__foldStudio.project.type===t,type);
     assert.ok(await page.evaluate(()=>window.__foldStudio.project.layers.some(l=>l.text==='新增模型实测')));
   }
-  checks.push('30 library entries; all ten new models support four fold states, inside/outside pointer picking, text editing and SVG project round trips');
+  checks.push('32 library entries; all ten selected models support four fold states, inside/outside pointer picking, text editing and SVG project round trips');
   await choose(page,'gable-handle-carton');await page.locator('#fit-3d').click();await page.screenshot({path:resolve(artifacts,'selected-gable-workspace.png')});
   await choose(page,'screw-metal-tin');await page.locator('#fit-3d').click();await page.screenshot({path:resolve(artifacts,'selected-tin-workspace.png')});
   // A clean module harness checks the exported binary through the actual GLTF loader.

@@ -54,7 +54,7 @@ try{
     assert.equal(selection.panelId,config.printPanel);assert.equal(selection.side,'inside');
     await page.locator('#inspect-panel').click();
   }
-  checks.push('native pointer clicks on all 12 isolated inside panels keep dropdown and active surface synchronized');
+  checks.push('native pointer clicks on all 32 isolated inside panels keep dropdown and active surface synchronized');
   // A real WebGL viewport with diagnostic quadrants checks handedness of both printed sides.
   await page.close();page=await browser.newPage({viewport:{width:520,height:520}});
   page.on('pageerror',e=>errors.push(e.message));
@@ -71,7 +71,7 @@ try{
     const sample=(x,y)=>[...ctx.getImageData(Math.round(x),Math.round(y),1,1).data];
     for(const type of Object.keys(BOX_TYPES)){
       const p=newProject(type),d=makeDieline(type,p.dimensions);p.layers=[];p.paper=p.insidePaper='#ffffff';
-      const reference=!!(d.triangle||d.ropeGable),samples=new Map();preview.setQuality(reference?'crisp':'economy');
+      const reference=!!(d.triangle||d.ropeGable)||['candy-twist-carton','triangle-slice-box'].includes(type),samples=new Map();preview.setQuality(reference?'crisp':'economy');
       if(reference)for(const panel of d.panels){
         const contour=panel.points.map(p=>new THREE.Vector2(...p)),holes=(panel.holes??[]).map(h=>h.map(p=>new THREE.Vector2(...p))),points=[...contour,...holes.flat()],triangles=THREE.ShapeUtils.triangulateShape(contour,holes);
         const largest=triangles.map(indices=>indices.map(i=>points[i])).sort((a,b)=>Math.abs(new THREE.Vector2().subVectors(b[1],b[0]).cross(new THREE.Vector2().subVectors(b[2],b[0])))-Math.abs(new THREE.Vector2().subVectors(a[1],a[0]).cross(new THREE.Vector2().subVectors(a[2],a[0]))))[0];
@@ -134,5 +134,5 @@ try{
   writeFileSync(resolve(artifacts,'model-selection-report.json'),JSON.stringify({checks,...result,errors},null,2));
   const diagnostic=await page.evaluate(()=>window.trayDiagnostic);writeFileSync(resolve(artifacts,'tray-outside-orientation.png'),Buffer.from(diagnostic.split(',')[1],'base64'));
   assert.deepEqual(result.failures,[]);assert.deepEqual(errors,[]);
-  console.log(`Passed: ${result.count} real WebGL panel/side/fold quadrant checks, 12 inside picking checks, library selection and responsive modal flows`);
+  console.log(`Passed: ${result.count} real WebGL panel/side/fold quadrant checks, 32 inside picking checks, library selection and responsive modal flows`);
 }finally{await browser.close();await server.close();}
