@@ -5,6 +5,7 @@ import { drawSymbol } from './symbols.js';
 import { proofColor } from './color.js';
 import {renderText} from './text-layout.js';
 import {printRegions,inPrintRegions} from './artwork-space.js';
+import {svgLayerSource} from './svg-asset.js';
 export {fontFamily} from './text-layout.js';
 
 
@@ -15,7 +16,12 @@ export function polygonPath(ctx, points,holes=[]) {
 }
 
 export class ImageCache {
-  constructor(onLoad = () => {}) { this.items = new Map(); this.onLoad = onLoad; }
+  constructor(onLoad = () => {}) { this.items = new Map(); this.svgSources=new Map(); this.onLoad = onLoad; }
+  getSvg(layer,color=null,colorMode='rgb'){
+    const src=svgLayerSource(layer,color,colorMode),previous=this.svgSources.get(layer.id);this.svgSources.set(layer.id,src);
+    if(previous&&previous!==src&&![...this.svgSources.values()].includes(previous))this.items.delete(previous);
+    return this.get(src);
+  }
   get(src) {
     if (!this.items.has(src)) {
       const img = new Image();
@@ -27,16 +33,18 @@ export class ImageCache {
     const image = this.items.get(src);
     return image.complete && image.naturalWidth ? image : null;
   }
-  async preload(layers) {
-    await Promise.all(layers.filter(l => l.type === 'image').map(l => new Promise((resolve, reject) => {
-      const img = this.get(l.src) ?? this.items.get(l.src);
+  async preload(layers,colorMode='rgb') {
+    await Promise.all(layers.filter(l => l.type === 'image'||l.type==='svg').map(l => new Promise((resolve, reject) => {
+      const src=l.type==='svg'?svgLayerSource(l,null,colorMode):l.src;
+      const img = (l.type==='svg'?this.getSvg(l,null,colorMode):this.get(src)) ?? this.items.get(src);
       if (img.complete) return img.naturalWidth ? resolve() : reject(new Error('图片无法解码'));
       img.addEventListener('load', resolve, { once: true });
       img.addEventListener('error', () => reject(new Error('图片无法解码')), { once: true });
     })));
   }
   retain(layers) {
-    const used = new Set(layers.filter(l => l.type === 'image').map(l => l.src));
+    const used = new Set(layers.filter(l => l.type === 'image'||l.type==='svg').map(l => l.type==='svg'?svgLayerSource(l):l.src));
+    for(const id of this.svgSources.keys())if(!layers.some(l=>l.id===id))this.svgSources.delete(id);
     for (const src of this.items.keys()) if (!used.has(src)) this.items.delete(src);
   }
 }
@@ -68,6 +76,9 @@ export function drawLayer(ctx, layer, panel, images, colorMode = 'rgb') {
   if (layer.type === 'text') {
     if(ctx.drawArtworkText)ctx.drawArtworkText(layer,w,h,color);
     else renderText(ctx,layer,w,h,color);
+  } else if(layer.type==='svg'){
+    if(ctx.drawSvgLayer)ctx.drawSvgLayer(layer,w,h,layer.svgOriginal===false?color:null,colorMode);
+    else{const img=images.getSvg(layer,layer.svgOriginal===false?color:null,colorMode);if(img)ctx.drawImage(img,-w/2,-h/2,w,h);}
   } else if (layer.type === 'image') {
     const img = images.get(layer.src);
     if (img){const c=layer.crop??{x:0,y:0,w:1,h:1};ctx.drawImage(img,c.x*img.naturalWidth,c.y*img.naturalHeight,c.w*img.naturalWidth,c.h*img.naturalHeight,-w/2,-h/2,w,h);}

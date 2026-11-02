@@ -3,6 +3,8 @@ import {drawLayer,ImageCache} from './artwork.js';
 import {printRegions,regionPath} from './artwork-space.js';
 import {sideOf,surfaceOf,SIDES} from './project.js';
 import {ArtworkText,textOptions} from './text-layout.js';
+import {textGeometry} from './text-transform.js';
+import {svgAssetMarkup} from './svg-asset.js';
 import {proofColor} from './color.js';
 import {escapeHtml} from './icons.js';
 
@@ -94,13 +96,18 @@ export class SvgDrawingContext {
     this._emit(`<text x="${number(x)}" y="${number(baseline)}" transform="${matrix(this.transformMatrix)}" fill="${xml(this.fillStyle)}" opacity="${number(this.globalAlpha)}" font-family="${xml(family)}" font-size="${number(size)}" font-weight="${xml(prefix.match(/bold|[1-9]00/)?.[0]??'normal')}" font-style="${prefix.includes('italic')?'italic':'normal'}" text-anchor="${anchor}" xml:space="preserve"${fit}>${xml(text)}</text>`);
   }
   drawArtworkText(layer,w,h,color){
+    const geometry=textGeometry(layer,w,h),transform=multiply(this.transformMatrix,[geometry.scaleX,0,0,geometry.scaleY,0,0]);
     const text=new ArtworkText(layer.text,{...textOptions(layer,w,h,color),left:0,top:0,objectCaching:false});
     try{
       // ArtworkText centers the actual multiline content inside its editable
       // height. Fabric's SVG engine uses height/2, so use that same content height.
       text.set({height:text.calcTextHeight()});
-      this._emit(`<g transform="${matrix(this.transformMatrix)}" opacity="${number(this.globalAlpha)}">${text.toSVG()}</g>`);
+      this._emit(`<g transform="${matrix(transform)}" opacity="${number(this.globalAlpha)}">${text.toSVG()}</g>`);
     }finally{text.dispose();}
+  }
+  drawSvgLayer(layer,w,h,color,colorMode='rgb'){
+    const prefix=`${this.prefix}-svg-${this.serial++}-`,viewBox=layer.svg.viewBox.map(number).join(' ');
+    this._emit(`<g transform="${matrix(this.transformMatrix)}" opacity="${number(this.globalAlpha)}"><svg x="${number(-w/2)}" y="${number(-h/2)}" width="${number(w)}" height="${number(h)}" viewBox="${viewBox}" preserveAspectRatio="none">${svgAssetMarkup(layer.svg,{prefix,color,colorMode})}</svg></g>`);
   }
   drawImage(image,sx,sy,sw,sh,dx,dy,dw,dh){
     const id=`${this.prefix}-image-crop-${this.serial++}`;

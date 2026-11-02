@@ -1,6 +1,7 @@
-import {Canvas,FabricObject,Path,ActiveSelection,util} from 'fabric';
+import {Canvas,FabricObject,Path,ActiveSelection,controlsUtils,util} from 'fabric';
 import {polygonPath,paintArtwork,drawLayer} from './artwork.js';
 import {ArtworkText,textOptions} from './text-layout.js';
+import {textGeometry,clampTextScale} from './text-transform.js';
 import {creasePaths,cutSegments,panelAt} from './geometry.js';
 import {printRegions,inPrintRegions,regionPath} from './artwork-space.js';
 import {sideOf} from './project.js';
@@ -19,15 +20,47 @@ class DielineCanvas extends Canvas {
     return super._checkTarget(object,point);
   }
 }
+
+function transformControls(frame=false){
+  const controls=controlsUtils.createObjectDefaultControls();
+  for(const [name,control]of Object.entries(controls)){
+    if(name==='mtr')continue;
+    const horizontal=control.x!==0,vertical=control.y!==0;
+    if(frame){
+      control.actionName='resizing';control.getActionName=()=> 'resizing';control.cursorStyleHandler=controlsUtils.scaleCursorStyleHandler;
+      control.actionHandler=controlsUtils.wrapWithFireEvent('resizing',controlsUtils.wrapWithFixedAnchor((event,t,x,y)=>{
+        const height=t.target.height;
+        const changedWidth=horizontal&&controlsUtils.changeObjectWidth(event,t,x,y);
+        if(horizontal)t.target.set('height',height);
+        const changedHeight=vertical&&controlsUtils.changeObjectHeight(event,t,x,y);
+        return changedWidth||changedHeight;
+      }));
+    }else if(!horizontal||!vertical){
+      const axis=horizontal?'x':'y',key=horizontal?'scaleX':'scaleY',other=horizontal?'scaleY':'scaleX';
+      control.actionName=horizontal?'scaleX':'scaleY';control.getActionName=()=>control.actionName;control.cursorStyleHandler=controlsUtils.scaleCursorStyleHandler;
+      control.actionHandler=controlsUtils.wrapWithFireEvent('scaling',controlsUtils.wrapWithFixedAnchor((event,t,x,y)=>{
+        const target=t.target;if(target.lockScalingX||target.lockScalingY)return false;
+        const p=controlsUtils.getLocalPoint(t,t.originX,t.originY,x,y),sign=Math.sign(p[axis]||t['sign'+axis.toUpperCase()]||1),signKey='sign'+axis.toUpperCase();
+        t[signKey]??=sign;if(target.lockScalingFlip&&t[signKey]!==sign)return false;
+        const dimension=horizontal?target.getScaledWidth():target.getScaledHeight(),centered=t.originX==='center'&&t.originY==='center';
+        const scale=Math.abs(p[axis]*target[key]/dimension)*(centered?2:1),beforeX=target.scaleX,beforeY=target.scaleY;
+        target.set(key,scale);
+        if(event.shiftKey)target.set(other,t.original[other]*target[key]/t.original[key]);
+        return beforeX!==target.scaleX||beforeY!==target.scaleY;
+      }));
+    }
+  }
+  return controls;
+}
 export class Editor2D {
   constructor(host,images,callbacks){
-    Object.assign(this,{host,images,callbacks,view:{scale:1,x:0,y:0},guides:true,rulers:true,snap:true,theme:'light',colorMode:'rgb',objects:new Map(),keys:new Map(),selectionIds:[],_tool:'select'});
+    Object.assign(this,{host,images,callbacks,view:{scale:1,x:0,y:0},guides:true,rulers:true,snap:true,theme:'light',colorMode:'rgb',objects:new Map(),keys:new Map(),selectionIds:[],textTransformMode:'scale',_tool:'select'});
     const lower=document.createElement('canvas');host.appendChild(lower);
-    this.fabric=new DielineCanvas(lower,{enablePointerEvents:true,preserveObjectStacking:true,renderOnAddRemove:false,selection:true,selectionKey:['shiftKey','ctrlKey','metaKey'],uniformScaling:true,uniScaleKey:'shiftKey',stopContextMenu:true,fireRightClick:true,selectionColor:'#60a5fa22',selectionBorderColor:'#60a5fa'});
+    this.fabric=new DielineCanvas(lower,{enablePointerEvents:true,preserveObjectStacking:true,renderOnAddRemove:false,selection:true,selectionKey:['shiftKey','ctrlKey','metaKey'],uniformScaling:false,uniScaleKey:'shiftKey',stopContextMenu:true,fireRightClick:true,selectionColor:'#60a5fa22',selectionBorderColor:'#60a5fa'});
     this.canvas=this.fabric.upperCanvasEl;this.canvas.dataset.testid='editor-canvas';this.canvas.setAttribute('aria-label','刀版平面编辑器，拖动框选，Shift 多选，双击编辑文字');this.canvas.tabIndex=0;this.fabric.wrapperEl.classList.add('fold-fabric-canvas');
     this.fabric.on('before:render',()=>this.background());this.fabric.on('after:render',()=>this.overlay());
     for(const event of ['selection:created','selection:updated','selection:cleared'])this.fabric.on(event,()=>this.selectionChanged());
-    this.fabric.on('before:transform',()=>{this.transforming=true;this.drag={type:'transform'};this.baselines=new Map(this.project.layers.map(l=>[l.id,{size:l.size,h:l.h}]));this.callbacks.begin();});
+    this.fabric.on('before:transform',()=>{this.transforming=true;this.drag={type:'transform'};this.callbacks.begin();});
     for(const event of ['object:moving','object:scaling','object:resizing','object:rotating'])this.fabric.on(event,e=>{if(event==='object:moving')this.snapObject(e.target);this.writeTransforms();this.callbacks.change();});
     this.fabric.on('object:modified',()=>{if(this.finishing||!this.transforming)return;this.writeTransforms();this.callbacks.commit();});
     this.fabric.on('text:changed',e=>{const l=this.project.layers.find(l=>l.id===e.target.layerId);if(l){l.text=e.target.text.slice(0,5000);this.callbacks.change();}});
@@ -55,19 +88,28 @@ export class Editor2D {
       let obj=this.objects.get(l.id);const panel=dieline.panels.find(p=>p.id===l.panel),p=displayPanel(dieline,panel,side),w=l.w*p.w,h=l.h*p.h,key=JSON.stringify([l,panel.points,side,this.colorMode]);
       if(!obj){obj=l.type==='text'?new ArtworkText(l.text,textOptions(l,w,h)):new ArtworkObject({width:w,height:h});obj.layerId=l.id;obj.editor=this;this.objects.set(l.id,obj);this.fabric.add(obj);}
       if(reset||key!==this.keys.get(l.id)){
+        const geometry=l.type==='text'?textGeometry(l,w,h):{width:w,height:h,scaleX:1,scaleY:1};
+        obj.controls=transformControls(l.type==='text'&&this.textTransformMode==='frame');
         const regions=printRegions(dieline,l,side,true);
         obj.printPanelRegions=regions;
         obj.clipPath?.dispose();const clip=l.clipToPanel?makeClip(regions):undefined;if(clip)clip.absolutePositioned=true;
         obj.layer=l;obj.set('dirty',true);if(l.type==='text'){obj.set(textOptions(l,w,h,proofColor(l.color,this.colorMode)));obj.initDimensions();}
-        obj.set({left:p.x+l.x*p.w,top:p.y+l.y*p.h,width:w,height:h,angle:l.rotation,scaleX:1,scaleY:1,skewX:0,skewY:0,flipX:!!l.flipX,flipY:!!l.flipY,opacity:l.opacity,visible:l.visible,selectable:!l.locked,evented:!l.locked,lockMovementX:!!l.locked,lockMovementY:!!l.locked,lockScalingX:!!l.locked,lockScalingY:!!l.locked,lockRotation:!!l.locked,lockScalingFlip:true,clipPath:clip,strokeWidth:l.type==='text'?(l.strokeWidth??0):0,cornerColor:'#fff',cornerStrokeColor:COLORS[this.theme][2],borderColor:COLORS[this.theme][2],transparentCorners:false,cornerSize:8,touchCornerSize:24,snapAngle:15,snapThreshold:3,originX:'center',originY:'center'});obj.setCoords();this.keys.set(l.id,key);
+        obj.set({left:p.x+l.x*p.w,top:p.y+l.y*p.h,width:geometry.width,height:geometry.height,angle:l.rotation,scaleX:geometry.scaleX,scaleY:geometry.scaleY,skewX:0,skewY:0,flipX:!!l.flipX,flipY:!!l.flipY,opacity:l.opacity,visible:l.visible,selectable:!l.locked,evented:!l.locked,lockMovementX:!!l.locked,lockMovementY:!!l.locked,lockScalingX:!!l.locked,lockScalingY:!!l.locked,lockRotation:!!l.locked,lockScalingFlip:true,clipPath:clip,strokeWidth:l.type==='text'?(l.strokeWidth??0):0,cornerColor:'#fff',cornerStrokeColor:COLORS[this.theme][2],borderColor:COLORS[this.theme][2],transparentCorners:false,cornerSize:8,touchCornerSize:24,snapAngle:15,snapThreshold:3,originX:'center',originY:'center'});obj.setCoords();this.keys.set(l.id,key);
       }this.fabric.moveObjectTo(obj,index);
     });this.setActive(ids);this.guard=false;this.invalidate();
   }
-  setActive(ids){if(sameIds(this.fabric.getActiveObjects().map(o=>o.layerId),ids))return;this.fabric.discardActiveObject();const list=ids.map(id=>this.objects.get(id)).filter(o=>o?.visible),locked=list.some(o=>o.layer.locked);if(list.length===1)this.fabric.setActiveObject(list[0]);else if(list.length>1)this.fabric.setActiveObject(new ActiveSelection(list,{canvas:this.fabric,lockMovementX:locked,lockMovementY:locked,lockScalingX:locked,lockScalingY:locked,lockRotation:locked,lockScalingFlip:true,cornerSize:8,transparentCorners:false,borderColor:COLORS[this.theme][2]}));}
+  setActive(ids){
+    if(sameIds(this.fabric.getActiveObjects().map(o=>o.layerId),ids))return;
+    this.fabric.discardActiveObject();const list=ids.map(id=>this.objects.get(id)).filter(o=>o?.visible),locked=list.some(o=>o.layer.locked);
+    if(list.length===1)this.fabric.setActiveObject(list[0]);
+    else if(list.length>1){const active=new ActiveSelection(list,{canvas:this.fabric,lockMovementX:locked,lockMovementY:locked,lockScalingX:locked,lockScalingY:locked,lockRotation:locked,lockScalingFlip:true,cornerSize:8,transparentCorners:false,borderColor:COLORS[this.theme][2]});active.controls=transformControls();this.fabric.setActiveObject(active);}
+  }
   selectionChanged(){if(this.guard||!this.project)return;const raw=this.fabric.getActiveObjects().map(o=>o.layerId),ids=expandGroups(this.project,raw);if(!sameIds(ids,raw)){this.guard=true;this.setActive(ids);this.guard=false;}const last=this.project.layers.find(l=>l.id===ids.at(-1));this.selectionIds=ids;this.callbacks.select(last?.id??null,last?.panel??this.panelId,ids);}
   writeTransforms(){for(const obj of this.fabric.getActiveObjects()){
-    const l=this.project.layers.find(l=>l.id===obj.layerId);if(!l||l.locked)continue;const panel=this.dieline.panels.find(p=>p.id===l.panel),p=displayPanel(this.dieline,panel,this.side),d=util.qrDecompose(obj.calcTransformMatrix()),fx=obj.flipX,base=this.baselines?.get(l.id);
-    l.x=Math.max(-1000,Math.min(1000,(d.translateX-p.x)/p.w));l.y=Math.max(-1000,Math.min(1000,(d.translateY-p.y)/p.h));l.w=Math.max(.005,Math.min(1000,obj.width*Math.abs(d.scaleX)/p.w));l.h=Math.max(.005,Math.min(1000,obj.height*Math.abs(d.scaleY)/p.h));l.rotation=((d.angle-(fx?180:0)+540)%360)-180;l.flipX=!!fx;l.flipY=(d.scaleY<0)!==!!fx;if(l.type==='text'&&base?.size&&Math.abs(d.scaleY)!==1)l.size=Math.max(1,Math.min(100,base.size*l.h/base.h));
+    const l=this.project.layers.find(l=>l.id===obj.layerId);if(!l||l.locked)continue;const panel=this.dieline.panels.find(p=>p.id===l.panel),p=displayPanel(this.dieline,panel,this.side),d=util.qrDecompose(obj.calcTransformMatrix()),fx=obj.flipX;
+    const sx=l.type==='text'?clampTextScale(Math.abs(d.scaleX)):Math.abs(d.scaleX),sy=l.type==='text'?clampTextScale(Math.abs(d.scaleY)):Math.abs(d.scaleY);
+    l.x=Math.max(-1000,Math.min(1000,(d.translateX-p.x)/p.w));l.y=Math.max(-1000,Math.min(1000,(d.translateY-p.y)/p.h));l.w=Math.max(.005,Math.min(1000,obj.width*sx/p.w));l.h=Math.max(.005,Math.min(1000,obj.height*sy/p.h));l.rotation=((d.angle-(fx?180:0)+540)%360)-180;l.flipX=!!fx;l.flipY=(d.scaleY<0)!==!!fx;
+    if(l.type==='text'){l.textScaleX=sx;l.textScaleY=sy;}
   }}
   finishTransform(){if(this.finishing)return;this.transforming=false;this.drag=null;this.snapLines=[];if(this.isEditing)return;this.finishing=true;this.guard=true;this.fabric.discardActiveObject();this.guard=false;this.keys.clear();this.update(this.project,this.dieline,this.selected,this.panelId,this.side,this.selectionIds);this.finishing=false;}
   snapObject(target){
@@ -77,6 +119,7 @@ export class Editor2D {
     const x=best([b.left,b.left+b.width/2,b.left+b.width],xs),y=best([b.top,b.top+b.height/2,b.top+b.height],ys);if(x){target.left+=x.delta;this.snapLines.push({axis:'x',value:x.line});}if(y){target.top+=y.delta;this.snapLines.push({axis:'y',value:y.line});}target.setCoords();
   }
   setColorMode(v){this.colorMode=v;this.resync();}
+  setTextTransformMode(mode){this.up();this.textTransformMode=mode==='frame'?'frame':'scale';this.resync();}
   setTheme(v){this.theme=v;this.resync();}
   resync(){this.keys.clear();if(this.project)this.update(this.project,this.dieline,this.selected,this.panelId,this.side,this.selectionIds);}
   fit(){if(!this.dieline||!this.width||!this.height)return;this.view.scale=Math.max(.03,Math.min((this.width-65)/this.dieline.width,(this.height-85)/this.dieline.height));this.view.x=(this.width-this.dieline.width*this.view.scale)/2-this.dieline.minX*this.view.scale;this.view.y=(this.height-this.dieline.height*this.view.scale)/2-this.dieline.minY*this.view.scale;this.applyView();}

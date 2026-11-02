@@ -12,7 +12,7 @@ export function mountColorUI(api){
   let active,history=[],observing=false;try{const stored=JSON.parse(localStorage.getItem('fold-studio-colors-v1')??'[]');if(Array.isArray(stored))history=recentColors(stored,null);}catch{}
   function remember(color){history=recentColors(history,color);try{localStorage.setItem('fold-studio-colors-v1',JSON.stringify(history));}catch{}}
   function bindings(input){const s=api.getState();if(input.id==='paper-color')return [[s.project,s.side==='inside'?'insidePaper':'paper']];if(input.id==='panel-color')return [[s.side==='inside'?s.project.insidePanelColors:s.project.panelColors,s.panelId]];
-    const key=input.dataset.editorProp==='stroke'?'stroke':'color';return s.project.layers.filter(l=>s.ids.includes(l.id)&&!l.locked&&l.type!=='image').map(l=>[l,key]);}
+    const key=input.dataset.editorProp==='stroke'?'stroke':'color';return s.project.layers.filter(l=>s.ids.includes(l.id)&&!l.locked&&l.type!=='image'&&!(l.type==='svg'&&l.svgOriginal!==false)).map(l=>[l,key]);}
   function swatches(){for(const [kind,values]of [['project',projectColors(api.getState().project)],['recent',history],['default',DEFAULTS]]){
     const host=pop.querySelector(`[data-color-swatches="${kind}"]`);host.innerHTML=values.length?values.map(c=>`<button type="button" data-picked-color="${c}" style="--color:${c}" aria-label="${c}" title="${c.toUpperCase()}" aria-pressed="${active?.value===c}"></button>`).join(''):'<span class="color-empty">选定颜色后会显示在这里</span>';
   }}

@@ -22,6 +22,9 @@ import { createDocument, getActiveDocument, getDocument, getRevision, listDocume
 import { mountProjectLibrary } from './project-library-ui.js';
 import { exportGLB } from './export3d.js';
 import { exportSVG } from './export-svg.js';
+import {resizeTextDimension} from './text-transform.js';
+import {CloseProtection} from './close-protection.js';
+import {importSvgLayers} from './import-svg.js';
 import { icon, escapeHtml as esc } from './icons.js';
 import { PACKAGING_SYMBOLS } from './symbols.js';
 import { rgbToCmyk, formatCmyk, proofColor } from './color.js';
@@ -32,6 +35,7 @@ const button=(id,glyph,title,extra='')=>`<button id="${id}" class="icon-button $
 let project=newProject(),dieline=makeDieline(project.type,project.dimensions),selected=null,panelId='front',history=new History(project);
 let preview,editor,saveTimer,renderRaf,textureDirty=false,saveSequence=0,playing=false,animationRaf=0,lastStatsAt=0;
 let activeProjectId=null,lastSnapshotAt=0,unsaved=false,writeQueue=Promise.resolve();
+const closeProtection=new CloseProtection();
 const SNAPSHOT_INTERVAL=5*60*1000;
 let geometryTimer,confirmAction=null,activeSide='outside',pasteInPlace=false,lastPasteText='',pasteCount=0;
 let colorMode='rgb';
@@ -44,7 +48,7 @@ $('#app').innerHTML=`
   <div class="brand-group">
     <a class="brand" href="#" aria-label="折间工作台"> <span class="brand-mark">${icon('box')}</span><span class="brand-name">折间<span>FOLD STUDIO</span></span></a>
     <div class="brand-badges">
-      <span class="version-tag">v0.13.0</span>
+      <span class="version-tag">v0.14.0</span>
       <span class="local-badge"><span class="local-dot"></span>文件留在本地</span>
     </div>
   </div>
@@ -146,7 +150,7 @@ $('#app').innerHTML=`
   <div id="inspector-resizer" class="workspace-resizer resizer-col" title="左右拖动调整属性面板宽度" aria-label="左右拖动调整属性面板宽度"></div>
   <aside class="right-sidebar"><div class="sidebar-title">属性<span id="selected-type" class="tiny-badge">面板</span></div><div class="panel-picker"><label for="panel-selector">选择面板</label><select id="panel-selector" aria-label="选择面板"></select></div><div id="inspector"></div><div class="inspector-tip">${icon('help')}<p>点击平面或三维模型选择面板。<br/>插舌和粘耳也可单独选择、检查。</p></div></aside>
 </main>
-<input id="image-input" type="file" accept="image/png,image/jpeg,image/webp" hidden/><input id="project-input" type="file" accept=".fold,.foldproj,.json,.svg" hidden/>
+<input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" hidden/><input id="svg-artwork-input" type="file" accept=".svg,image/svg+xml" hidden/><input id="project-input" type="file" accept=".fold,.foldproj,.json,.svg" hidden/>
 <div id="toast" class="toast" role="status" hidden></div>
 <dialog id="help-dialog"><button id="close-help" class="dialog-close" aria-label="关闭">${icon('close')}</button><span class="dialog-kicker">WELCOME TO FOLD STUDIO</span><h2>让设计，折起来。</h2><p>选择一种盒型或包装容器，调整尺寸，然后在平面画布上添加文字、图片和图形。每一次编辑，都会同步到右侧的三维模型。</p><div class="help-grid"><div><kbd>V</kbd><span>选择工具</span></div><div><kbd>H / 空格</kbd><span>平移画布</span></div><div><kbd>Ctrl Z</kbd><span>撤销编辑</span></div><div><kbd>Delete</kbd><span>删除图层</span></div></div><p class="help-note">图层右下角可拖动缩放；图片按住 Shift 可自由改变比例。工程自动保存至当前浏览器，也可下载 .fold 文件备份。SVG 导出包含工程信息，可重新打开。</p><p class="help-note">当前版本支持 ${Object.keys(BOX_TYPES).length} 款包装结构与瓶罐容器，涵盖卡纸彩盒、精品礼盒、电商物流和瓶罐容器。模型与刀版用于视觉预览及结构草图。</p><button id="dismiss-help" class="button primary">开始设计 ${icon('chevron')}</button></dialog>
 <dialog id="shortcuts-dialog"><button id="close-shortcuts" class="dialog-close" aria-label="关闭快捷键">${icon('close')}</button><span class="dialog-kicker">KEYBOARD SHORTCUTS</span><h2>让操作，更顺手。</h2><div class="shortcut-list">${[['Ctrl / ⌘ C','复制选中图层'],['Ctrl / ⌘ X','剪切选中图层'],['Ctrl / ⌘ V','粘贴到当前面板与内外面'],['Ctrl / ⌘ Shift V','粘贴并保留原位置'],['Ctrl / ⌘ D','复制一份图层'],['Ctrl / ⌘ Z','撤销'],['Ctrl / ⌘ Shift Z / Y','重做'],['Ctrl / ⌘ S','下载工程'],['1 / 2','编辑外面 / 内面'],['V / H / 空格','选择 / 平移 / 临时平移'],['T / I / R','添加文字 / 图片 / 矩形'],['M','展开 / 恢复平面画布'],['P','切换 RGB 屏幕 / CMYK 印刷打样'],['Shift T','切换界面主题（中灰/深黑/蓝调/浅色/纸本）'],['F / Shift F','适应平面 / 适应三维'],['G','切换辅助线'],['方向键 / Shift 方向键','移动 1 mm / 5 mm'],['Delete / Esc','删除 / 取消选择'],['?','打开本快捷键表']].map(([key,label])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('')}</div><p class="help-note">复制图层后，可在另一个折间标签页、离线页面或工程中粘贴，图片会一起携带。也可粘贴剪贴板中的普通文字或图片。输入框里的复制粘贴仍按浏览器惯例工作；若粘贴按钮受浏览器限制，请直接按 Ctrl / ⌘ V。</p></dialog>
@@ -183,7 +187,7 @@ function boxIllustration(type){
 }
 
 
-const images=new ImageCache(src=>{for(const layer of project.layers)if(layer.type==='image'&&layer.src===src)dirtySides.add(sideOf(layer));schedule();});
+const images=new ImageCache(src=>{for(const layer of project.layers)if((layer.type==='image'&&layer.src===src)||layer.type==='svg')dirtySides.add(sideOf(layer));schedule();});
 editor=new Editor2D($('#editor-host'),images,{
   select:selectLayer,begin:()=>{},change:()=>{textureDirty=true;schedule();},commit:()=>{commit();renderInspector();},context:e=>editorUI?.context(e),
   zoom:scale=>$('#zoom-label').textContent=`${Math.round(scale*100)}%`,
@@ -196,7 +200,7 @@ try{preview=new Preview3D($('#preview-host'),images,(id,side)=>{stopAnimation();
 
 function notify(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>$('#toast').hidden=true,3300);}
 function schedule(){if(textureDirty){dirtySides.add(activeSide);textureDirty=false;}if(renderRaf)return;renderRaf=requestAnimationFrame(()=>{renderRaf=0;editor.update(project,dieline,selected,panelId,activeSide,getSelectedIds());if(dirtySides.size){preview?.paint(project,[...dirtySides]);dirtySides.clear();}updateLayerProperties();});}
-function markSaving(){unsaved=true;$('#save-status').innerHTML='<span class="pending-dot"></span>保存中…';}
+function markSaving(){unsaved=true;closeProtection.touch(activeProjectId);$('#save-status').innerHTML='<span class="pending-dot"></span>保存中…';}
 function commit(){history.push(project);renderHistory();renderLayers();scheduleSave();}
 function scheduleSave(){markSaving();clearTimeout(saveTimer);saveTimer=setTimeout(persist,550);}
 function persist(){
@@ -218,6 +222,7 @@ function persist(){
 }
 async function flushSave(){
   editor?.up();
+  closeProtection.sync(activeProjectId,project);
   clearTimeout(saveTimer);
   if(unsaved)return persist();
   await writeQueue;
@@ -231,6 +236,7 @@ async function snapshotCurrent(label='手动版本'){
 }
 function showDocument(id,next){
   activeProjectId=id;project=next;history=new History(project);selected=null;selectionIds=[];activeSide='outside';
+  closeProtection.open(id,next);
   panelId=BOX_TYPES[project.type].printPanel;lastSnapshotAt=0;unsaved=false;
   refresh({fit:true});$('#save-status').innerHTML=`${icon('check')}已在本机保存`;
 }
@@ -243,10 +249,11 @@ async function openLibraryDocument(id){
   await setActiveDocument(id);showDocument(id,next);
   const revisions=await listRevisions(id);lastSnapshotAt=revisions[0]?.createdAt??0;
 }
-async function newLibraryDocument(source=null){
+async function newLibraryDocument(source=null,{fromFile=false}={}){
   if(!await flushSave())throw new Error('当前工程尚未保存，请先下载 .fold 备份');
   const next=source??{...newProject(project.type),name:'未命名工程',layers:[]};
   const id=await createDocument(next);showDocument(id,next);
+  if(!fromFile)closeProtection.newDocument(id);
   try{const revision=await saveRevision(id,clone(next),'初始版本');lastSnapshotAt=revision.createdAt;}
   catch{notify('新工程已建立，历史版本未能保存；请下载 .fold 备份');}
 }
@@ -376,7 +383,7 @@ function numberField(key,label,value,{min=-10000,max=10000,step=1,unit=''}={}){r
 function renderInspector(){
   const layer=project.layers.find(l=>l.id===selected),panel=dieline.panels.find(p=>p.id===panelId);
   const surface=surfaceOf(project,activeSide);
-  const typeMap={text:'文字',image:'图片',shape:'图形',barcode:'条形码',qrcode:'二维码',symbol:'包装标志'};
+  const typeMap={text:'文字',image:'图片',shape:'图形',barcode:'条形码',qrcode:'二维码',symbol:'包装标志',svg:'SVG 图形'};
   $('#selected-type').textContent=SIDES[activeSide]+' · '+(layer?(typeMap[layer.type]??'图层'):'面板');
   if(!panel)return;
   if(getSelectedIds().length>1){editorUI?.renderMultiInspector($('#inspector'));return;}
@@ -583,7 +590,7 @@ $('#inspector').addEventListener('input',e=>{
     if(badge)badge.textContent=formatCmyk(input.value);
   }
   else if(input.id==='prop-opacity'){layer.opacity=+input.value/100;$('#opacity-value').textContent=`${input.value}%`;}
-  else if(input.dataset.property){const key=input.dataset.property,value=+input.value;if(!input.checkValidity()||!Number.isFinite(value))return;layer[key]=['x','w'].includes(key)?value/panel.w:['y','h'].includes(key)?value/panel.h:value;}
+  else if(input.dataset.property){const key=input.dataset.property,value=+input.value;if(!input.checkValidity()||!Number.isFinite(value))return;const normalized=['x','w'].includes(key)?value/panel.w:['y','h'].includes(key)?value/panel.h:value;if(layer.type==='text'&&['w','h'].includes(key))resizeTextDimension(layer,key,normalized,editor.textTransformMode==='scale');else layer[key]=normalized;}
   else return;
   textureDirty=true;schedule();scheduleSave();
 });
@@ -621,7 +628,7 @@ $('#inspector').addEventListener('click',e=>{
   if(b.id==='reset-panel-color'){delete surfaceOf(project,activeSide).colors[panelId];textureDirty=true;schedule();commit();renderInspector();}
   if(!layer)return;
   if(b.id==='duplicate-layer')return duplicateLayer();if(b.id==='delete-layer')return deleteLayer();
-  if(b.id==='toggle-bold'){layer.bold=!layer.bold;b.classList.toggle('active',layer.bold);}
+  if(b.id==='toggle-bold'){layer.bold=!layer.bold;delete layer.fontWeight;b.classList.toggle('active',layer.bold);}
   if(b.dataset.align)layer[b.dataset.align]=.5;
   if(['layer-up','layer-down'].includes(b.id)){const i=project.layers.indexOf(layer),j=i+(b.id==='layer-up'?1:-1);if(j>=0&&j<project.layers.length)[project.layers[i],project.layers[j]]=[project.layers[j],project.layers[i]];}
   textureDirty=true;schedule();commit();if(b.dataset.align)renderInspector();
@@ -690,8 +697,25 @@ $('#extra-dimensions').addEventListener('click',e=>{
 });
 $('#quality').onchange=e=>{project.quality=e.target.value;preview?.setQuality(project.quality);preview?.paint(project);commit();};
 $('#image-input').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(file)await importImage(file);};
+$('#svg-artwork-input').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(file)await importSvgArtwork(file);};
+
+async function importSvgArtwork(file){
+  if(file.size>8e6){notify('SVG 请小于 8 MB');return;}
+  editor.up();const target=project,side=activeSide,panel=dieline.panels.find(p=>p.id===panelId),geometry=JSON.stringify(project.dimensions);
+  if(!panel)return;
+  try{
+    const compact=$('#svg-import-mode').value!=='individual';
+    const {layers,preservedText,reduced}=await importSvgLayers(await file.text(),{panel,side,name:file.name.replace(/\.svg$/i,''),capacity:120-project.layers.length,compact});
+    validateProject({...target,layers:[...target.layers,...layers]});await images.preload(layers);
+    if(project!==target||JSON.stringify(project.dimensions)!==geometry)throw Error('工程已切换，请重新导入 SVG');
+    if(project.layers.length+layers.length>120)throw Error('当前工程最多支持 120 个图层');
+    project.layers.push(...layers);dirtySides.add(side);commit();selectLayer(layers.at(-1).id,panel.id,layers.map(l=>l.id));
+    notify(`已导入 ${layers.length} 个 SVG 图文图层${reduced?`，已精简 ${reduced} 层`:''}${preservedText?'；复杂排版文字保留为矢量图形':''}`);
+  }catch(error){images.retain(project.layers);notify(`SVG 导入失败：${error.message}`);}
+}
 
 async function importImage(file){
+  if(file.type==='image/svg+xml'||/\.svg$/i.test(file.name))return importSvgArtwork(file);
   if(!['image/png','image/jpeg','image/webp'].includes(file.type)){notify('请选择 PNG、JPG 或 WebP 图片');return;}
   if(file.size>15*1024*1024){notify('图片请小于 15 MB');return;}
   let bitmap;
@@ -708,7 +732,7 @@ $('#editor-host').addEventListener('dragover',e=>{e.preventDefault();$('#editor-
 $('#editor-host').addEventListener('dragleave',()=>$('#editor-host').classList.remove('drag-over'));
 $('#editor-host').addEventListener('drop',e=>{e.preventDefault();$('#editor-host').classList.remove('drag-over');const file=e.dataTransfer.files[0];if(file)importImage(file);});
 
-$('#save-project').onclick=()=>{download(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),`${safeName()}.fold`);persist();notify('工程已下载，包含全部图文与尺寸');};
+$('#save-project').onclick=()=>{editor.up();const copy=clone(project);download(new Blob([JSON.stringify(copy,null,2)],{type:'application/json'}),`${safeName()}.fold`);closeProtection.saved(activeProjectId,copy);persist();notify('工程已下载，包含全部图文与尺寸');};
 $('#import-project').onclick=()=>$('#project-input').click();
 $('#project-input').onchange=async e=>{
   const file=e.target.files[0];e.target.value='';if(!file)return;
@@ -717,12 +741,12 @@ $('#project-input').onchange=async e=>{
     const content=await file.text();let input,importSide='outside';
     if(file.name.toLowerCase().endsWith('.svg')){
       const doc=new DOMParser().parseFromString(content,'image/svg+xml'),metadata=doc.querySelector('metadata[data-fold-studio]');
-      if(!metadata)throw new Error('此 SVG 没有折间工程信息。当前版本仅支持重新打开折间导出的 SVG；外部刀版结构识别尚未提供。');
+      if(!metadata)return await importSvgArtwork(file);
       input=JSON.parse(metadata.textContent);
       if(metadata.getAttribute('data-surface')==='inside')importSide='inside';
     }else input=JSON.parse(content);
     const next=validateProject(input);await images.preload(next.layers);stopAnimation();clearTimeout(geometryTimer);
-    await newLibraryDocument(next);if(importSide==='inside')setSide('inside');notify('工程已导入为新工程，原工程已保留');
+    await newLibraryDocument(next,{fromFile:true});if(importSide==='inside')setSide('inside');notify('工程已导入为新工程，原工程已保留');
   }catch(error){notify(`打开失败：${error.message}`);}
 };
 function safeName(){return project.name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').slice(0,80)||'折间工程';}
@@ -906,7 +930,7 @@ document.addEventListener('keyup',e=>{if(e.code==='Space'){editor.space=false;ed
 window.addEventListener('blur',()=>{editor.space=false;});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){stopAnimation();if(unsaved){clearTimeout(saveTimer);persist();}}});
 window.addEventListener('pagehide',()=>{if(unsaved){clearTimeout(saveTimer);persist();}});
-window.addEventListener('beforeunload',event=>{if(unsaved){event.preventDefault();event.returnValue='';}});
+window.addEventListener('beforeunload',event=>{if(closeProtection.shouldWarn(activeProjectId,project)){event.preventDefault();event.returnValue='有未保存的工程修改';}});
 
 const THEMES = [
   { id: 'gray', name: '工业中灰', desc: '3D与包装推荐 · 中度灰', icon: 'palette' },
@@ -1035,6 +1059,7 @@ async function init(){
     if(!revisions.length){try{const revision=await saveRevision(saved.id,clone(project),'初始版本');lastSnapshotAt=revision.createdAt;}catch{notify('历史版本未能保存，请下载 .fold 备份');}}
     $('#save-status').innerHTML=`${icon('check')}已在本机保存`;
   }catch(error){notify(`未能恢复本机工程：${error.message}`);$('#save-status').textContent='本机工程未载入';}
+  closeProtection.open(activeProjectId,project);
   mountProjectLibrary({
     currentId:()=>activeProjectId,listProjects:listDocuments,listRevisions,notify,
     create:()=>newLibraryDocument(),

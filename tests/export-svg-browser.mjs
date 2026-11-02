@@ -29,11 +29,11 @@ try{
     const p=newProject(),d=makeDieline(p.type,p.dimensions),base={panel:'front',x:.5,y:.5,w:.75,h:.15,rotation:0,opacity:1,visible:true,color:'#243c52',side:'outside'};
     p.name='Editable SVG <&" 中文';p.layers=[];p.paper='#ffffff';p.insidePaper='#f5eee4';
     const add=(data)=>{const l={...base,id:'svg-layer-'+p.layers.length,name:'Layer <&" '+p.layers.length,...data};p.layers.push(l);return l;};
-    add({type:'text',text:'可编辑中文 & English\n第二行测试',font:'sans',size:6,bold:true,italic:true,underline:true,lineHeight:1.6,charSpacing:70,stroke:'#345678',strokeWidth:.12,y:.22,rotation:12});
+    add({type:'text',text:'可编辑中文 & English\n第二行测试',font:'sans',size:6,bold:true,italic:true,underline:true,lineHeight:1.6,charSpacing:70,stroke:'#345678',strokeWidth:.12,y:.22,rotation:12,textScaleX:1.35,textScaleY:.8});
     for(const [i,shape] of ['rect','ellipse','triangle','line','arrow','botanical'].entries())add({type:'shape',shape,x:.17+(i%3)*.32,y:.48+Math.floor(i/3)*.18,w:.22,h:.13,radius:4,stroke:'#a84839',strokeWidth:.4,rotation:i*13,opacity:.65});
     add({type:'barcode',format:'ean13',code:'4006381333931',y:.9,w:.8,h:.15,color:'#000000'});
     add({type:'qrcode',text:'editable QR 中文',y:.08,x:1.1,w:.3,h:.2,color:'#000000',clipToPanel:false});
-    add({type:'text',text:'内面文字\nInside SVG',font:'serif',size:7,side:'inside',flipX:true,y:.3,rotation:-17,textAlign:'left'});
+    add({type:'text',text:'内面文字\nInside SVG',font:'serif',size:7,side:'inside',flipX:true,y:.3,rotation:-17,textAlign:'left',textScaleX:.7,textScaleY:1.3});
     add({type:'shape',shape:'arrow',side:'inside',x:.85,w:.6,h:.2,rotation:22,clipToPanel:true});
     const imageCanvas=document.createElement('canvas');imageCanvas.width=80;imageCanvas.height=40;const ictx=imageCanvas.getContext('2d');ictx.fillStyle='#ff6a00';ictx.fillRect(0,0,40,40);ictx.fillStyle='#1a80ef';ictx.fillRect(40,0,40,40);
     add({type:'image',src:imageCanvas.toDataURL(),x:.82,y:.12,w:.32,h:.12,crop:{x:.3,y:.1,w:.6,h:.8},flipY:true,rotation:-15});

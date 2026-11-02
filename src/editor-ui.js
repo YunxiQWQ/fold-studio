@@ -1,8 +1,10 @@
 import {editLayers,expandGroups} from './editor-commands.js';
 import {sideOf,clone} from './project.js';
 import {escapeHtml as esc} from './icons.js';
+import {setTextScale} from './text-transform.js';
+import {compactSvgLayers} from './svg-merge.js';
 
-const actions=[['group','组合','Ctrl G'],['ungroup','解组','Ctrl Shift G'],['duplicate','复制一份','Ctrl D'],['lock','锁定 / 解锁','Ctrl L'],['front','置于顶层','Ctrl Shift ]'],['back','置于底层','Ctrl Shift ['],['up','上移一层','Ctrl ]'],['down','下移一层','Ctrl ['],['flip-x','水平翻转',''],['flip-y','垂直翻转',''],['rotate-reset','清除旋转',''],['delete','删除','Del']];
+const actions=[['group','组合','Ctrl G'],['ungroup','解组','Ctrl Shift G'],['merge-svg','合并 SVG 图形',''],['duplicate','复制一份','Ctrl D'],['lock','锁定 / 解锁','Ctrl L'],['front','置于顶层','Ctrl Shift ]'],['back','置于底层','Ctrl Shift ['],['up','上移一层','Ctrl ]'],['down','下移一层','Ctrl ['],['flip-x','水平翻转',''],['flip-y','垂直翻转',''],['rotate-reset','清除旋转',''],['delete','删除','Del']];
 const alignments=[['left','左对齐'],['center-x','水平居中'],['right','右对齐'],['top','顶对齐'],['center-y','垂直居中'],['bottom','底对齐'],['distribute-x','水平等间距'],['distribute-y','垂直等间距']];
 const btn=(action,label,tip='')=>`<button type="button" data-editor-action="${action}" title="${tip||label}">${label}</button>`;
 const property=(key,label,value,{min=0,max=100,step=.1}={})=>`<label class="property-field"><span>${label}</span><input type="number" data-editor-prop="${key}" value="${value}" min="${min}" max="${max}" step="${step}" aria-label="${label}"/></label>`;
@@ -12,6 +14,9 @@ export function mountEditorUI(api){
   const bar=document.createElement('div');bar.className='editor-commandbar';bar.setAttribute('aria-label','平面编辑操作');
   bar.innerHTML=`${btn('select-all','全选','Ctrl A · 选择当前印刷面的可见未锁定图层')}${btn('group','组合','Ctrl G')}${btn('ungroup','解组','Ctrl Shift G')}<select id="editor-align" aria-label="对齐与分布"><option value="">对齐 / 分布</option>${alignments.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select><select id="editor-order" aria-label="图层顺序"><option value="">图层顺序</option>${actions.filter(([v])=>['front','back','up','down','lock'].includes(v)).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select>${btn('snap','吸附：开')}${btn('rulers','标尺：开')}${btn('grid','网格：开')}${btn('zoom-100','100%')}<span id="editor-selection-count">未选中图层</span>`;
   document.querySelector('#editor-host').before(bar);
+  const svgButton=document.createElement('button');svgButton.type='button';svgButton.dataset.editorAction='import-svg';svgButton.textContent='导入 SVG 图文';bar.prepend(svgButton);
+  const svgMode=document.createElement('select');svgMode.id='svg-import-mode';svgMode.setAttribute('aria-label','SVG 导入图层方式');svgMode.title='精简图层会合并连续图形，文字保持独立可编辑';svgMode.innerHTML='<option value="compact">精简图层</option><option value="individual">逐元素导入</option>';svgButton.after(svgMode);
+  svgMode.insertAdjacentHTML('afterend',btn('merge-svg','合并 SVG 图形','合并选中的相邻 SVG 图形，保留文字、矢量与叠放顺序'));
   const shortcutList=document.querySelector('.shortcut-list');
   for(const [key,label]of [['Shift / Ctrl 点选','添加 / 移除多个选中图层'],['Ctrl / ⌘ A','全选当前印刷面可见图层'],['Ctrl / ⌘ G','组合选中图层'],['Ctrl / ⌘ Shift G','解组'],['Ctrl / ⌘ L','锁定 / 解锁选中图层'],['Ctrl / ⌘ B / I / U','粗体 / 斜体 / 下划线'],['Ctrl / ⌘ [ / ]','图层后移 / 前移'],['Ctrl / ⌘ Shift [ / ]','图层置底 / 置顶']]){const item=document.createElement('div');item.innerHTML=`<span>${label}</span><kbd>${key}</kbd>`;shortcutList.appendChild(item);}
   const menu=document.createElement('div');menu.className='editor-context-menu';menu.setAttribute('role','menu');menu.hidden=true;document.body.appendChild(menu);
@@ -31,9 +36,17 @@ export function mountEditorUI(api){
       if(command==='zoom-100'){editor.zoom(1/editor.view.scale);return;}
       if(command==='crop'){openCrop();return;}
       if(command==='replace-image'){replaceInput.click();return;}
+      if(command==='import-svg'){document.querySelector('#svg-artwork-input').click();return;}
+      if(command==='merge-svg'){
+        const before=s.project.layers,next=compactSvgLayers(before,s.dieline,s.ids);
+        if(next.length===before.length)throw Error('请选择至少两个相邻的 SVG 图形；文字会保留为独立图层');
+        const previous=new Set(before.map(l=>l.id)),selected=new Set(s.ids),nextIds=next.filter(l=>selected.has(l.id)||!previous.has(l.id)).map(l=>l.id);
+        s.project.layers=next;images.retain(next);setSelection(nextIds);change();notify(`已精简 ${before.length-next.length} 个图层，保留矢量与文字`);return;
+      }
       if(command.startsWith('crop-')){cropPreset(command);return;}
-      if(['bold','italic','underline'].includes(command)){const targets=list.filter(l=>l.type==='text'&&!l.locked),v=!targets.every(l=>l[command]);for(const l of targets)l[command]=v;change();return;}
+      if(['bold','italic','underline'].includes(command)){const targets=list.filter(l=>l.type==='text'&&!l.locked),v=!targets.every(l=>l[command]);for(const l of targets){l[command]=v;if(command==='bold')delete l.fontWeight;}change();return;}
       if(command==='edit-text'){const object=editor.fabric.getActiveObject();if(object?.enterEditing){object.enterEditing();object.selectAll();}return;}
+      if(command==='text-scale-reset'){for(const l of list.filter(l=>l.type==='text'&&!l.locked)){setTextScale(l,'x',1);setTextScale(l,'y',1);}change();return;}
       const next=editLayers(s.project,s.dieline,s.ids,command,value);if(command==='delete')images.retain(s.project.layers);setSelection(next);change();
     }catch(e){notify(e.message);}finally{menu.hidden=true;}
   }
@@ -63,17 +76,27 @@ export function mountEditorUI(api){
     section.innerHTML=`<h2>编辑工具</h2><div class="editor-action-grid">${btn('lock',l.locked?'解锁图层':'锁定图层')}${btn('flip-x','水平翻转')}${btn('flip-y','垂直翻转')}${btn('rotate-reset','清除旋转')}${btn('front','置顶')}${btn('back','置底')}</div><div class="editor-action-grid">${alignments.slice(0,6).map(([v,t])=>btn(v,t)).join('')}</div>`;
     if(l.type==='text')section.innerHTML+=`<h2 class="extra-heading">文字排版</h2><div class="editor-action-grid">${btn('edit-text','画布内编辑')}${btn('italic',l.italic?'取消斜体':'斜体')}${btn('underline',l.underline?'取消下划线':'下划线')}</div><label class="property-label">段落对齐<select data-editor-prop="textAlign" aria-label="文字对齐">${[['left','左对齐'],['center','居中'],['right','右对齐'],['justify','两端对齐']].map(([v,t])=>`<option value="${v}" ${(l.textAlign??'center')===v?'selected':''}>${t}</option>`).join('')}</select></label><div class="property-grid">${property('lineHeight','行距倍数',l.lineHeight??1.5,{min:.7,max:4})}${property('charSpacing','字距（千分之一 em）',l.charSpacing??0,{min:-100,max:1000,step:10})}</div>`;
     if(l.type==='image')section.innerHTML+=`<div class="editor-action-grid">${btn('crop','裁剪图片')}${btn('replace-image','替换图片')}</div>`;
+    if(l.type==='svg')section.innerHTML+=`<h2 class="extra-heading">SVG 图形</h2><p class="field-note">保留矢量路径，可移动、拉伸、旋转；按住 Shift 等比例缩放。轮廓文字作为图形保留。</p><label class="property-label">图形颜色<select data-editor-prop="svgOriginal" aria-label="SVG 颜色模式"><option value="original" ${l.svgOriginal!==false?'selected':''}>保留原色 / 渐变</option><option value="single" ${l.svgOriginal===false?'selected':''}>统一改色</option></select></label>`;
     if(l.type==='shape'||l.type==='text')section.innerHTML+=`<h2 class="extra-heading">描边${l.type==='shape'?'与圆角':''}</h2><label class="property-label">描边颜色<input type="color" data-editor-prop="stroke" value="${esc(l.stroke??l.color)}" aria-label="描边颜色"/></label><div class="property-grid">${property('strokeWidth','描边宽度 mm',l.strokeWidth??0,{max:20})}${l.type==='shape'?property('radius','圆角 mm',l.radius??0,{max:300}):''}</div>`;
     host.appendChild(section);
+    if(l.type==='text'&&l.font==='custom'){const option=document.createElement('option');option.value='custom';option.textContent=`导入字体：${l.fontFamily}`;option.selected=true;host.querySelector('#prop-font').appendChild(option);const tip=document.createElement('p');tip.className='field-note';tip.textContent='字体使用本机已安装的字体，缺失时由浏览器替代。';host.querySelector('#prop-font').closest('section').appendChild(tip);}
+    if(l.type==='text'){
+      const controls=document.createElement('div');controls.innerHTML=`<label class="property-label">文字控制框<select id="text-transform-mode" aria-label="文字控制框模式"><option value="scale" ${editor.textTransformMode==='scale'?'selected':''}>拉伸文字</option><option value="frame" ${editor.textTransformMode==='frame'?'selected':''}>调整文本框</option></select></label><p class="field-note">拉伸文字保留原换行，按住 Shift 等比例缩放；调整文本框只改框大小与换行。</p><div class="property-grid">${property('textScaleX','水平拉伸 %',+((l.textScaleX??1)*100).toFixed(1),{min:5,max:2000,step:1})}${property('textScaleY','垂直拉伸 %',+((l.textScaleY??1)*100).toFixed(1),{min:5,max:2000,step:1})}</div>${btn('text-scale-reset','还原字形拉伸')}`;
+      host.querySelector('#prop-text').closest('section').appendChild(controls);
+    }
+    if(l.type==='image'){const tip=document.createElement('p');tip.className='field-note';tip.textContent='拖动控制柄自由拉伸；按住 Shift 等比例放大、缩小。';section.prepend(tip);}
     const scope=document.createElement('section');scope.className='inspector-section';scope.innerHTML=`<h2>排版范围</h2><select id="layer-clip-scope" data-editor-prop="clipToPanel" aria-label="排版范围"><option value="sheet" ${!l.clipToPanel?'selected':''}>整张刀版 · 可跨面板</option><option value="panel" ${l.clipToPanel?'selected':''}>仅基准面板</option></select><p class="field-note">默认可拖过折线，图案会连续延伸到相邻面；基准面板只用于定位和尺寸计算。</p>`;host.prepend(scope);
     if(l.type==='shape')for(const [value,text]of [['triangle','三角形'],['line','线条'],['arrow','箭头']]){const option=document.createElement('option');option.value=value;option.textContent=text;option.selected=l.shape===value;host.querySelector('#prop-shape').appendChild(option);}
     if(l.type==='text'){const option=document.createElement('option');option.value='mono';option.textContent='等宽字体';option.selected=l.font==='mono';host.querySelector('#prop-font').appendChild(option);}
   }
   function propertyEvent(e,commit){
+    if(e.target.id==='text-transform-mode'){e.stopPropagation();if(commit){editor.setTextTransformMode(e.target.value);const s=getState();select(s.selected,s.panelId,s.ids);}return;}
     const key=e.target.dataset.editorProp,batch=e.target.dataset.editorBatch;if(!key&&!batch)return;e.stopPropagation();const s=getState();if(!e.target.checkValidity())return;
     for(const l of s.project.layers.filter(l=>s.ids.includes(l.id)&&!l.locked)){
-      if(batch==='opacity')l.opacity=+e.target.value/100;else if(batch==='color'&&l.type!=='image')l.color=e.target.value;
+      if(batch==='opacity')l.opacity=+e.target.value/100;else if(batch==='color'&&l.type!=='image'&&!(l.type==='svg'&&l.svgOriginal!==false))l.color=e.target.value;
+      else if(key==='svgOriginal'&&l.type==='svg')l.svgOriginal=e.target.value==='original';
       else if(key==='clipToPanel')l.clipToPanel=e.target.value==='panel';
+      else if(key==='textScaleX'||key==='textScaleY'){if(l.type==='text')setTextScale(l,key==='textScaleX'?'x':'y',+e.target.value/100);}
       else if(key)l[key]=['textAlign','stroke'].includes(key)?e.target.value:+e.target.value;
     }change({commit,render:commit});
   }

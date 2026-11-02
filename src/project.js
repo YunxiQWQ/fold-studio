@@ -1,4 +1,5 @@
 import { BOX_TYPES, makeDieline } from './geometry.js';
+import {validateSvgAsset} from './svg-asset.js';
 
 export const uid = () => crypto.randomUUID();
 export const clone = value => structuredClone(value);
@@ -63,13 +64,17 @@ export function validateProject(input) {
   const ids = new Set();
   const panels = new Set(makeDieline(input.type, input.dimensions).panels.map(p => p.id));
   for (const layer of input.layers) {
-    if (!['text', 'image', 'shape', 'barcode', 'qrcode', 'symbol'].includes(layer.type) || !panels.has(layer.panel)) throw new Error('工程包含无效图层');
+    if (!['text', 'image', 'shape', 'barcode', 'qrcode', 'symbol', 'svg'].includes(layer.type) || !panels.has(layer.panel)) throw new Error('工程包含无效图层');
     if (layer.side !== undefined && !Object.hasOwn(SIDES, layer.side)) throw new Error('工程图层内外面数据无效');
     if (typeof layer.id !== 'string' || ids.has(layer.id)) throw new Error('工程图层编号无效');
     ids.add(layer.id);
     for (const key of ['x', 'y', 'w', 'h', 'rotation', 'opacity']) if (!Number.isFinite(layer[key])) throw new Error('工程图层坐标无效');
     if (Math.abs(layer.x) > 1000 || Math.abs(layer.y) > 1000 || layer.w <= 0 || layer.h <= 0 || layer.w > 1000 || layer.h > 1000 || layer.opacity < 0 || layer.opacity > 1 || Math.abs(layer.rotation) > 3600) throw new Error('工程图层超出支持范围');
     if (layer.type === 'text' && (typeof layer.text !== 'string' || layer.text.length > 5000 || !Number.isFinite(layer.size) || layer.size < 1 || layer.size > 100)) throw new Error('工程文字数据无效');
+    for(const key of ['textScaleX','textScaleY'])if(layer[key]!==undefined&&(layer.type!=='text'||!Number.isFinite(layer[key])||layer[key]<.05||layer[key]>20))throw new Error('文字拉伸比例无效');
+    if(layer.fontFamily!==undefined&&(typeof layer.fontFamily!=='string'||layer.fontFamily.length>300))throw Error('字体名称无效');
+    if(layer.fontWeight!==undefined&&!/^(normal|bold|[1-9]00)$/.test(layer.fontWeight))throw Error('字体字重无效');
+    if(layer.type==='svg'){validateSvgAsset(layer.svg);if(layer.svgOriginal!==undefined&&typeof layer.svgOriginal!=='boolean')throw Error('SVG 颜色设置无效');}
     if (layer.type !== 'image' && !hex(layer.color)) throw new Error('工程图层颜色无效');
     if (layer.type === 'shape' && !['rect', 'ellipse', 'botanical','triangle','line','arrow'].includes(layer.shape)) throw new Error('工程图形类型无效');
     for(const key of ['locked','flipX','flipY','italic','underline','clipToPanel'])if(layer[key]!==undefined&&typeof layer[key]!=='boolean')throw new Error('工程图层开关无效');

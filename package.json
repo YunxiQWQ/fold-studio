@@ -1,6 +1,6 @@
 {
   "name": "fold-studio",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": false,
   "type": "module",
   "scripts": {
@@ -13,7 +13,11 @@
     "test:browser": "node tests/browser.mjs && node tests/surfaces-browser.mjs && node tests/export-glb-browser.mjs && node tests/theme-and-boxes-browser.mjs && node tests/packaging-features-browser.mjs && node tests/cmyk-browser.mjs && node tests/model-selection-browser.mjs && node tests/editor-browser.mjs && node tests/cross-panel-browser.mjs && node tests/packaging-edit-browser.mjs && node tests/color-ui-browser.mjs && node tests/workspace-layout-browser.mjs && node tests/curved-carton-browser.mjs && node tests/selected-models-browser.mjs && node tests/paper-bag-browser.mjs && node tests/reference-cartons-browser.mjs && node tests/rigid-reference-cartons-browser.mjs && node tests/export-svg-browser.mjs && node tests/export-flat-browser.mjs",
     "prebuild": "node scripts/render-template-previews.mjs",
     "build:previews": "node scripts/render-template-previews.mjs",
-    "test:flat": "node tests/export-flat-browser.mjs"
+    "test:flat": "node tests/export-flat-browser.mjs",
+    "test:import-svg": "node --test tests/svg-asset.test.js tests/svg-merge.test.js && node tests/import-svg-browser.mjs && node tests/svg-merge-browser.mjs",
+    "test:import-svg:offline": "node tests/import-svg-standalone.mjs",
+    "test:transforms": "node --test tests/text-transform.test.js && node tests/transform-controls-browser.mjs",
+    "test:close-protection": "node --test tests/close-protection.test.js && node tests/close-protection-browser.mjs"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",

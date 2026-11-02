@@ -14,9 +14,9 @@ A local-first web workbench for packaging design, built around keeping editing f
 
 **Use it online:** open [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold). No account needed.
 
-**Offline single file:** download `fold-studio-v0.13.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined.
+**Offline single file:** download `fold-studio-v0.14.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined.
 
-**Portable bundle:** [download the v0.13.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.13.0/fold-studio-v0.13.0.zip), containing the same offline HTML, quick-start instructions, changelog, contributor credits and licenses. SHA-256 checksums are available on the release page.
+**Portable bundle:** [download the v0.14.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.14.0/fold-studio-v0.14.0.zip), containing the same offline HTML, quick-start instructions, changelog, contributor credits and licenses. SHA-256 checksums are available on the release page.
 
 **Build locally:** Node.js 22 or newer.
 
@@ -61,6 +61,10 @@ Flat interaction runs on **Fabric.js 7.4.0 (MIT)**; the selection rationale is i
 - Edge and centre alignment, horizontal and vertical distribution; snapping lines for panel edges, panel centres and other layers, millimetre rulers and a grid toggle.
 - Layer locking, drag reordering, bring to front / send to back, multi-select copy and delete, batch colour and opacity, right-click menu.
 - In-place text editing on double click: Chinese and English, multiline, wrapping, paragraph alignment, bold / italic / underline, line height, letter spacing, stroke and monospace.
+- Text handles stretch glyphs while retaining the nominal font size and wrapping; switch to frame mode to resize only the text box. Hold Shift while dragging text or image handles to scale proportionally.
+- **Import SVG artwork** from the flat editor toolbar or by dropping a file. Text, paths and basic shapes become separate layers on the current panel. Ordinary text remains editable; vectors keep gradients and clipping, with original-colour or uniform-recolour modes and native SVG re-export.
+- SVG imports default to compact layers: consecutive graphics merge while text stays independent. Choose individual elements for detailed editing, or select existing artwork and use Merge SVG Graphics. Text and unselected layers split merge runs to retain stacking order. Merges can be undone; internal paths remain editable in exported SVG files.
+- Outlined text and complex text styling remain vector graphics. Fonts use local installations with browser fallback. Imports accept up to 8 MB and 120 total project layers; scripts, external resources, filters and masks require removal or expansion in the source application. External SVGs do not define a new folding structure.
 - Non-destructive image cropping: drag the crop box, percentage nudging, 1:1 and 16:9 presets, live 3D update, cancel and undo; replace an image while keeping its position.
 - Shape tools: rectangle, ellipse, plant motif, triangle, arrow, line, with corner radius and stroke.
 
@@ -105,6 +109,7 @@ Flat interaction runs on **Fabric.js 7.4.0 (MIT)**; the selection rationale is i
 - The local project library can create, open, and duplicate multiple projects. Importing a `.fold` project creates a new entry instead of replacing the current one.
 - IndexedDB autosaves the current project and keeps up to 12 local revisions per project. A revision is created initially, another is saved about every five minutes while editing, and versions can be saved or restored manually. The former single draft is copied into a separate library without deleting the old record, so older offline files can still open.
 - Projects and revisions stay in this browser and origin. Download a `.fold` backup for anything important or for moving work to another browser or device.
+- Closing or refreshing after edits requests the browser's native leave-page warning until the current session changes are downloaded using Save Project. Autosave continues independently; a file save or undoing back to the saved state clears the warning. Browsers control the dialog wording and availability.
 - Everything runs locally: no account, no backend, no external fonts, no cloud image service.
 
 ## Keyboard shortcuts
@@ -151,6 +156,10 @@ npm run dev
 npm test
 npm run build
 npm run test:browser
+npm run test:import-svg
+npm run test:transforms
+npm run test:close-protection
+npm run test:import-svg:offline # run npm run build first
 ```
 
 Building needs Node.js 22.12+. Verified versions: Node 22.23.3, Vite 8.3.4, Three.js 0.186.1, Playwright 1.64.1.
