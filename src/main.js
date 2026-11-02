@@ -8,7 +8,7 @@ import {compactWorkspace} from './compact-workspace.js';
 import {initWorkspaceResizers} from './workspace-resizer.js';
 import {TEMPLATE_PREVIEWS} from './template-previews.generated.js';
 import {expandGroups,layerRect} from './editor-commands.js';
-import { BOX_TYPES, makeDieline, creasePaths, cutSegments } from './geometry.js';
+import { BOX_TYPES, makeDieline, cutSegments, creasePaths } from './geometry.js';
 import {PAPER_BAG_PRESETS,paperBagSettings} from './paper-bag.js';
 import {triangleSettings,ropeGableSettings} from './reference-cartons.js';
 import {candyTwistSettings,triangleSliceSettings} from './rigid-reference-cartons.js';
@@ -21,6 +21,7 @@ import { download } from './storage.js';
 import { createDocument, getActiveDocument, getDocument, getRevision, listDocuments, listRevisions, saveDocument, saveRevision, setActiveDocument } from './project-library-storage.js';
 import { mountProjectLibrary } from './project-library-ui.js';
 import { exportGLB } from './export3d.js';
+import { exportSVG } from './export-svg.js';
 import { icon, escapeHtml as esc } from './icons.js';
 import { PACKAGING_SYMBOLS } from './symbols.js';
 import { rgbToCmyk, formatCmyk, proofColor } from './color.js';
@@ -43,7 +44,7 @@ $('#app').innerHTML=`
   <div class="brand-group">
     <a class="brand" href="#" aria-label="折间工作台"> <span class="brand-mark">${icon('box')}</span><span class="brand-name">折间<span>FOLD STUDIO</span></span></a>
     <div class="brand-badges">
-      <span class="version-tag">v0.12.0</span>
+      <span class="version-tag">v0.13.0</span>
       <span class="local-badge"><span class="local-dot"></span>文件留在本地</span>
     </div>
   </div>
@@ -151,6 +152,7 @@ $('#app').innerHTML=`
 <dialog id="shortcuts-dialog"><button id="close-shortcuts" class="dialog-close" aria-label="关闭快捷键">${icon('close')}</button><span class="dialog-kicker">KEYBOARD SHORTCUTS</span><h2>让操作，更顺手。</h2><div class="shortcut-list">${[['Ctrl / ⌘ C','复制选中图层'],['Ctrl / ⌘ X','剪切选中图层'],['Ctrl / ⌘ V','粘贴到当前面板与内外面'],['Ctrl / ⌘ Shift V','粘贴并保留原位置'],['Ctrl / ⌘ D','复制一份图层'],['Ctrl / ⌘ Z','撤销'],['Ctrl / ⌘ Shift Z / Y','重做'],['Ctrl / ⌘ S','下载工程'],['1 / 2','编辑外面 / 内面'],['V / H / 空格','选择 / 平移 / 临时平移'],['T / I / R','添加文字 / 图片 / 矩形'],['M','展开 / 恢复平面画布'],['P','切换 RGB 屏幕 / CMYK 印刷打样'],['Shift T','切换界面主题（中灰/深黑/蓝调/浅色/纸本）'],['F / Shift F','适应平面 / 适应三维'],['G','切换辅助线'],['方向键 / Shift 方向键','移动 1 mm / 5 mm'],['Delete / Esc','删除 / 取消选择'],['?','打开本快捷键表']].map(([key,label])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('')}</div><p class="help-note">复制图层后，可在另一个折间标签页、离线页面或工程中粘贴，图片会一起携带。也可粘贴剪贴板中的普通文字或图片。输入框里的复制粘贴仍按浏览器惯例工作；若粘贴按钮受浏览器限制，请直接按 Ctrl / ⌘ V。</p></dialog>
 <dialog id="confirm-dialog"><h2>切换盒型？</h2><p>将建立一份新盒型示例，替换当前设计。你可以先保存工程；切换后也可以撤销。</p><div class="dialog-actions"><button id="cancel-confirm" class="button subtle">保留当前设计</button><button id="accept-confirm" class="button primary">切换盒型</button></div></dialog>
 <dialog id="export-glb-dialog" class="export-dialog"><button id="close-export-glb" class="dialog-close" aria-label="关闭导出对话框">${icon('close')}</button><span class="dialog-kicker">3D MODEL EXPORT</span><h2>导出三维模型 GLB</h2><p>生成内嵌几何网格、PBR 材质与内外贴图的自包含三维模型，可直接导入 Blender、C4D、KeyShot 或网页 3D/AR 查看器中渲染。</p><div class="export-options"><div class="export-group"><label class="export-label">折叠形态</label><div class="export-radios"><label><input type="radio" name="glb-fold" value="current" checked /><span id="glb-fold-current-label">当前折叠状态</span></label><label><input type="radio" name="glb-fold" value="closed" /><span>100% 完全闭合成型</span></label><label><input type="radio" name="glb-fold" value="flat" /><span>0% 平铺展开刀版</span></label></div></div><div class="export-group"><label class="export-label" for="glb-resolution">贴图烘焙分辨率</label><select id="glb-resolution"><option value="2048" selected>2048 × 2048（推荐 · 细节清晰）</option><option value="4096">4096 × 4096（超清 · 适合近景特写）</option><option value="1024">1024 × 1024（轻量 · 适合 Web/AR）</option></select></div><div class="export-group"><label class="checkbox-label"><input type="checkbox" id="glb-inside" checked /><span>包含内面印刷图案与底色</span></label></div></div><div class="dialog-actions"><button id="cancel-export-glb" class="button subtle">取消</button><button id="confirm-export-glb" class="button primary">${icon('download')}开始导出 GLB</button></div></dialog>
+<dialog id="export-flat-dialog" class="export-dialog" aria-labelledby="export-flat-title"><button id="close-export-flat" class="dialog-close" aria-label="关闭平面 PNG 导出">${icon('close')}</button><span class="dialog-kicker">FLAT PNG EXPORT</span><h2 id="export-flat-title">导出平面设计 PNG</h2><p>当前印刷面：<strong id="flat-export-surface">外面</strong>。选择是否在设计图上显示结构线。</p><div class="export-options"><div class="export-group"><label class="checkbox-label"><input type="checkbox" id="flat-include-lines" checked /><span>包含刀线和折线</span></label><span class="field-note">红色实线为刀线，绿色虚线为折线；取消勾选可导出纯设计图。</span></div></div><div class="dialog-actions"><button id="cancel-export-flat" class="button subtle">取消</button><button id="confirm-export-flat" class="button primary">${icon('download')}导出 PNG</button></div></dialog>
 <dialog id="templates-dialog" class="templates-dialog">
   <button id="close-templates" class="dialog-close" aria-label="关闭包装结构库">${icon('close')}</button>
   <div class="dialog-header">
@@ -726,13 +728,22 @@ $('#project-input').onchange=async e=>{
 function safeName(){return project.name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').slice(0,80)||'折间工程';}
 $('#export-toggle').onclick=()=>$('#export-menu').hidden=!$('#export-menu').hidden;
 document.addEventListener('click',e=>{if(!e.target.closest('.export-wrap'))$('#export-menu').hidden=true;});
-async function flatCanvas(max=3072,side=activeSide){
-  await images.preload(project.layers);await document.fonts.ready;
-  const canvas=document.createElement('canvas'),scale=max/Math.max(dieline.width,dieline.height);canvas.width=Math.ceil(dieline.width*scale);canvas.height=Math.ceil(dieline.height*scale);
+async function flatCanvas(max=3072,side=activeSide,{includeLines=false}={}){
+  const copy=clone(project),line=makeDieline(copy.type,copy.dimensions),mode=colorMode;
+  await images.preload(copy.layers);await document.fonts.ready;
+  const canvas=document.createElement('canvas'),scale=max/Math.max(line.width,line.height);canvas.width=Math.ceil(line.width*scale);canvas.height=Math.ceil(line.height*scale);
   const ctx=canvas.getContext('2d');
-  if(side==='inside')ctx.setTransform(-scale,0,0,scale,dieline.maxX*scale,-dieline.minY*scale);
-  else ctx.setTransform(scale,0,0,scale,-dieline.minX*scale,-dieline.minY*scale);
-  paintArtwork(ctx,project,dieline,images,side,colorMode);return canvas;
+  if(side==='inside')ctx.setTransform(-scale,0,0,scale,line.maxX*scale,-line.minY*scale);
+  else ctx.setTransform(scale,0,0,scale,-line.minX*scale,-line.minY*scale);
+  paintArtwork(ctx,copy,line,images,side,mode);
+  if(includeLines){
+    ctx.save();ctx.fillStyle='transparent';ctx.strokeStyle='#d54a48';ctx.lineWidth=.15;ctx.beginPath();
+    for(const [a,b]of cutSegments(line)){ctx.moveTo(...a);ctx.lineTo(...b);}ctx.stroke();
+    ctx.strokeStyle='#368258';ctx.lineWidth=.2;ctx.setLineDash([2,1]);
+    for(const crease of creasePaths(line))ctx.stroke(new Path2D(crease.d));
+    ctx.restore();
+  }
+  return canvas;
 }
 $('#export-glb').onclick=()=>{
   $('#export-menu').hidden=true;
@@ -763,16 +774,26 @@ $('#confirm-export-glb').onclick=async()=>{
   }
 };
 $('#export-png').onclick=async()=>{if(!preview){notify('三维预览尚未启动');return;}await images.preload(project.layers);preview.paint(project);const blob=await preview.capture();if(blob)download(blob,`${safeName()}-3D.png`);$('#export-menu').hidden=true;};
-$('#export-flat').onclick=async()=>{try{const side=activeSide,canvas=await flatCanvas(3072,side);canvas.toBlob(blob=>{if(blob)download(blob,`${safeName()}-${SIDES[side]}-平面.png`);});$('#export-menu').hidden=true;}catch{notify('平面图片导出失败');}};
+$('#export-flat').onclick=()=>{
+  editor.up();$('#export-menu').hidden=true;$('#flat-export-surface').textContent=SIDES[activeSide];$('#export-flat-dialog').showModal();
+};
+$('#close-export-flat').onclick=()=>$('#export-flat-dialog').close();
+$('#cancel-export-flat').onclick=()=>$('#export-flat-dialog').close();
+$('#confirm-export-flat').onclick=async()=>{
+  const btn=$('#confirm-export-flat');btn.disabled=true;
+  try{
+    const side=activeSide,includeLines=$('#flat-include-lines').checked,name=safeName(),canvas=await flatCanvas(3072,side,{includeLines});
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('图片编码失败');
+    download(blob,`${name}-${SIDES[side]}-平面${includeLines?'-带线':''}.png`);$('#export-flat-dialog').close();
+    notify(`已导出${SIDES[side]}平面 PNG${includeLines?'（含刀线和折线）':''}`);
+  }catch(error){notify(`平面图片导出失败：${error.message}`);}
+  finally{btn.disabled=false;}
+};
 $('#export-svg').onclick=async()=>{
   try{
-    const side=activeSide,canvas=await flatCanvas(3072,side);
-    const outlines=cutSegments(dieline).map(([a,b])=>`<path d="M${a.join(' ')}L${b.join(' ')}"/>`).join('');
-    const folds=creasePaths(dieline).map(p=>`<path data-crease="${p.id}" d="${p.d}"/>`).join('');
-    const metadata=esc(JSON.stringify(project));
-    const mirror=side==='inside'?`transform="translate(${dieline.minX+dieline.maxX} 0) scale(-1 1)"`:'';
-    const svg=`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${dieline.width}mm" height="${dieline.height}mm" viewBox="${dieline.minX} ${dieline.minY} ${dieline.width} ${dieline.height}"><title>${esc(project.name)} · ${SIDES[side]}结构草图</title><metadata data-fold-studio="1" data-surface="${side}">${metadata}</metadata><image id="artwork" x="${dieline.minX}" y="${dieline.minY}" width="${dieline.width}" height="${dieline.height}" xlink:href="${canvas.toDataURL('image/png')}"/><g ${mirror}><g id="cut" fill="none" stroke="#d54a48" stroke-width="0.15">${outlines}</g><g id="crease" fill="none" stroke="#368258" stroke-width="0.2" stroke-dasharray="2 1">${folds}</g></g></svg>`;
-    download(new Blob([svg],{type:'image/svg+xml'}),`${safeName()}-${SIDES[side]}-刀版.svg`);$('#export-menu').hidden=true;notify(`已导出${SIDES[side]} SVG；工程数据包含内外两面`);
+    editor.up();
+    const side=activeSide,copy=clone(project),svg=await exportSVG(copy,makeDieline(copy.type,copy.dimensions),images,{side,colorMode});
+    download(new Blob([svg],{type:'image/svg+xml'}),`${safeName()}-${SIDES[side]}-刀版.svg`);$('#export-menu').hidden=true;notify(`已导出${SIDES[side]}可编辑 SVG；工程数据包含内外两面`);
   }catch(error){notify(`导出失败：${error.message}`);}
 };
 $('#help').onclick=()=>$('#help-dialog').showModal();$('#close-help').onclick=()=>$('#help-dialog').close();$('#dismiss-help').onclick=()=>$('#help-dialog').close();

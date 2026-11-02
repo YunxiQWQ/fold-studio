@@ -18,6 +18,6 @@ export const OPEN_SYMBOLS=[
 ].map(([id,name,category,path])=>({id,name,category,path,source:'Pictogrammers MDI',license:'Apache-2.0'}));
 
 export function drawOpenSymbol(ctx,path,w,h){
-  const size=Math.min(w,h)*.9;ctx.save();ctx.translate(-size/2,-size/2);ctx.scale(size/24,size/24);ctx.fill(new Path2D(path));ctx.restore();
+  const size=Math.min(w,h)*.9;ctx.save();ctx.translate(-size/2,-size/2);ctx.scale(size/24,size/24);if(ctx.fillSvgPath)ctx.fillSvgPath(path);else ctx.fill(new Path2D(path));ctx.restore();
 }
 export function openSymbolSvg(symbol){return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${symbol.path}"/></svg>`;}

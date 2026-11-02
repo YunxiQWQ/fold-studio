@@ -14,9 +14,9 @@ A local-first web workbench for packaging design, built around keeping editing f
 
 **Use it online:** open [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold). No account needed.
 
-**Offline single file:** download `fold-studio-v0.12.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined.
+**Offline single file:** download `fold-studio-v0.13.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined.
 
-**Portable bundle:** [download the v0.12.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.12.0/fold-studio-v0.12.0.zip), containing the same offline HTML, quick-start instructions, changelog, contributor credits and licenses. SHA-256 checksums are available on the release page.
+**Portable bundle:** [download the v0.13.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.13.0/fold-studio-v0.13.0.zip), containing the same offline HTML, quick-start instructions, changelog, contributor credits and licenses. SHA-256 checksums are available on the release page.
 
 **Build locally:** Node.js 22 or newer.
 
@@ -95,8 +95,8 @@ Flat interaction runs on **Fabric.js 7.4.0 (MIT)**; the selection rationale is i
 ### Export
 
 - **GLB**: glTF 2.0 binary, embedding the mesh, named panel nodes, PBR materials, paper cut edges and baked textures for both sides (1024 / 2048 / 4096 px); current angle, fully closed and flat-unfolded states; works with Blender, C4D, KeyShot, the Windows 3D Viewer and Web/AR renderers.
-- **PNG**: a 3D snapshot, or a flat sheet with transparency.
-- **SVG**: vector cut lines, embedded bitmap artwork, plus project metadata that can be reopened.
+- **PNG**: a 3D snapshot, or a flat sheet with transparency. Flat PNG export lets you include or omit cut and crease lines, with lines enabled initially.
+- **SVG**: editable text, vector shapes, barcodes, QR codes and symbols, with separate paper, artwork, cut and crease groups. Uploaded photos stay as individually embedded images with crops and transforms. Project metadata can be reopened.
 - **.fold projects**: import and export, both sides included; single-side projects from earlier versions load as outside.
 
 ### Projects and storage
@@ -138,7 +138,8 @@ A note on reading the OpenBox3D source: its `src/render3d/engine.js` runs a pers
 - Artwork can span the whole dieline or be clipped to the reference panel, but stays on the current print side; it will not wrap around a cut edge or across to the reverse of the sheet.
 - A fixed 0.45 mm thickness is used for display, with a micro-offset on tucks and overlaps to avoid z-fighting. Industrial paper-thickness compensation, die-cutting tolerances and board spring-back are not modelled.
 - Dieline dimensions are based on geometric panels and **must not be treated as verified production data**. There is no CMYK separation, spot colour, bleed, safe area, foil or UV layer output.
-- Typefaces come from the system and may differ across machines; SVG keeps the exported bitmaps as they looked at export time.
+- Typefaces come from the system. SVG keeps text editable without embedding fonts; the receiving computer needs the same fonts to avoid substitution or layout changes.
+- Reopening a Fold Studio SVG restores the project data embedded at export time. Subsequent path or text edits in Illustrator and other editors are not automatically imported back into the project.
 - The project library is tied to the current browser and origin; download a `.fold` backup for anything important. Clearing site data also clears the local library and its revisions.
 - Fully local: no account, backend, external fonts or cloud image service.
 

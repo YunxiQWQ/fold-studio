@@ -66,7 +66,8 @@ export function drawLayer(ctx, layer, panel, images, colorMode = 'rgb') {
   const color = proofColor(layer.color ?? '#39563c', colorMode);
   ctx.fillStyle = color;
   if (layer.type === 'text') {
-    renderText(ctx,layer,w,h,color);
+    if(ctx.drawArtworkText)ctx.drawArtworkText(layer,w,h,color);
+    else renderText(ctx,layer,w,h,color);
   } else if (layer.type === 'image') {
     const img = images.get(layer.src);
     if (img){const c=layer.crop??{x:0,y:0,w:1,h:1};ctx.drawImage(img,c.x*img.naturalWidth,c.y*img.naturalHeight,c.w*img.naturalWidth,c.h*img.naturalHeight,-w/2,-h/2,w,h);}
