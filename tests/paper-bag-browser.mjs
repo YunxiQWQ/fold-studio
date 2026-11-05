@@ -28,9 +28,9 @@ try{
  await page.locator('#bag-handle-style').selectOption('ribbon');await page.locator('#bag-handle-pose').selectOption('raised');
  const dimensions=await page.evaluate(()=>window.__foldStudio.project.dimensions);assert.equal(dimensions.handleStyle,'ribbon');assert.equal(dimensions.handlePose,'raised');
  await page.locator('[data-bag-preset="square"]').click();await page.locator('#undo').click();assert.equal(await page.locator('#dim-length').inputValue(),'240');await page.locator('#redo').click();assert.equal(await page.locator('#dim-length').inputValue(),'330');
- await page.locator('#add-text').click();await page.locator('#prop-text').fill('纸袋预设实测');await page.locator('#prop-text').dispatchEvent('input');
+ await page.locator('#add-text').click();await page.locator('#node-text').fill('纸袋预设实测');await page.locator('#node-text').blur();
  await page.locator('#export-toggle').click();const dl=page.waitForEvent('download');await page.locator('#export-svg').click();await(await dl).saveAs(resolve('artifacts/paper-bag-export.svg'));
- await page.locator('#project-input').setInputFiles(resolve('artifacts/paper-bag-export.svg'));await page.waitForFunction(()=>window.__foldStudio.project.layers.some(l=>l.text==='纸袋预设实测'));assert.equal(await page.locator('#bag-handle-style').inputValue(),'rope');
+ await page.locator('#project-input').setInputFiles(resolve('artifacts/paper-bag-export.svg'));await page.waitForFunction(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('纸袋预设实测'));assert.equal(await page.locator('#bag-handle-style').inputValue(),'rope');
  await page.locator('#panel-selector').selectOption('front');await page.locator('#fit-3d').click();await page.waitForTimeout(3200);await page.screenshot({path:'artifacts/paper-bag-workspace.png'});
  checks.push('one library entry; three reference presets; custom dimensions and handle options; undo/redo; both print sides; SVG project round trip; stable geometry/textures while folding');
  const harness=await browser.newPage({viewport:{width:1560,height:800}});harness.on('pageerror',e=>errors.push(e.message));await harness.route('**/bag-harness',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));await harness.goto(url+'/bag-harness');

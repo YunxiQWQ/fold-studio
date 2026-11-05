@@ -56,13 +56,23 @@ export function sampleLayers(type) {
 }
 
 export function validateProject(input) {
-  if (!input || ![1,2].includes(input.version) || !Object.hasOwn(BOX_TYPES,input.type)) throw new Error('这不是受支持的折间工程文件');
+  if (!input || ![1,2,3].includes(input.version) || !Object.hasOwn(BOX_TYPES,input.type)) throw new Error('这不是受支持的折间工程文件');
   makeDieline(input.type, input.dimensions ?? {});
   const hex = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
   if (![input.paper, input.accent, input.highlight].every(hex)) throw new Error('工程颜色数据无效');
   if (!Array.isArray(input.layers) || input.layers.length > 120) throw new Error('工程最多支持 120 个图层');
   const ids = new Set();
   const panels = new Set(makeDieline(input.type, input.dimensions).panels.map(p => p.id));
+  if(input.svgArtwork!==undefined){
+    if(!input.svgArtwork||typeof input.svgArtwork!=='object'||Array.isArray(input.svgArtwork))throw Error('SVG 主画布数据无效');
+    for(const [side,svg]of Object.entries(input.svgArtwork)){if(!Object.hasOwn(SIDES,side))throw Error('SVG 主画布印刷面无效');validateSvgAsset(svg);}
+  }
+  if(input.svgGenerators!==undefined){
+    if(!input.svgGenerators||typeof input.svgGenerators!=='object'||Array.isArray(input.svgGenerators)||Object.keys(input.svgGenerators).length>120)throw Error('SVG 条码数据无效');
+    const values=Object.values(input.svgGenerators);
+    if(values.some(l=>!l||!['barcode','qrcode'].includes(l.type)))throw Error('SVG 条码类型无效');
+    validateProject({...input,svgGenerators:undefined,svgArtwork:undefined,layers:values});
+  }
   for (const layer of input.layers) {
     if (!['text', 'image', 'shape', 'barcode', 'qrcode', 'symbol', 'svg'].includes(layer.type) || !panels.has(layer.panel)) throw new Error('工程包含无效图层');
     if (layer.side !== undefined && !Object.hasOwn(SIDES, layer.side)) throw new Error('工程图层内外面数据无效');
@@ -101,7 +111,7 @@ export function validateProject(input) {
   if (!input.panelColors || typeof input.panelColors !== 'object' || Object.entries(input.panelColors).some(([id, color]) => !panels.has(id) || !hex(color))) throw new Error('工程面板颜色无效');
   if (input.insidePaper !== undefined && !hex(input.insidePaper)) throw new Error('工程内面底色无效');
   if (input.insidePanelColors !== undefined && (!input.insidePanelColors || typeof input.insidePanelColors !== 'object' || Array.isArray(input.insidePanelColors) || Object.entries(input.insidePanelColors).some(([id, color]) => !panels.has(id) || !hex(color)))) throw new Error('工程内面面板颜色无效');
-  return clone({ ...input, version: 2, insidePaper: input.insidePaper ?? '#eeeadd', insidePanelColors: input.insidePanelColors ?? {}, layers: input.layers.map(layer => ({ ...layer, side: sideOf(layer) })), name: String(input.name ?? '未命名工程').slice(0, 80) });
+  return clone({ ...input, version: input.svgArtwork?3:2, insidePaper: input.insidePaper ?? '#eeeadd', insidePanelColors: input.insidePanelColors ?? {}, layers: input.layers.map(layer => ({ ...layer, side: sideOf(layer) })), name: String(input.name ?? '未命名工程').slice(0, 80) });
 }
 
 export class History {

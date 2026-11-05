@@ -123,7 +123,7 @@ export function paintArtwork(ctx, project, dieline, images, side = 'outside', co
     ordered.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();
   }
   ctx.clip();
-  for(const layer of project.layers){
+  for(const layer of [...sceneLayersForSide(project,dieline,side),...project.layers]){
     if(sideOf(layer)!==side||!layer.visible)continue;
     const anchor=dieline.panels.find(p=>p.id===layer.panel);if(!anchor)continue;
     if(layer.clipToPanel){ctx.save();polygonPath(ctx,anchor.points,anchor.holes);ctx.clip();}
@@ -147,3 +147,4 @@ export function hitLayer(project, dieline, x, y, side = 'outside', panelId = nul
   return null;
 }
 
+import {sceneLayersForSide} from './svg-scene.js';

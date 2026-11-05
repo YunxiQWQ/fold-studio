@@ -15,7 +15,8 @@ import {candyTwistSettings,triangleSliceSettings} from './rigid-reference-carton
 import { newProject, History, uid, clone, validateProject, PALETTES, SIDES, sideOf, surfaceOf } from './project.js';
 import { encodeLayers, decodeLayers, layersForPaste, CLIPBOARD_MIME } from './clipboard.js';
 import { ImageCache, paintArtwork } from './artwork.js';
-import { Editor2D } from './editor2d.js';
+import {SvgMainEditor} from './svg-main-editor.js';
+import {svgSceneLayers} from './svg-scene.js';
 import { Preview3D } from './preview3d.js';
 import { download } from './storage.js';
 import { createDocument, getActiveDocument, getDocument, getRevision, listDocuments, listRevisions, saveDocument, saveRevision, setActiveDocument } from './project-library-storage.js';
@@ -24,7 +25,7 @@ import { exportGLB } from './export3d.js';
 import { exportSVG } from './export-svg.js';
 import {resizeTextDimension} from './text-transform.js';
 import {CloseProtection} from './close-protection.js';
-import {importSvgLayers} from './import-svg.js';
+import {importSvgDocument} from './import-svg.js';
 import { icon, escapeHtml as esc } from './icons.js';
 import { PACKAGING_SYMBOLS } from './symbols.js';
 import { rgbToCmyk, formatCmyk, proofColor } from './color.js';
@@ -48,13 +49,13 @@ $('#app').innerHTML=`
   <div class="brand-group">
     <a class="brand" href="#" aria-label="折间工作台"> <span class="brand-mark">${icon('box')}</span><span class="brand-name">折间<span>FOLD STUDIO</span></span></a>
     <div class="brand-badges">
-      <span class="version-tag">v0.14.0</span>
+      <span class="version-tag">v0.15.0</span>
       <span class="local-badge"><span class="local-dot"></span>文件留在本地</span>
     </div>
   </div>
   <div class="header-divider"></div><div class="project-heading"><span class="eyebrow">我的工作台</span><div><input id="project-name" aria-label="工程名称" maxlength="80" spellcheck="false"/><span class="file-tag">.fold</span></div></div>
   <span id="save-status" class="save-status">${icon('check')}本机自动保存</span>
-  <div class="header-actions"><button id="color-mode-toggle" class="button subtle" title="切换 RGB 屏幕模式 / CMYK 印刷软打样" aria-label="切换色彩模式">${icon('cmyk')}<span id="color-mode-text" class="color-mode-text">RGB 屏幕</span></button><div class="theme-wrap"><button id="theme-toggle" class="button subtle" title="选择界面主题 (快捷键 Shift+T)" aria-label="选择界面主题" aria-haspopup="true" aria-expanded="false">${icon('palette')}<span class="theme-text">工业中灰</span>${icon('down')}</button><div id="theme-menu" class="dropdown theme-dropdown" hidden><button data-theme-value="gray" class="theme-option" type="button"><span class="theme-swatch theme-swatch-gray"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>工业中灰</strong><span class="theme-tag">推荐</span></div><small>3D与包装推荐 · 中度灰</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="dark" class="theme-option" type="button"><span class="theme-swatch theme-swatch-dark"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>极夜深色</strong></div><small>沉浸高对比 · 纯净深黑</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="slate" class="theme-option" type="button"><span class="theme-swatch theme-swatch-slate"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>工程蓝灰</strong></div><small>CAD工程调 · 蓝灰工作台</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="light" class="theme-option" type="button"><span class="theme-swatch theme-swatch-light"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>经典浅色</strong></div><small>明亮纸白 · 经典清新</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="warm" class="theme-option" type="button"><span class="theme-swatch theme-swatch-warm"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>暖沙原纸</strong></div><small>温润原色 · 牛皮纸本</small></div><span class="theme-check">${icon('check')}</span></button></div></div><button id="import-project" class="button subtle">${icon('upload')}打开工程</button><button id="save-project" class="button subtle">${icon('save')}保存工程</button><div class="export-wrap"><button id="export-toggle" class="button primary">${icon('download')}导出${icon('down')}</button><div id="export-menu" class="dropdown" hidden><button id="export-glb">${icon('box')}三维模型 GLB</button><button id="export-png">${icon('box')}三维预览 PNG</button><button id="export-svg">${icon('grid')}平面刀版 SVG</button><button id="export-flat">${icon('image')}平面设计 PNG</button></div></div></div>
+  <div class="header-actions"><button id="color-mode-toggle" class="button subtle" title="切换 RGB 屏幕模式 / CMYK 印刷软打样" aria-label="切换色彩模式">${icon('cmyk')}<span id="color-mode-text" class="color-mode-text">RGB 屏幕</span></button><div class="theme-wrap"><button id="theme-toggle" class="button subtle" title="选择界面主题 (快捷键 Shift+T)" aria-label="选择界面主题" aria-haspopup="true" aria-expanded="false">${icon('palette')}<span class="theme-text">工业中灰</span>${icon('down')}</button><div id="theme-menu" class="dropdown theme-dropdown" hidden><button data-theme-value="gray" class="theme-option" type="button"><span class="theme-swatch theme-swatch-gray"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>工业中灰</strong><span class="theme-tag">推荐</span></div><small>3D与包装推荐 · 中度灰</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="dark" class="theme-option" type="button"><span class="theme-swatch theme-swatch-dark"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>极夜深色</strong></div><small>沉浸高对比 · 纯净深黑</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="slate" class="theme-option" type="button"><span class="theme-swatch theme-swatch-slate"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>工程蓝灰</strong></div><small>CAD工程调 · 蓝灰工作台</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="light" class="theme-option" type="button"><span class="theme-swatch theme-swatch-light"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>经典浅色</strong></div><small>明亮纸白 · 经典清新</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="warm" class="theme-option" type="button"><span class="theme-swatch theme-swatch-warm"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>暖沙原纸</strong></div><small>温润原色 · 牛皮纸本</small></div><span class="theme-check">${icon('check')}</span></button></div></div><button id="import-project" class="button subtle">${icon('upload')}打开工程</button><button id="save-project" class="button subtle">${icon('save')}保存工程</button><div class="export-wrap"><button id="export-toggle" class="button primary">${icon('download')}导出${icon('down')}</button><div id="export-menu" class="dropdown" hidden><button id="export-glb">${icon('box')}三维模型 GLB</button><button id="export-png">${icon('box')}三维预览 PNG</button><button id="export-svg">${icon('grid')}平面刀版 SVG</button><button id="export-flat">${icon('image')}平面设计 PNG</button><button id="export-artwork-svg">${icon('layers')}当前面图文 SVG</button></div></div></div>
 </header>
 <nav class="workspace-nav"><div class="nav-current">${icon('box')}包装设计<span class="nav-dot"></span></div><span class="nav-description">从一张平面，到一个好设计。</span><button id="help" class="help-link">${icon('help')}使用指南</button></nav>
 <main class="workspace" id="workspace-main">
@@ -100,7 +101,7 @@ $('#app').innerHTML=`
   </aside>
   <div id="sidebar-resizer" class="workspace-resizer resizer-col" title="左右拖动调整边栏宽度" aria-label="左右拖动调整边栏宽度"></div>
   <section class="center-workspace">
-    <div class="design-toolbar"><div class="toolbar-group">${button('tool-select','cursor','选择工具 V','active')}${button('tool-pan','hand','平移工具 H / 按住空格')}</div><span class="toolbar-separator"></span><div class="toolbar-group add-tools"><button id="add-text">${icon('text')}<span>文字</span></button><button id="add-image">${icon('image')}<span>图片</span></button><button id="add-shape">${icon('shape')}<span>图形</span></button><button id="add-barcode">${icon('barcode')}<span>条形码</span></button><button id="add-qrcode">${icon('qrcode')}<span>二维码</span></button><button id="add-symbol">${icon('symbol')}<span>常用标志</span></button></div><div class="toolbar-right">${button('undo','undo','撤销 Ctrl+Z')}${button('redo','redo','重做 Ctrl+Shift+Z')}<span class="toolbar-separator"></span>${button('toggle-guides','grid','显示 / 隐藏刀版辅助线','active')}</div></div>
+    <div class="design-toolbar"><div class="toolbar-group">${button('tool-select','cursor','选择工具 V','active')}${button('tool-pan','hand','平移工具 H / 按住空格')}</div><span class="toolbar-separator"></span><div class="toolbar-group add-tools"><button id="add-text">${icon('text')}<span>文字</span></button><button id="add-image" title="导入图片或 SVG" aria-label="导入图片或 SVG">${icon('image')}<span>图片 / SVG</span></button><button id="add-shape">${icon('shape')}<span>图形</span></button><button id="add-barcode">${icon('barcode')}<span>条形码</span></button><button id="add-qrcode">${icon('qrcode')}<span>二维码</span></button><button id="add-symbol">${icon('symbol')}<span>常用标志</span></button></div><div class="toolbar-right">${button('undo','undo','撤销 Ctrl+Z')}${button('redo','redo','重做 Ctrl+Shift+Z')}<span class="toolbar-separator"></span>${button('toggle-guides','grid','显示 / 隐藏刀版辅助线','active')}</div></div>
     <div class="surface-toolbar"><div class="surface-tabs" role="tablist" aria-label="编辑包装内外面"><button id="side-outside" data-side="outside" role="tab" aria-selected="true" class="active">外面<span>1</span></button><button id="side-inside" data-side="inside" role="tab" aria-selected="false">内面<span>2</span></button></div><span id="surface-hint" class="surface-hint">编辑外面图案</span><div class="clipboard-tools">${button('copy-layer','copy','复制图层 Ctrl+C')}${button('cut-layer','cut','剪切图层 Ctrl+X')}${button('paste-layer','paste','粘贴到当前面板 Ctrl+V')}</div><button id="shortcut-help" class="shortcut-link" title="快捷键 ?">快捷键 ${icon('help')}</button></div>
     <div class="canvas-split" id="canvas-split">
       <section class="flat-pane">
@@ -150,7 +151,7 @@ $('#app').innerHTML=`
   <div id="inspector-resizer" class="workspace-resizer resizer-col" title="左右拖动调整属性面板宽度" aria-label="左右拖动调整属性面板宽度"></div>
   <aside class="right-sidebar"><div class="sidebar-title">属性<span id="selected-type" class="tiny-badge">面板</span></div><div class="panel-picker"><label for="panel-selector">选择面板</label><select id="panel-selector" aria-label="选择面板"></select></div><div id="inspector"></div><div class="inspector-tip">${icon('help')}<p>点击平面或三维模型选择面板。<br/>插舌和粘耳也可单独选择、检查。</p></div></aside>
 </main>
-<input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" hidden/><input id="svg-artwork-input" type="file" accept=".svg,image/svg+xml" hidden/><input id="project-input" type="file" accept=".fold,.foldproj,.json,.svg" hidden/>
+<input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" hidden/><input id="project-input" type="file" accept=".fold,.foldproj,.json,.svg" hidden/>
 <div id="toast" class="toast" role="status" hidden></div>
 <dialog id="help-dialog"><button id="close-help" class="dialog-close" aria-label="关闭">${icon('close')}</button><span class="dialog-kicker">WELCOME TO FOLD STUDIO</span><h2>让设计，折起来。</h2><p>选择一种盒型或包装容器，调整尺寸，然后在平面画布上添加文字、图片和图形。每一次编辑，都会同步到右侧的三维模型。</p><div class="help-grid"><div><kbd>V</kbd><span>选择工具</span></div><div><kbd>H / 空格</kbd><span>平移画布</span></div><div><kbd>Ctrl Z</kbd><span>撤销编辑</span></div><div><kbd>Delete</kbd><span>删除图层</span></div></div><p class="help-note">图层右下角可拖动缩放；图片按住 Shift 可自由改变比例。工程自动保存至当前浏览器，也可下载 .fold 文件备份。SVG 导出包含工程信息，可重新打开。</p><p class="help-note">当前版本支持 ${Object.keys(BOX_TYPES).length} 款包装结构与瓶罐容器，涵盖卡纸彩盒、精品礼盒、电商物流和瓶罐容器。模型与刀版用于视觉预览及结构草图。</p><button id="dismiss-help" class="button primary">开始设计 ${icon('chevron')}</button></dialog>
 <dialog id="shortcuts-dialog"><button id="close-shortcuts" class="dialog-close" aria-label="关闭快捷键">${icon('close')}</button><span class="dialog-kicker">KEYBOARD SHORTCUTS</span><h2>让操作，更顺手。</h2><div class="shortcut-list">${[['Ctrl / ⌘ C','复制选中图层'],['Ctrl / ⌘ X','剪切选中图层'],['Ctrl / ⌘ V','粘贴到当前面板与内外面'],['Ctrl / ⌘ Shift V','粘贴并保留原位置'],['Ctrl / ⌘ D','复制一份图层'],['Ctrl / ⌘ Z','撤销'],['Ctrl / ⌘ Shift Z / Y','重做'],['Ctrl / ⌘ S','下载工程'],['1 / 2','编辑外面 / 内面'],['V / H / 空格','选择 / 平移 / 临时平移'],['T / I / R','添加文字 / 图片 / 矩形'],['M','展开 / 恢复平面画布'],['P','切换 RGB 屏幕 / CMYK 印刷打样'],['Shift T','切换界面主题（中灰/深黑/蓝调/浅色/纸本）'],['F / Shift F','适应平面 / 适应三维'],['G','切换辅助线'],['方向键 / Shift 方向键','移动 1 mm / 5 mm'],['Delete / Esc','删除 / 取消选择'],['?','打开本快捷键表']].map(([key,label])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('')}</div><p class="help-note">复制图层后，可在另一个折间标签页、离线页面或工程中粘贴，图片会一起携带。也可粘贴剪贴板中的普通文字或图片。输入框里的复制粘贴仍按浏览器惯例工作；若粘贴按钮受浏览器限制，请直接按 Ctrl / ⌘ V。</p></dialog>
@@ -187,9 +188,12 @@ function boxIllustration(type){
 }
 
 
-const images=new ImageCache(src=>{for(const layer of project.layers)if((layer.type==='image'&&layer.src===src)||layer.type==='svg')dirtySides.add(sideOf(layer));schedule();});
-editor=new Editor2D($('#editor-host'),images,{
+const images=new ImageCache(src=>{for(const side of Object.keys(project.svgArtwork??{}))dirtySides.add(side);for(const layer of project.layers)if((layer.type==='image'&&layer.src===src)||layer.type==='svg')dirtySides.add(sideOf(layer));schedule();});
+editor=new SvgMainEditor($('#editor-host'),images,{
   select:selectLayer,begin:()=>{},change:()=>{textureDirty=true;schedule();},commit:()=>{commit();renderInspector();},context:e=>editorUI?.context(e),
+  notify,command:command=>command==='save'?$('#save-project').click():restore(command),
+  draft:()=>{scheduleSave();renderHistory();},
+  normalize:()=>{history.entries[history.index]=clone(project);scheduleSave();},
   zoom:scale=>$('#zoom-label').textContent=`${Math.round(scale*100)}%`,
   editText:id=>{selectLayer(id,project.layers.find(l=>l.id===id).panel);$('#prop-text')?.focus();$('#prop-text')?.select();},
 });
@@ -244,7 +248,7 @@ async function openLibraryDocument(id){
   if(id===activeProjectId)return;
   const stored=await getDocument(id);
   if(!stored)throw new Error('此工程已不存在');
-  const next=validateProject(stored);await images.preload(next.layers);
+  const next=validateProject(stored);await images.preload([...svgSceneLayers(next,makeDieline(next.type,next.dimensions)),...next.layers]);
   if(!await flushSave())throw new Error('当前工程尚未保存，请先下载 .fold 备份');
   await setActiveDocument(id);showDocument(id,next);
   const revisions=await listRevisions(id);lastSnapshotAt=revisions[0]?.createdAt??0;
@@ -260,7 +264,7 @@ async function newLibraryDocument(source=null,{fromFile=false}={}){
 async function restoreLibraryRevision(id,revisionId){
   const revision=await getRevision(revisionId);
   if(!revision||revision.projectId!==id)throw new Error('历史版本不存在');
-  const next=validateProject(revision.project);await images.preload(next.layers);
+  const next=validateProject(revision.project);await images.preload([...svgSceneLayers(next,makeDieline(next.type,next.dimensions)),...next.layers]);
   if(!await flushSave())throw new Error('当前工程尚未保存，请先下载 .fold 备份');
   const previous=await getDocument(id);
   if(!previous)throw new Error('原工程已不存在');
@@ -280,12 +284,13 @@ function renderSurface(){
   const paperCmyk=colorMode==='cmyk'?` · ${formatCmyk(surface.paper)}`:'';
   $('#paper-hex').textContent=`${surface.paper.toUpperCase()}${paperCmyk}`;
   document.querySelectorAll('[data-palette]').forEach(b=>b.classList.toggle('active',PALETTES[+b.dataset.palette].color===surface.paper));
-  $('#copy-layer').disabled=!selected;$('#cut-layer').disabled=!selected;
+  const canCopy=editor.native?editor.hasSelection:!!selected;
+  $('#copy-layer').disabled=!canCopy;$('#cut-layer').disabled=!canCopy;
   $('#panel-selector').innerHTML=dieline.panels.map(p=>`<option value="${p.id}" ${p.id===panelId?'selected':''}>${esc(p.label)}</option>`).join('');
   if(preview?.isolatedPanel)preview.inspectPanel(panelId,activeSide,true);
   colorUI?.sync();
 }
-function setSide(side){if(!Object.hasOwn(SIDES,side)||side===activeSide)return;editor.up();activeSide=side;selected=null;renderSurface();renderLayers();renderInspector();schedule();}
+function setSide(side){if(!Object.hasOwn(SIDES,side)||side===activeSide)return;editor.up();activeSide=side;selected=null;editor.update(project,dieline,null,panelId,activeSide,[]);renderSurface();renderLayers();renderInspector();schedule();}
 function refresh({fit=false,build=true}={}){
   dieline=makeDieline(project.type,project.dimensions);
   if(!dieline.panels.some(p=>p.id===panelId))panelId=BOX_TYPES[project.type].printPanel;
@@ -371,6 +376,7 @@ function renderExtraDimensions(){
   }
 }
 function renderLayers(){
+  if(editor?.native){editor.renderLayers();return;}
   const layers=project.layers.filter(l=>sideOf(l)===activeSide);
   $('#layer-count').textContent=`${SIDES[activeSide]} · ${layers.length}`;
   const typeGlyph=type=>type==='text'?'text':type==='image'?'image':type==='barcode'?'barcode':type==='qrcode'?'qrcode':type==='symbol'?'symbol':'shape';
@@ -381,6 +387,7 @@ function renderLayers(){
 
 function numberField(key,label,value,{min=-10000,max=10000,step=1,unit=''}={}){return `<label class="property-field"><span>${label}</span><div><input id="prop-${key}" data-property="${key}" type="number" value="${value}" min="${min}" max="${max}" step="${step}" aria-label="${label}"/>${unit?`<em>${unit}</em>`:''}</div></label>`;}
 function renderInspector(){
+  if(editor?.native){editor.renderInspector();return;}
   const layer=project.layers.find(l=>l.id===selected),panel=dieline.panels.find(p=>p.id===panelId);
   const surface=surfaceOf(project,activeSide);
   const typeMap={text:'文字',image:'图片',shape:'图形',barcode:'条形码',qrcode:'二维码',symbol:'包装标志',svg:'SVG 图形'};
@@ -432,6 +439,7 @@ function playAnimation(){
   animationRaf=requestAnimationFrame(step);
 }
 function addLayer(type,shape='rect',symbol='recycle'){
+  editor.up();
   if(project.layers.length>=120){notify('当前工程最多支持 120 个图层');return;}
   let panel=dieline.panels.find(p=>p.id===panelId);
   if(!panel||panel.kind==='glue'||panel.kind==='corner'){
@@ -457,7 +465,7 @@ function addLayer(type,shape='rect',symbol='recycle'){
 function deleteLayer(){editorUI?.run('delete');}
 function duplicateLayer(){editorUI?.run('duplicate');}
 function restore(direction){stopAnimation();editor.up();clearTimeout(geometryTimer);const restored=history[direction]();if(!restored)return;if(restored.type!==project.type)panelId=BOX_TYPES[restored.type].printPanel;project=restored;selected=null;selectionIds=[];refresh();scheduleSave();}
-function setTool(tool){editor.tool=tool;editor.canvas.style.cursor=tool==='pan'?'grab':'default';$('#tool-select').classList.toggle('active',tool==='select');$('#tool-pan').classList.toggle('active',tool==='pan');}
+function setTool(tool){editor.tool=tool;}
 document.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>setSide(b.dataset.side));
 $('#shortcut-help').onclick=()=>$('#shortcuts-dialog').showModal();$('#close-shortcuts').onclick=()=>$('#shortcuts-dialog').close();
 const inspectSide=document.createElement('button');inspectSide.id='inspect-surface';inspectSide.className='inspect-surface';inspectSide.textContent='展开查看当前面';
@@ -634,11 +642,10 @@ $('#inspector').addEventListener('click',e=>{
   textureDirty=true;schedule();commit();if(b.dataset.align)renderInspector();
 });
 $('#add-text').onclick=()=>addLayer('text');
-$('#add-shape').onclick=()=>addLayer('shape');
 $('#add-image').onclick=()=>$('#image-input').click();
 $('#add-barcode').onclick=()=>addLayer('barcode');
 $('#add-qrcode').onclick=()=>addLayer('qrcode');
-$('#add-symbol').onclick=()=>addLayer('symbol');
+$('#add-symbol').onclick=()=>packagingUI.browse(symbol=>addLayer('symbol','rect',symbol));
 
 let isEditorExpanded=false;
 function toggleExpandEditor(){
@@ -697,21 +704,22 @@ $('#extra-dimensions').addEventListener('click',e=>{
 });
 $('#quality').onchange=e=>{project.quality=e.target.value;preview?.setQuality(project.quality);preview?.paint(project);commit();};
 $('#image-input').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(file)await importImage(file);};
-$('#svg-artwork-input').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(file)await importSvgArtwork(file);};
 
 async function importSvgArtwork(file){
   if(file.size>8e6){notify('SVG 请小于 8 MB');return;}
   editor.up();const target=project,side=activeSide,panel=dieline.panels.find(p=>p.id===panelId),geometry=JSON.stringify(project.dimensions);
   if(!panel)return;
   try{
-    const compact=$('#svg-import-mode').value!=='individual';
-    const {layers,preservedText,reduced}=await importSvgLayers(await file.text(),{panel,side,name:file.name.replace(/\.svg$/i,''),capacity:120-project.layers.length,compact});
+    if(editor.native){await editor.update(project,dieline,selected,panelId,side,[]);if(project!==target||activeSide!==side)throw Error('导入期间工程或印刷面已改变，请重新导入');await editor.importSVG(await file.text(),file.name.replace(/\.svg$/i,''));notify('SVG 已放入主画布，可直接选择文字、路径和图形编辑');return;}
+    if(project.layers.length>=120)throw Error('当前工程最多支持 120 个图层');
+    const layer=importSvgDocument(await file.text(),{panel,side,name:file.name.replace(/\.svg$/i,'')});
+    const layers=[layer];
     validateProject({...target,layers:[...target.layers,...layers]});await images.preload(layers);
     if(project!==target||JSON.stringify(project.dimensions)!==geometry)throw Error('工程已切换，请重新导入 SVG');
     if(project.layers.length+layers.length>120)throw Error('当前工程最多支持 120 个图层');
     project.layers.push(...layers);dirtySides.add(side);commit();selectLayer(layers.at(-1).id,panel.id,layers.map(l=>l.id));
-    notify(`已导入 ${layers.length} 个 SVG 图文图层${reduced?`，已精简 ${reduced} 层`:''}${preservedText?'；复杂排版文字保留为矢量图形':''}`);
-  }catch(error){images.retain(project.layers);notify(`SVG 导入失败：${error.message}`);}
+    notify('SVG 原稿已导入，原有图层、分组和对象已保留');
+  }catch(error){images.retain(project.layers);notify(`SVG 导入失败：${error.message}`);editorUI?.showSvgSupport(error.message);}
 }
 
 async function importImage(file){
@@ -722,6 +730,7 @@ async function importImage(file){
   try{
     bitmap=await createImageBitmap(file);const scale=Math.min(1,1536/Math.max(bitmap.width,bitmap.height));
     const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();bitmap=null;
+    editor.up();
     if(project.layers.length>=120)throw new Error('当前工程最多支持 120 个图层');
     const panel=dieline.panels.find(p=>p.id===panelId),w=.7,h=Math.min(.8,w*panel.w*canvas.height/canvas.width/panel.h);
     const layer={id:uid(),type:'image',name:file.name.slice(0,60),panel:panelId,side:activeSide,x:.5,y:.5,w:h*panel.h*canvas.width/canvas.height/panel.w,h,rotation:0,opacity:1,visible:true,src:canvas.toDataURL('image/png')};
@@ -732,7 +741,7 @@ $('#editor-host').addEventListener('dragover',e=>{e.preventDefault();$('#editor-
 $('#editor-host').addEventListener('dragleave',()=>$('#editor-host').classList.remove('drag-over'));
 $('#editor-host').addEventListener('drop',e=>{e.preventDefault();$('#editor-host').classList.remove('drag-over');const file=e.dataTransfer.files[0];if(file)importImage(file);});
 
-$('#save-project').onclick=()=>{editor.up();const copy=clone(project);download(new Blob([JSON.stringify(copy,null,2)],{type:'application/json'}),`${safeName()}.fold`);closeProtection.saved(activeProjectId,copy);persist();notify('工程已下载，包含全部图文与尺寸');};
+$('#save-project').onclick=()=>{editor.flushInput?.();editor.up();const copy=clone(project);download(new Blob([JSON.stringify(copy,null,2)],{type:'application/json'}),`${safeName()}.fold`);closeProtection.saved(activeProjectId,copy);persist();notify('工程已下载，包含全部图文与尺寸');};
 $('#import-project').onclick=()=>$('#project-input').click();
 $('#project-input').onchange=async e=>{
   const file=e.target.files[0];e.target.value='';if(!file)return;
@@ -745,16 +754,17 @@ $('#project-input').onchange=async e=>{
       input=JSON.parse(metadata.textContent);
       if(metadata.getAttribute('data-surface')==='inside')importSide='inside';
     }else input=JSON.parse(content);
-    const next=validateProject(input);await images.preload(next.layers);stopAnimation();clearTimeout(geometryTimer);
+    const next=validateProject(input);await images.preload([...svgSceneLayers(next,makeDieline(next.type,next.dimensions)),...next.layers]);stopAnimation();clearTimeout(geometryTimer);
     await newLibraryDocument(next,{fromFile:true});if(importSide==='inside')setSide('inside');notify('工程已导入为新工程，原工程已保留');
   }catch(error){notify(`打开失败：${error.message}`);}
 };
 function safeName(){return project.name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').slice(0,80)||'折间工程';}
 $('#export-toggle').onclick=()=>$('#export-menu').hidden=!$('#export-menu').hidden;
+$('#export-artwork-svg').onclick=()=>{editor.flushInput();$('#export-menu').hidden=true;editor.run('download');};
 document.addEventListener('click',e=>{if(!e.target.closest('.export-wrap'))$('#export-menu').hidden=true;});
 async function flatCanvas(max=3072,side=activeSide,{includeLines=false}={}){
   const copy=clone(project),line=makeDieline(copy.type,copy.dimensions),mode=colorMode;
-  await images.preload(copy.layers);await document.fonts.ready;
+  await images.preload([...svgSceneLayers(copy,line),...copy.layers]);await document.fonts.ready;
   const canvas=document.createElement('canvas'),scale=max/Math.max(line.width,line.height);canvas.width=Math.ceil(line.width*scale);canvas.height=Math.ceil(line.height*scale);
   const ctx=canvas.getContext('2d');
   if(side==='inside')ctx.setTransform(-scale,0,0,scale,line.maxX*scale,-line.minY*scale);
@@ -797,7 +807,7 @@ $('#confirm-export-glb').onclick=async()=>{
     btn.disabled=false;btn.innerHTML=oldText;
   }
 };
-$('#export-png').onclick=async()=>{if(!preview){notify('三维预览尚未启动');return;}await images.preload(project.layers);preview.paint(project);const blob=await preview.capture();if(blob)download(blob,`${safeName()}-3D.png`);$('#export-menu').hidden=true;};
+$('#export-png').onclick=async()=>{if(!preview){notify('三维预览尚未启动');return;}await images.preload([...svgSceneLayers(project,dieline),...project.layers]);preview.paint(project);const blob=await preview.capture();if(blob)download(blob,`${safeName()}-3D.png`);$('#export-menu').hidden=true;};
 $('#export-flat').onclick=()=>{
   editor.up();$('#export-menu').hidden=true;$('#flat-export-surface').textContent=SIDES[activeSide];$('#export-flat-dialog').showModal();
 };
@@ -853,6 +863,8 @@ async function writeLayerClipboard(cut=false){
 }
 async function pasteText(text,inPlace=false){
   if(!text)return;
+  const svgClipboard=editor.native&&text.match(/^FOLD-SVG\r?\n/);
+  if(svgClipboard){try{await editor.importSVG(text.slice(svgClipboard[0].length),'粘贴图文',true);}catch(error){notify(`粘贴失败：${error.message}`);}return;}
   const targetProject=project,targetPanel=panelId,targetSide=activeSide;
   try{
     const payload=decodeLayers(text);let layers;
@@ -866,6 +878,7 @@ async function pasteText(text,inPlace=false){
       layers=[{id:uid(),type:'text',name:'粘贴文字',text,panel:panelId,side:activeSide,x:.5,y:.5,w:.85,h:.3,size:5,font:'sans',bold:false,color:project.accent,rotation:0,opacity:1,visible:true}];
     }
     if(project!==targetProject||panelId!==targetPanel||activeSide!==targetSide)throw new Error('粘贴期间目标已改变，请在目标面板重新粘贴');
+    editor.up();
     if(project.layers.length+layers.length>120)throw new Error('粘贴后超出 120 个图层的上限');
     project.layers.push(...layers);selected=layers.at(-1).id;selectionIds=layers.map(l=>l.id);textureDirty=true;schedule();commit();renderSurface();renderInspector();
     notify(`已粘贴到${dieline.panels.find(p=>p.id===panelId).label} · ${SIDES[activeSide]}`);
@@ -881,21 +894,21 @@ document.addEventListener('paste',e=>{
   if(image){e.preventDefault();const file=image.getAsFile();if(file)importImage(file);return;}
   if(text){e.preventDefault();pasteText(text,inPlace);}
 });
-$('#copy-layer').onclick=()=>writeLayerClipboard();$('#cut-layer').onclick=()=>writeLayerClipboard(true);
+$('#copy-layer').onclick=()=>editor.native?editor.run('copy'):writeLayerClipboard();$('#cut-layer').onclick=()=>editor.native?editor.run('cut'):writeLayerClipboard(true);
 $('#paste-layer').onclick=async()=>{
   try{
     if(navigator.clipboard?.read){
       const items=await navigator.clipboard.read();
       for(const item of items)if(item.types.includes('text/plain')){await pasteText(await(await item.getType('text/plain')).text());return;}
       for(const item of items){const type=item.types.find(t=>/^image\/(png|jpeg|webp)$/.test(t));if(type){await importImage(new File([await item.getType(type)],'剪贴板图片.png',{type}));return;}}
-      notify('剪贴板里没有支持的图层、文字或图片');
+      if(editor.native&&editor.api.hasClipboard){editor.run('paste');return;}notify('剪贴板里没有支持的图层、文字或图片');
     }else if(navigator.clipboard?.readText)await pasteText(await navigator.clipboard.readText());
     else notify('请直接按 Ctrl / ⌘ V 粘贴');
-  }catch{notify('浏览器限制了按钮读取，请直接按 Ctrl / ⌘ V 粘贴');}
+  }catch{if(editor.native&&editor.api.hasClipboard)editor.run('paste');else notify('浏览器限制了按钮读取，请直接按 Ctrl / ⌘ V 粘贴');}
 };
 document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();if(!$('dialog[open]'))$('#save-project').click();return;}
-  if(editingText(e.target)||$('dialog[open]')||e.isComposing)return;
+  if(editingText(e.target)||$('dialog[open],.native-edit-menu:popover-open')||e.isComposing)return;
   const modifier=e.ctrlKey||e.metaKey;
   if(modifier){
     const key=e.key.toLowerCase();
@@ -930,7 +943,7 @@ document.addEventListener('keyup',e=>{if(e.code==='Space'){editor.space=false;ed
 window.addEventListener('blur',()=>{editor.space=false;});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){stopAnimation();if(unsaved){clearTimeout(saveTimer);persist();}}});
 window.addEventListener('pagehide',()=>{if(unsaved){clearTimeout(saveTimer);persist();}});
-window.addEventListener('beforeunload',event=>{if(closeProtection.shouldWarn(activeProjectId,project)){event.preventDefault();event.returnValue='有未保存的工程修改';}});
+window.addEventListener('beforeunload',event=>{if(editor?.dirty||closeProtection.shouldWarn(activeProjectId,project)){event.preventDefault();event.returnValue='有未保存的工程修改';}});
 
 const THEMES = [
   { id: 'gray', name: '工业中灰', desc: '3D与包装推荐 · 中度灰', icon: 'palette' },
@@ -1038,7 +1051,7 @@ $('#color-mode-toggle')?.addEventListener('click', () => {
   notify(next === 'cmyk' ? '已开启 CMYK 工业印刷四色打样仿真 (按 P 切换)' : '已切换为 RGB 屏幕标准色彩 (按 P 切换)');
 });
 
-editorUI=mountEditorUI({editor,images,notify,select:selectLayer,getState:()=>({project,dieline,selected,ids:getSelectedIds(),panelId,side:activeSide}),change:({commit:save=true,render=true}={})=>{textureDirty=true;schedule();if(save)commit();else scheduleSave();if(render){renderSurface();renderLayers();renderInspector();}}});
+editorUI=mountEditorUI({editor,images,notify,addShape:()=>addLayer('shape'),select:selectLayer,getState:()=>({project,dieline,selected,ids:getSelectedIds(),panelId,side:activeSide}),change:()=>{textureDirty=true;schedule();commit();}});
 packagingUI=mountPackagingUI(()=>project.layers.find(l=>l.id===selected));
 colorUI=mountColorUI({getState:()=>({project,side:activeSide,ids:getSelectedIds(),panelId}),palettes:PALETTES,update:({commit:save=false,render=false}={})=>{textureDirty=true;schedule();if(save)commit();else scheduleSave();renderSurface();if(render){renderLayers();renderInspector();}}});
 compactWorkspace();
@@ -1054,7 +1067,7 @@ async function init(){
       notify('原工程的盒型已不再提供，已新建工程；原记录仍保留在本机');
     }
     const next=validateProject(saved.project);
-    await images.preload(next.layers);activeProjectId=saved.id;project=next;history=new History(project);panelId=BOX_TYPES[project.type].printPanel;
+    await images.preload([...svgSceneLayers(next,makeDieline(next.type,next.dimensions)),...next.layers]);activeProjectId=saved.id;project=next;history=new History(project);panelId=BOX_TYPES[project.type].printPanel;
     const revisions=await listRevisions(saved.id);lastSnapshotAt=revisions[0]?.createdAt??0;
     if(!revisions.length){try{const revision=await saveRevision(saved.id,clone(project),'初始版本');lastSnapshotAt=revision.createdAt;}catch{notify('历史版本未能保存，请下载 .fold 备份');}}
     $('#save-status').innerHTML=`${icon('check')}已在本机保存`;
@@ -1068,13 +1081,14 @@ async function init(){
     snapshot:()=>snapshotCurrent(),
     restore:restoreLibraryRevision,
   });
-  refresh({fit:true});$('#app').inert=false;await document.fonts.ready;textureDirty=true;schedule();
+  refresh({fit:true});await editor.pending;$('#app').inert=false;await document.fonts.ready;textureDirty=true;schedule();
   applyColorMode(getSavedColorMode());
   window.__foldStudio={
     get project(){return clone(project);},
     get stats(){return preview?clone(preview.stats):null;},
     get selection(){return {selected,ids:getSelectedIds(),panelId,side:activeSide};},
-    get editorEngine(){return 'Fabric.js 7.4.0';},
+    get editorEngine(){return 'SVG-edit / SVGCanvas 7.4.2';},
+    get nativeEditor(){return editor.api;},
     edit:editorUI.run,
     get view(){return {...editor.view,side:activeSide};},
     get geometry(){return clone(dieline);},

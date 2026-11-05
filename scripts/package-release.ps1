@@ -32,7 +32,7 @@ $modelCount packaging templates and containers with flat artwork, 3D folding and
 更新记录 / Changes: CHANGELOG.md
 "@
 [System.IO.File]::WriteAllText((Join-Path $stage 'README.txt'), $instructions, (New-Object System.Text.UTF8Encoding($false)))
-@('LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'CONTRIBUTORS.md', "RELEASE_NOTES_v$version.md") | ForEach-Object {
+@('LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'CONTRIBUTORS.md', 'SVG_SUPPORT.md', "RELEASE_NOTES_v$version.md") | ForEach-Object {
     Copy-Item -LiteralPath (Join-Path $root $_) -Destination (Join-Path $stage $_) -Force
 }
 

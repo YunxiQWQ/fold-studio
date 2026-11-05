@@ -7,6 +7,7 @@ import {textGeometry} from './text-transform.js';
 import {svgAssetMarkup} from './svg-asset.js';
 import {proofColor} from './color.js';
 import {escapeHtml} from './icons.js';
+import {svgSceneLayers} from './svg-scene.js';
 
 const xml=value=>escapeHtml(String(value).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g,''));
 const number=value=>{
@@ -107,7 +108,7 @@ export class SvgDrawingContext {
   }
   drawSvgLayer(layer,w,h,color,colorMode='rgb'){
     const prefix=`${this.prefix}-svg-${this.serial++}-`,viewBox=layer.svg.viewBox.map(number).join(' ');
-    this._emit(`<g transform="${matrix(this.transformMatrix)}" opacity="${number(this.globalAlpha)}"><svg x="${number(-w/2)}" y="${number(-h/2)}" width="${number(w)}" height="${number(h)}" viewBox="${viewBox}" preserveAspectRatio="none">${svgAssetMarkup(layer.svg,{prefix,color,colorMode})}</svg></g>`);
+    this._emit(`<g transform="${matrix(this.transformMatrix)}" opacity="${number(this.globalAlpha)}"><svg x="${number(-w/2)}" y="${number(-h/2)}" width="${number(w)}" height="${number(h)}" viewBox="${viewBox}" preserveAspectRatio="none">${svgAssetMarkup(layer.svg,{prefix,color,colorMode,proofNative:layer.proofNative})}</svg></g>`);
   }
   drawImage(image,sx,sy,sw,sh,dx,dy,dw,dh){
     const id=`${this.prefix}-image-crop-${this.serial++}`;
@@ -137,7 +138,7 @@ export async function exportSVG(project,dieline,images=new ImageCache(),{side='o
     }
     return `<g id="paper-${index}" data-panel-id="${xml(panel.id)}"><title>${xml(panel.label)}</title><path d="${d}" fill="${xml(fill)}" fill-rule="nonzero"/>${hatch}</g>`;
   }).join('');
-  const layers=project.layers.map((layer,index)=>{
+  const layers=[...svgSceneLayers(project,dieline),...project.layers].map((layer,index)=>{
     if(!layer.visible||sideOf(layer)!==side)return '';
     const panelIndex=dieline.panels.findIndex(panel=>panel.id===layer.panel);if(panelIndex<0)return '';
     const ctx=new SvgDrawingContext(defs,`layer-${index}`,bounds);

@@ -1,5 +1,9 @@
 # 平面编辑器复用方案
 
+2026-11-04：主交互画布已改为 SVG-edit / SVGCanvas 7.4.2（MIT），直接接管原页面的图层树和属性区；原稿弹窗方案已移除。src/svg-main-editor.js 适配主画布，src/svg-editor-frame.js 复用核心交互/UI，src/svg-scene.js 连接印刷和三维渲染。旧版 Fabric 仅用于兼容文字排版及旧图文的矢量转换，不再承担主画布交互。
+
+工程版本 3 的 svgArtwork 保存内外面 SVG 场景，svgGenerators 保存条码/二维码参数；旧工程转换保持外观，新版仍读取版本 1/2。场景及生成参数独立验证，结构、折叠、工程库和导出继续共用现有包装实现。以下是原 Fabric 主画布的历史选型记录。
+
 核验日期：2026-10-18。实际安装 `fabric@7.4.0`，版本锁定在 package.json / package-lock.json。
 
 | 方案 | 许可与能力 | 本项目选择 |

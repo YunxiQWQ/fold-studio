@@ -14,9 +14,9 @@ A local-first web workbench for packaging design, built around keeping editing f
 
 **Use it online:** open [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold). No account needed.
 
-**Offline single file:** download `fold-studio-v0.14.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined.
+**Offline single file:** download `fold-studio-v0.15.0.html` from [Releases](https://github.com/YunxiQWQ/fold-studio/releases) and open it with Edge or Chrome. No install, no network, no server — all runtime code is inlined.
 
-**Portable bundle:** [download the v0.14.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.14.0/fold-studio-v0.14.0.zip), containing the same offline HTML, quick-start instructions, changelog, contributor credits and licenses. SHA-256 checksums are available on the release page.
+**Portable bundle:** [download the v0.15.0 ZIP](https://github.com/YunxiQWQ/fold-studio/releases/download/v0.15.0/fold-studio-v0.15.0.zip), containing the same offline HTML, quick-start instructions, changelog, contributor credits and licenses. SHA-256 checksums are available on the release page.
 
 **Build locally:** Node.js 22 or newer.
 
@@ -54,19 +54,14 @@ Defaults to `http://127.0.0.1:4186` and walks to the next port when occupied —
 
 ### Flat editing
 
-Flat interaction runs on **Fabric.js 7.4.0 (MIT)**; the selection rationale is in [EDITOR_REUSE.md](EDITOR_REUSE.md).
-
-- Marquee selection, Shift / Ctrl add and remove, batch selection of layers across panels on the current print side.
-- Eight-direction scaling, drag rotation with angle snapping, whole-selection transforms; grouping and ungrouping per print side, persisted with the project and spanning reference panels.
-- Edge and centre alignment, horizontal and vertical distribution; snapping lines for panel edges, panel centres and other layers, millimetre rulers and a grid toggle.
-- Layer locking, drag reordering, bring to front / send to back, multi-select copy and delete, batch colour and opacity, right-click menu.
-- In-place text editing on double click: Chinese and English, multiline, wrapping, paragraph alignment, bold / italic / underline, line height, letter spacing, stroke and monospace.
-- Text handles stretch glyphs while retaining the nominal font size and wrapping; switch to frame mode to resize only the text box. Hold Shift while dragging text or image handles to scale proportionally.
-- **Import SVG artwork** from the flat editor toolbar or by dropping a file. Text, paths and basic shapes become separate layers on the current panel. Ordinary text remains editable; vectors keep gradients and clipping, with original-colour or uniform-recolour modes and native SVG re-export.
-- SVG imports default to compact layers: consecutive graphics merge while text stays independent. Choose individual elements for detailed editing, or select existing artwork and use Merge SVG Graphics. Text and unselected layers split merge runs to retain stacking order. Merges can be undone; internal paths remain editable in exported SVG files.
-- Outlined text and complex text styling remain vector graphics. Fonts use local installations with browser fallback. Imports accept up to 8 MB and 120 total project layers; scripts, external resources, filters and masks require removal or expansion in the source application. External SVGs do not define a new folding structure.
-- Non-destructive image cropping: drag the crop box, percentage nudging, 1:1 and 16:9 presets, live 3D update, cancel and undo; replace an image while keeping its position.
-- Shape tools: rectangle, ellipse, plant motif, triangle, arrow, line, with corner radius and stroke.
+- **SVG main canvas**: SVG-edit / SVGCanvas 7.4.2 replaces the Fabric interaction canvas, layer tree and inspector. Legacy text, images and shapes edit directly; SVG imports remain on the main packaging canvas.
+- Multi-selection, resizing/rotation, pen/freehand drawing, path nodes/control handles, grouping, alignment/distribution, ordering, visibility/locking, attributes and source editing use the native SVG core. Undo/redo shares the packaging project history.
+- Native text/tspan/textPath supports text and font editing, stroke and spacing. Ordinary multiline text uses spans; complex layouts can be edited per span or as source. Hold Shift for proportional scaling.
+- Original groups, names, hidden objects and definitions remain. Separate inside/outside SVG scenes update flat exports and 3D textures directly.
+- Image cropping supports drag selection, percentages, 1:1 / 16:9 presets, cancel, undo and replacement while retaining the original bytes. Generated barcode/QR parameters remain editable with the group.
+- Import artwork with Image / SVG, choose drawing tools under Shapes, and open the canvas title menu to edit layers, path nodes and SVG source.
+- Current Side Artwork SVG downloads editable artwork from the Export menu. Dieline SVG also includes structure and project metadata. Complete .fold backups use version 3. The current editor reads older projects, and older versions reject the new format.
+- Imports accept up to 8 MB and 6,000 source elements per surface. Packaging resizing retains artwork coordinates in millimetres. Imported groups and placement containers remain visible. External folding relationships require a separately defined structure. See the [SVG support reference](SVG_SUPPORT.md).
 
 ### Outside and inside, and layout scope
 

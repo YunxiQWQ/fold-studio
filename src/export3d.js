@@ -3,6 +3,7 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { foldMatrices } from './folding.js';
 import { paintArtwork } from './artwork.js';
 import { surfaceOf } from './project.js';
+import {svgSceneLayers} from './svg-scene.js';
 import {updateCurvedSkinGeometry} from './curved-carton-mesh.js';
 import { createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, canProportions } from './model3d.js';
 import {updateBagBottomGeometry,buildPaperBagHandles,updatePaperBagHandles} from './paper-bag.js';
@@ -15,7 +16,7 @@ export async function exportGLB(project, dieline, images, options = {}) {
     includeInside = true,
   } = options;
 
-  await images.preload(project.layers);
+  await images.preload([...svgSceneLayers(project,dieline),...project.layers]);
   await document.fonts.ready;
 
   const { width, height, minX, minY } = dieline;

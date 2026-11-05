@@ -11,11 +11,11 @@ function simplify(nodes,keepWhitespace=false){
     if(typeof n==='string')return keepWhitespace||n.trim()?n:[];
     const result={...n,children:simplify(n.children,keepWhitespace||['text','tspan'].includes(n.tag))};
     if(n.tag!=='g')return[result];
-    if(n.recolor)return[result];
+    if(n.recolor||n.css)return[result];
     if(!Object.keys(n.attrs).length)return result.children;
     if(Object.keys(n.attrs).every(k=>k==='transform')&&result.children.length===1){
       const child=result.children[0],a=parsedMatrix(n.attrs.transform),b=typeof child==='object'&&parsedMatrix(child.attrs.transform);
-      if(a&&b&&!['defs','clipPath','linearGradient','radialGradient'].includes(child.tag))return[{...child,attrs:{...child.attrs,transform:matrix(multiply(a,b))}}];
+      if(a&&b&&!child.css?.transform&&!['defs','clipPath','linearGradient','radialGradient'].includes(child.tag))return[{...child,attrs:{...child.attrs,transform:matrix(multiply(a,b))}}];
     }
     return[result];
   });

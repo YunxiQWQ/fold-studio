@@ -6,15 +6,16 @@ import {escapeHtml as esc} from './icons.js';
 export function mountPackagingUI(getLayer){
   const host=document.querySelector('#inspector'),dialog=document.createElement('dialog');dialog.id='symbol-library';dialog.className='symbol-library';
   dialog.innerHTML=`<div class="symbol-library-heading"><div><h2>常用标志库</h2><p>开源 SVG 图形 · 添加后可修改颜色、尺寸和旋转</p></div><button type="button" id="close-symbol-library" aria-label="关闭标志库">✕</button></div><div class="symbol-library-filters"><input type="search" id="symbol-search" aria-label="搜索常用标志" placeholder="搜索名称，如：易碎、回收、冷冻"/><select id="symbol-category" aria-label="标志分类"><option value="">全部分类</option>${['运输与储存','回收与材质','食品与日用'].map(s=>`<option>${s}</option>`).join('')}</select></div><p id="symbol-count" aria-live="polite"></p><div class="symbol-library-grid"></div><p class="field-note">图形来源：Pictogrammers MDI（Apache-2.0）及兼容旧工程的内置图形。图形本身不代表获得产品认证。</p>`;
-  document.body.appendChild(dialog);const search=dialog.querySelector('#symbol-search'),category=dialog.querySelector('#symbol-category'),grid=dialog.querySelector('.symbol-library-grid');let editingId;
+  document.body.appendChild(dialog);const search=dialog.querySelector('#symbol-search'),category=dialog.querySelector('#symbol-category'),grid=dialog.querySelector('.symbol-library-grid');let editingId,chooseSymbol;
   function paint(){
     const query=search.value.trim().toLowerCase(),items=PACKAGING_SYMBOLS.filter(s=>(!category.value||s.category===category.value)&&`${s.name} ${s.id}`.toLowerCase().includes(query));
     dialog.querySelector('#symbol-count').textContent=`${items.length} 款标志`;
     grid.innerHTML=items.length?items.map(s=>`<button type="button" data-symbol-id="${s.id}" aria-label="${esc(s.name)}" aria-pressed="${getLayer()?.symbol===s.id}"><canvas width="100" height="100" aria-hidden="true"></canvas><span>${esc(s.name)}</span><small>${esc(s.category)}</small></button>`).join(''):'<p class="symbol-empty">没有匹配的标志，请调整搜索词。</p>';
     for(const button of grid.querySelectorAll('[data-symbol-id]')){const ctx=button.querySelector('canvas').getContext('2d');ctx.translate(50,50);drawSymbol(ctx,button.dataset.symbolId,84,84,'#263b2c');}
   }
-  host.addEventListener('click',e=>{if(!e.target.closest('#browse-symbols'))return;editingId=getLayer()?.id;search.value='';category.value='';paint();dialog.showModal();search.focus();});
-  grid.addEventListener('click',e=>{const button=e.target.closest('[data-symbol-id]');if(!button)return;if(getLayer()?.id!==editingId){dialog.close();return;}const select=host.querySelector('#prop-symbol');if(select){select.value=button.dataset.symbolId;select.dispatchEvent(new Event('change',{bubbles:true}));}dialog.close();});
+  function browse(choose){chooseSymbol=choose;editingId=getLayer()?.id;search.value='';category.value='';paint();dialog.showModal();search.focus();}
+  host.addEventListener('click',e=>{if(e.target.closest('#browse-symbols'))browse();});
+  grid.addEventListener('click',e=>{const button=e.target.closest('[data-symbol-id]');if(!button)return;if(chooseSymbol){const choose=chooseSymbol;dialog.close();choose(button.dataset.symbolId);return;}if(getLayer()?.id!==editingId){dialog.close();return;}const select=host.querySelector('#prop-symbol');if(select){select.value=button.dataset.symbolId;select.dispatchEvent(new Event('change',{bubbles:true}));}dialog.close();});
   search.addEventListener('input',paint);category.addEventListener('change',paint);dialog.querySelector('#close-symbol-library').onclick=()=>dialog.close();
   dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close();}});
   function feedback(){
@@ -41,5 +42,5 @@ export function mountPackagingUI(getLayer){
       }feedback();
     }
   }
-  return {decorate,feedback};
+  return {decorate,feedback,browse};
 }

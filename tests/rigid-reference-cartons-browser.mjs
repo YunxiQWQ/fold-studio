@@ -30,9 +30,9 @@ try{
     const extra={ 'candy-twist-carton':['tailLength','28',22], 'triangle-slice-box':['lockTab','16',12] }[type];
     const input=page.locator(`input[type="number"][data-extra-dim="${extra[0]}"]`);await input.fill(extra[1]);await input.dispatchEvent('change');await page.waitForFunction(([key,value])=>window.__foldStudio.project.dimensions[key]===value,[extra[0],+extra[1]]);
     await page.locator('#undo').click();await page.waitForFunction(([key,value])=>window.__foldStudio.project.dimensions[key]===value,[extra[0],extra[2]]);
-    await page.locator('#add-text').click();await page.locator('#prop-text').fill('新增参考结构实测');await page.locator('#prop-text').dispatchEvent('input');
+    await page.locator('#add-text').click();await page.locator('#node-text').fill('新增参考结构实测');await page.locator('#node-text').blur();
     await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await page.locator('#export-svg').click();const file=resolve(artifacts,type+'-export.svg');await(await download).saveAs(file);
-    await page.locator('#project-input').setInputFiles(file);await page.waitForFunction(t=>window.__foldStudio.project.type===t,type);assert.ok(await page.evaluate(()=>window.__foldStudio.project.layers.some(l=>l.text==='新增参考结构实测')));
+    await page.locator('#project-input').setInputFiles(file);await page.waitForFunction(t=>window.__foldStudio.project.type===t,type);assert.ok(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('新增参考结构实测')));
     await page.locator('#fit-3d').click();await page.waitForTimeout(400);await page.screenshot({path:resolve(artifacts,type+'-workspace.png')});
   }
   checks.push('32 library entries; two new reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking, custom dimensions, undo and SVG project round trips');

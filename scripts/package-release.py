@@ -41,7 +41,7 @@ archive = target / f'{name}.zip'
 with ZipFile(archive, 'w', compression=ZIP_DEFLATED, compresslevel=9) as bundle:
     bundle.write(offline, offline.name)
     bundle.writestr('README.txt', instructions)
-    for filename in ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'CONTRIBUTORS.md', f'RELEASE_NOTES_v{version}.md']:
+    for filename in ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md', 'CONTRIBUTORS.md', 'SVG_SUPPORT.md', f'RELEASE_NOTES_v{version}.md']:
         bundle.write(root / filename, filename)
 checksums = target / 'SHA256SUMS.txt'
 checksums.write_text(''.join(

@@ -3,6 +3,7 @@ const paths = {
   paste: '<path d="M9 4H5v17h14V4h-4"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M8 11h8m-8 4h6"/>',
   box: '<path d="m12 3 9 5v9l-9 5-9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9M7.5 5.5l9 5"/>',
   chevron: '<path d="m9 5 7 7-7 7"/>', down:'<path d="m6 9 6 6 6-6"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   undo: '<path d="M3 10h10a7 7 0 0 1 0 14" transform="translate(0 -5)"/><path d="m7 1-4 4 4 4"/>',
   redo: '<path d="M21 5H11a7 7 0 0 0 0 14"/><path d="m17 1 4 4-4 4"/>',
   text: '<path d="M4 5h16M12 5v15M8 20h8M4 5v3m16-3v3"/>',
