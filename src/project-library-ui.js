@@ -1,20 +1,21 @@
 import './project-library.css';
-import { escapeHtml as esc } from './icons.js';
+import { escapeHtml as esc, icon } from './icons.js';
 
 const date = value => new Date(value).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export function mountProjectLibrary(actions) {
   const trigger = document.createElement('button');
   trigger.type = 'button';
-  trigger.className = 'button subtle project-library-trigger';
-  trigger.textContent = '我的工程';
-  document.querySelector('.workspace-nav').insertBefore(trigger, document.querySelector('#help'));
+  trigger.className = 'button ghost project-library-trigger';
+  trigger.title = '本机工程库与历史版本';
+  trigger.innerHTML = `${icon('folder')}<span>我的工程</span>`;
+  document.querySelector('.file-actions').prepend(trigger);
 
   const dialog = document.createElement('dialog');
   dialog.className = 'project-library-dialog';
   dialog.setAttribute('aria-labelledby', 'project-library-title');
-  dialog.innerHTML = `<div class="project-library-head"><div><span class="dialog-kicker">LOCAL PROJECTS</span><h2 id="project-library-title">我的工程</h2></div><button type="button" class="dialog-close" data-library-action="close" aria-label="关闭">×</button></div>
-    <p class="project-library-note">工程和历史版本只保存在当前浏览器。重要作品请点击顶部“保存工程”下载 .fold 备份。</p>
+  dialog.innerHTML = `<div class="project-library-head"><div><span class="dialog-kicker">LOCAL PROJECTS</span><h2 id="project-library-title">我的工程</h2></div><button type="button" class="dialog-close" data-library-action="close" aria-label="关闭">${icon('close')}</button></div>
+    <p class="project-library-note">工程和历史版本只保存在当前浏览器。重要作品请点击顶部“保存”下载 .fold 备份。</p>
     <div class="project-library-toolbar"><button type="button" class="button primary" data-library-action="new">新建工程</button><button type="button" class="button subtle" data-library-action="snapshot">保存当前版本</button></div>
     <div id="project-library-list" class="project-library-list"></div>
     <section class="project-revisions"><h3 id="project-revisions-title">历史版本</h3><div id="project-revisions-list"></div></section>`;

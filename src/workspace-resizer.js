@@ -155,12 +155,21 @@ export function initWorkspaceResizers() {
   }
 
   // 5. Accordion collapsible headers in left sidebar
+  const COLLAPSE_KEY = 'fold-collapsed-sections';
+  let collapsed = [];
+  try { collapsed = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '[]'); } catch {}
   document.querySelectorAll('.collapsible-section .section-heading').forEach(head => {
     head.setAttribute('role', 'button');
     head.setAttribute('tabindex', '0');
+    const section = head.closest('.collapsible-section');
+    if (section?.dataset.section && collapsed.includes(section.dataset.section)) section.classList.add('collapsed');
+    head.setAttribute('aria-expanded', String(!section?.classList.contains('collapsed')));
     const toggle = () => {
-      const sec = head.closest('.collapsible-section');
-      if (sec) sec.classList.toggle('collapsed');
+      if (!section) return;
+      const isCollapsed = section.classList.toggle('collapsed');
+      head.setAttribute('aria-expanded', String(!isCollapsed));
+      const names = [...document.querySelectorAll('.collapsible-section.collapsed')].map(item => item.dataset.section).filter(Boolean);
+      try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(names)); } catch {}
     };
     head.addEventListener('click', e => {
       if (e.target.closest('input, select, button.text-button')) return;

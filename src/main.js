@@ -1,11 +1,11 @@
-import './style.css';
+import './app.css';
 import './editor-ui.css';
 import {mountEditorUI} from './editor-ui.js';
 import {mountPackagingUI} from './packaging-ui.js';
 import './packaging-ui.css';
 import {mountColorUI} from './color-ui.js';
-import {compactWorkspace} from './compact-workspace.js';
 import {initWorkspaceResizers} from './workspace-resizer.js';
+import {initWorkspaceShell} from './workspace-shell.js';
 import {TEMPLATE_PREVIEWS} from './template-previews.generated.js';
 import {expandGroups,layerRect} from './editor-commands.js';
 import { BOX_TYPES, makeDieline, cutSegments, creasePaths } from './geometry.js';
@@ -45,119 +45,147 @@ let selectionIds=[],editorUI,packagingUI,colorUI;
 const getSelectedIds=()=>selected?(selectionIds.includes(selected)?selectionIds:[selected]).filter(id=>project.layers.some(l=>l.id===id&&sideOf(l)===activeSide)):[];
 const dirtySides=new Set();
 
+const THEMES = [
+  { id: 'light', name: '经典浅色', desc: '明亮纸白 · 默认', icon: 'sun', swatch: ['#fbfbf8', '#4f6b3f'] },
+  { id: 'warm', name: '暖沙原纸', desc: '温润原色 · 牛皮纸本', icon: 'leaf', swatch: ['#f6f0e5', '#7a5f3e'] },
+  { id: 'gray', name: '工业中灰', desc: '3D 与包装审阅 · 中度灰', icon: 'palette', swatch: ['#2b2e34', '#5fbf8f'] },
+  { id: 'slate', name: '工程蓝灰', desc: 'CAD 工程调 · 蓝灰工作台', icon: 'layers', swatch: ['#17212e', '#38bdf8'] },
+  { id: 'dark', name: '极夜深色', desc: '沉浸高对比 · 纯净深黑', icon: 'moon', swatch: ['#15171b', '#4ade80'] }
+];
+const toolButton=(id,glyph,label,shortcut='',extra='')=>`<button id="${id}" class="tool-button ${extra}" title="${label}${shortcut?` · ${shortcut}`:''}" aria-label="${label}">${icon(glyph)}<span class="tool-label">${label}</span></button>`;
+const exportItem=(id,glyph,title,detail)=>`<button id="${id}" role="menuitem">${icon(glyph)}<span><strong>${title}</strong><small>${detail}</small></span></button>`;
+
 $('#app').innerHTML=`
-<header class="app-header">
-  <div class="brand-group">
-    <a class="brand" href="#" aria-label="折间工作台"> <span class="brand-mark">${icon('box')}</span><span class="brand-name">折间<span>FOLD STUDIO</span></span></a>
-    <div class="brand-badges">
-      <span class="version-tag">v0.15.0</span>
-      <span class="local-badge"><span class="local-dot"></span>文件留在本地</span>
-    </div>
+<header class="app-bar">
+  <a class="brand" href="#" aria-label="折间 Fold Studio" title="折间 Fold Studio v0.15.0"><span class="brand-mark">${icon('box')}</span><span class="brand-name">折间<small>Fold Studio</small></span></a>
+  <span class="app-bar-divider" aria-hidden="true"></span>
+  <div class="project-heading">
+    <input id="project-name" aria-label="工程名称" maxlength="80" spellcheck="false"/>
+    <span class="file-tag">.fold</span>
+    <span id="save-status" class="save-status" title="工程只保存在当前浏览器，不会上传" aria-live="polite">${icon('check')}本机自动保存</span>
   </div>
-  <div class="header-divider"></div><div class="project-heading"><span class="eyebrow">我的工作台</span><div><input id="project-name" aria-label="工程名称" maxlength="80" spellcheck="false"/><span class="file-tag">.fold</span></div></div>
-  <span id="save-status" class="save-status">${icon('check')}本机自动保存</span>
-  <div class="header-actions"><button id="color-mode-toggle" class="button subtle" title="切换 RGB 屏幕模式 / CMYK 印刷软打样" aria-label="切换色彩模式">${icon('cmyk')}<span id="color-mode-text" class="color-mode-text">RGB 屏幕</span></button><div class="theme-wrap"><button id="theme-toggle" class="button subtle" title="选择界面主题 (快捷键 Shift+T)" aria-label="选择界面主题" aria-haspopup="true" aria-expanded="false">${icon('palette')}<span class="theme-text">工业中灰</span>${icon('down')}</button><div id="theme-menu" class="dropdown theme-dropdown" hidden><button data-theme-value="gray" class="theme-option" type="button"><span class="theme-swatch theme-swatch-gray"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>工业中灰</strong><span class="theme-tag">推荐</span></div><small>3D与包装推荐 · 中度灰</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="dark" class="theme-option" type="button"><span class="theme-swatch theme-swatch-dark"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>极夜深色</strong></div><small>沉浸高对比 · 纯净深黑</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="slate" class="theme-option" type="button"><span class="theme-swatch theme-swatch-slate"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>工程蓝灰</strong></div><small>CAD工程调 · 蓝灰工作台</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="light" class="theme-option" type="button"><span class="theme-swatch theme-swatch-light"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>经典浅色</strong></div><small>明亮纸白 · 经典清新</small></div><span class="theme-check">${icon('check')}</span></button><button data-theme-value="warm" class="theme-option" type="button"><span class="theme-swatch theme-swatch-warm"></span><div class="theme-opt-info"><div class="theme-opt-title"><strong>暖沙原纸</strong></div><small>温润原色 · 牛皮纸本</small></div><span class="theme-check">${icon('check')}</span></button></div></div><button id="import-project" class="button subtle">${icon('upload')}打开工程</button><button id="save-project" class="button subtle">${icon('save')}保存工程</button><div class="export-wrap"><button id="export-toggle" class="button primary">${icon('download')}导出${icon('down')}</button><div id="export-menu" class="dropdown" hidden><button id="export-glb">${icon('box')}三维模型 GLB</button><button id="export-png">${icon('box')}三维预览 PNG</button><button id="export-svg">${icon('grid')}平面刀版 SVG</button><button id="export-flat">${icon('image')}平面设计 PNG</button><button id="export-artwork-svg">${icon('layers')}当前面图文 SVG</button></div></div></div>
+  <div class="header-actions">
+    <div class="header-group file-actions">
+      <button id="open-templates" class="button ghost" title="浏览结构库，切换包装盒型与容器">${icon('grid')}<span>结构库</span></button>
+      <button id="import-project" class="button ghost" title="打开 .fold 工程或含工程信息的 SVG">${icon('upload')}<span>打开</span></button>
+      <button id="save-project" class="button ghost" title="下载 .fold 工程备份 · Ctrl+S">${icon('save')}<span>保存</span></button>
+    </div>
+    <span class="app-bar-divider" aria-hidden="true"></span>
+    <div class="header-group view-actions">
+      <button id="color-mode-toggle" class="button ghost color-mode-button" title="切换 RGB 屏幕 / CMYK 印刷软打样 · P" aria-label="切换色彩模式">${icon('cmyk')}<span id="color-mode-text" class="color-mode-text">RGB 屏幕</span></button>
+      <div class="theme-wrap"><button id="theme-toggle" class="button ghost" title="选择界面主题 · Shift+T" aria-label="选择界面主题" aria-haspopup="true" aria-expanded="false">${icon('palette')}<span class="theme-text">经典浅色</span>${icon('down')}</button><div id="theme-menu" class="dropdown theme-dropdown" hidden>${THEMES.map(t=>`<button data-theme-value="${t.id}" class="theme-option" type="button"><span class="theme-swatch" style="--swatch-a:${t.swatch[0]};--swatch-b:${t.swatch[1]}"></span><span class="theme-opt-info"><strong>${t.name}</strong><small>${t.desc}</small></span><span class="theme-check">${icon('check')}</span></button>`).join('')}</div></div>
+      <button id="shortcut-help" class="icon-button" title="快捷键 · ?" aria-label="快捷键">${icon('keyboard')}</button>
+      <button id="help" class="icon-button" title="使用指南" aria-label="使用指南">${icon('help')}</button>
+    </div>
+    <div class="export-wrap"><button id="export-toggle" class="button primary" aria-haspopup="true">${icon('download')}<span>导出</span>${icon('down')}</button><div id="export-menu" class="dropdown export-menu" role="menu" hidden><span class="dropdown-label">三维</span>${exportItem('export-glb','box','三维模型 GLB','网格、材质与双面贴图')}${exportItem('export-png','image','三维预览 PNG','当前视角截图')}<span class="dropdown-label">平面</span>${exportItem('export-svg','grid','平面刀版 SVG','刀线、压痕与工程数据')}${exportItem('export-flat','image','平面设计 PNG','可选是否带刀线')}${exportItem('export-artwork-svg','layers','当前面图文 SVG','仅当前印刷面的可编辑图文')}</div></div>
+  </div>
 </header>
-<nav class="workspace-nav"><div class="nav-current">${icon('box')}包装设计<span class="nav-dot"></span></div><span class="nav-description">从一张平面，到一个好设计。</span><button id="help" class="help-link">${icon('help')}使用指南</button></nav>
 <main class="workspace" id="workspace-main">
-  <aside class="left-sidebar">
-    <div class="sidebar-title">${icon('settings')}结构与外观</div>
-    <section class="sidebar-section template-section collapsible-section">
-      <div class="section-heading" title="点击折叠 / 展开"><h2>包装结构</h2><span>${Object.keys(BOX_TYPES).length} 款结构</span><span class="collapse-icon">${icon('down')}</span></div>
+  <aside class="left-sidebar" id="left-sidebar" aria-label="结构与图层">
+    <div class="drawer-head"><strong>结构与图层</strong><button id="close-left-panel" class="icon-button" aria-label="关闭结构与图层">${icon('close')}</button></div>
+    <section class="sidebar-section template-section collapsible-section" data-section="template">
+      <div class="section-heading" title="点击折叠 / 展开"><h2>包装结构</h2><span class="section-summary">${Object.keys(BOX_TYPES).length} 款</span><span class="collapse-icon">${icon('down')}</span></div>
       <div class="collapsible-content">
-        <div class="current-template-card" id="current-template-card">
+        <button type="button" class="current-template-card" id="current-template-card" title="打开结构库，更换包装盒型与容器">
           <span class="template-art" id="current-template-art">${boxIllustration(project.type)}</span>
-          <div class="current-template-info">
+          <span class="current-template-info">
             <strong id="current-template-name">${esc(BOX_TYPES[project.type].name)}</strong>
             <span class="template-eng" id="current-template-eng">${esc(BOX_TYPES[project.type].english)}</span>
             <small id="current-template-desc">${esc(BOX_TYPES[project.type].description)}</small>
-          </div>
-          <button id="open-templates" class="button subtle small" title="切换包装盒型与容器">${icon('grid')}<span>浏览结构库</span></button>
-        </div>
+            <span class="change-hint">${icon('grid')}更换结构</span>
+          </span>
+        </button>
       </div>
     </section>
-    <section class="sidebar-section dimension-section collapsible-section">
-      <div class="section-heading" title="点击折叠 / 展开"><h2>成品尺寸</h2><span>mm</span><span class="collapse-icon">${icon('down')}</span></div>
+    <section class="sidebar-section dimension-section collapsible-section" data-section="dimension">
+      <div class="section-heading" title="点击折叠 / 展开"><h2>成品尺寸</h2><span class="section-summary" id="dimension-summary"></span><span class="collapse-icon">${icon('down')}</span></div>
       <div class="collapsible-content">
         <div class="dimension-fields">${[['length','长','L'],['depth','宽','W'],['height','高','H']].map(([key,label,letter])=>`<label class="dimension-field"><span>${label}<em>${letter}</em></span><input type="number" id="dim-${key}" data-dimension="${key}" min="15" max="600" step="1" aria-label="成品${label}度"/></label>`).join('')}</div>
         <div id="extra-dimensions" class="extra-dimensions" hidden></div>
-        <p class="field-note">调整尺寸，刀版与模型同步更新</p>
       </div>
     </section>
-    <section class="sidebar-section paper-section collapsible-section">
-      <div class="section-heading" title="点击折叠 / 展开"><h2>纸张与配色</h2>${icon('leaf')}<span class="collapse-icon">${icon('down')}</span></div>
+    <section class="sidebar-section paper-section collapsible-section" data-section="paper">
+      <div class="section-heading" title="点击折叠 / 展开"><h2>纸张与配色</h2><span class="section-summary" id="paper-hex"></span><span class="collapse-icon">${icon('down')}</span></div>
       <div class="collapsible-content">
-        <label class="select-label"><select id="material" aria-label="纸张材质"><option value="matte">哑光卡纸</option><option value="gloss">亮面卡纸</option><option value="kraft">牛皮纸</option></select>${icon('down')}</label>
+        <label class="select-label"><span class="sr-only">纸张材质</span><select id="material" aria-label="纸张材质"><option value="matte">哑光卡纸</option><option value="gloss">亮面卡纸</option><option value="kraft">牛皮纸</option></select>${icon('down')}</label>
         <div class="palette-row">${PALETTES.map((p,i)=>`<button class="palette ${i===0?'active':''}" data-palette="${i}" title="${p.name}" aria-label="${p.name}" style="--palette:${p.color};--palette-accent:${p.accent}"><i></i></button>`).join('')}</div>
         <div class="paper-color-control"><input id="paper-color" type="color" aria-label="自定义纸张颜色"/></div>
-        <div class="color-caption"><span>纸张底色</span><span id="paper-hex"></span></div>
       </div>
     </section>
     <div id="layer-resizer" class="panel-v-resizer" title="上下拖动调整图层面板高度" aria-label="上下拖动调整图层面板高度"></div>
     <section id="layer-section" class="layer-section">
       <div class="section-heading"><h2>${icon('layers')}图层</h2><span id="layer-count"></span></div>
-      <div class="layer-help">上方图层覆盖下方图层</div>
       <div id="layer-list" class="layer-list"></div>
     </section>
   </aside>
   <div id="sidebar-resizer" class="workspace-resizer resizer-col" title="左右拖动调整边栏宽度" aria-label="左右拖动调整边栏宽度"></div>
   <section class="center-workspace">
-    <div class="design-toolbar"><div class="toolbar-group">${button('tool-select','cursor','选择工具 V','active')}${button('tool-pan','hand','平移工具 H / 按住空格')}</div><span class="toolbar-separator"></span><div class="toolbar-group add-tools"><button id="add-text">${icon('text')}<span>文字</span></button><button id="add-image" title="导入图片或 SVG" aria-label="导入图片或 SVG">${icon('image')}<span>图片 / SVG</span></button><button id="add-shape">${icon('shape')}<span>图形</span></button><button id="add-barcode">${icon('barcode')}<span>条形码</span></button><button id="add-qrcode">${icon('qrcode')}<span>二维码</span></button><button id="add-symbol">${icon('symbol')}<span>常用标志</span></button></div><div class="toolbar-right">${button('undo','undo','撤销 Ctrl+Z')}${button('redo','redo','重做 Ctrl+Shift+Z')}<span class="toolbar-separator"></span>${button('toggle-guides','grid','显示 / 隐藏刀版辅助线','active')}</div></div>
-    <div class="surface-toolbar"><div class="surface-tabs" role="tablist" aria-label="编辑包装内外面"><button id="side-outside" data-side="outside" role="tab" aria-selected="true" class="active">外面<span>1</span></button><button id="side-inside" data-side="inside" role="tab" aria-selected="false">内面<span>2</span></button></div><span id="surface-hint" class="surface-hint">编辑外面图案</span><div class="clipboard-tools">${button('copy-layer','copy','复制图层 Ctrl+C')}${button('cut-layer','cut','剪切图层 Ctrl+X')}${button('paste-layer','paste','粘贴到当前面板 Ctrl+V')}</div><button id="shortcut-help" class="shortcut-link" title="快捷键 ?">快捷键 ${icon('help')}</button></div>
+    <div class="design-toolbar" role="toolbar" aria-label="内外面与设计工具">
+      <button id="toggle-left-panel" class="icon-button drawer-toggle" title="结构与图层" aria-label="结构与图层" aria-controls="left-sidebar" aria-expanded="false">${icon('panel-left')}</button>
+      <div class="surface-tabs" role="tablist" aria-label="编辑包装内外面"><button id="side-outside" data-side="outside" role="tab" aria-selected="true" class="active" title="编辑外面 · 1">外面</button><button id="side-inside" data-side="inside" role="tab" aria-selected="false" title="编辑内面 · 2">内面</button></div>
+      <span class="toolbar-separator"></span>
+      <div class="toolbar-group">${toolButton('tool-select','cursor','选择','V','active icon-only')}${toolButton('tool-pan','hand','平移','H / 按住空格','icon-only')}</div>
+      <span class="toolbar-separator"></span>
+      <div class="toolbar-group add-tools">${toolButton('add-text','text','文字','T')}${toolButton('add-image','image','图片 / SVG','I')}${toolButton('add-shape','shape','图形','R')}${toolButton('add-barcode','barcode','条形码')}${toolButton('add-qrcode','qrcode','二维码')}${toolButton('add-symbol','symbol','标志')}</div>
+      <span class="toolbar-separator"></span>
+      <div class="toolbar-group clipboard-tools">${button('copy-layer','copy','复制图层 Ctrl+C')}${button('cut-layer','cut','剪切图层 Ctrl+X')}${button('paste-layer','paste','粘贴到当前面板 Ctrl+V')}<span id="edit-menu-anchor" hidden></span></div>
+      <div class="toolbar-right">${button('undo','undo','撤销 Ctrl+Z')}${button('redo','redo','重做 Ctrl+Shift+Z')}<span class="toolbar-separator"></span>${button('toggle-guides','grid','显示 / 隐藏压痕辅助线 G','active')}<button id="toggle-inspector" class="icon-button drawer-toggle" title="属性" aria-label="属性" aria-controls="right-sidebar" aria-expanded="false">${icon('panel-right')}</button></div>
+      <span id="surface-hint" class="sr-only">编辑外面图案</span>
+    </div>
     <div class="canvas-split" id="canvas-split">
-      <section class="flat-pane">
+      <section class="flat-pane" aria-label="平面画布">
         <div class="pane-heading">
-          <div class="pane-title-group"><span class="pane-index">01</span><h1>平面画布</h1><span class="pane-tag">2D</span><span id="cmyk-tag-2d" class="pane-color-tag" hidden>CMYK 软打样</span></div>
+          <div class="pane-title-group"><h1>平面刀版</h1><span id="sheet-size" class="pane-meta"></span><span id="cmyk-tag-2d" class="pane-color-tag" hidden>CMYK 软打样</span></div>
           <div class="pane-heading-right">
-            <div class="line-legend"><span><i></i>裁切</span><span><i class="dashed"></i>压痕</span></div>
-            <span id="sheet-size" class="pane-meta"></span>
-            <div class="zoom-control">${button('zoom-out','minus','缩小')}<button id="zoom-label" title="适应画布">100%</button>${button('zoom-in','plus','放大')}${button('fit-2d','fit','适应画布')}</div>
-            <button id="toggle-expand-editor" class="icon-button subtle" title="展开 / 恢复平面编辑 (M)" aria-label="展开 / 恢复平面编辑 (M)">${icon('expand')}</button>
+            <div class="line-legend" aria-label="线型图例"><span><i></i>裁切</span><span><i class="dashed"></i>压痕</span></div>
+            <div class="zoom-control">${button('zoom-out','minus','缩小')}<button id="zoom-label" title="适应画布 · F">100%</button>${button('zoom-in','plus','放大')}${button('fit-2d','fit','适应画布 F')}</div>
+            <button id="toggle-expand-editor" class="icon-button" title="展开平面编辑 (M)" aria-label="展开平面编辑 (M)">${icon('expand')}</button>
           </div>
         </div>
         <div id="editor-host" class="editor-host"></div>
-        <div class="canvas-hint">${icon('cursor')}拖动编辑 · 滚轮缩放 · 空格平移</div>
       </section>
-      <div id="canvas-split-resizer" class="workspace-resizer resizer-col" title="左右拖动调整2D/3D视图比例" aria-label="左右拖动调整2D/3D视图比例"></div>
-      <section class="preview-pane">
+      <div id="canvas-split-resizer" class="workspace-resizer resizer-col" title="左右拖动调整平面 / 三维比例" aria-label="左右拖动调整平面 / 三维比例"></div>
+      <section class="preview-pane" aria-label="折叠预览">
         <div class="pane-heading">
-          <div class="pane-title-group"><span class="pane-index">02</span><h2>折叠预览</h2><span class="live-tag"><i></i>实时</span><span id="cmyk-tag-3d" class="pane-color-tag" hidden>CMYK 软打样</span></div>
-          <div class="preview-status-group"><span class="workspace-status-badge"><i></i><span id="workspace-status-text">所有改动实时可见</span></span><span id="performance-status" class="perf-status-badge">按需渲染</span></div>
-          <div class="preview-heading-actions">
-            <div class="preview-quality-wrap" title="预览清晰度与能耗"><span class="leaf-label">${icon('leaf')}<span>轻量预览</span></span><select id="quality" aria-label="预览清晰度"><option value="economy">节能</option><option value="balanced" selected>均衡</option><option value="crisp">清晰</option></select></div>
-            ${button('fit-3d','fit','适应模型')}
+          <div class="pane-title-group"><h2>折叠预览</h2><span class="live-tag" title="所有改动实时同步到三维"><i></i>实时</span><span id="cmyk-tag-3d" class="pane-color-tag" hidden>CMYK 软打样</span></div>
+          <div class="pane-heading-right">
+            <div class="preview-views segmented" role="group" aria-label="预览视角"><button data-view="iso" class="active">透视</button><button data-view="front">正面</button><button data-view="side">侧面</button><button data-view="top">顶部</button></div>
+            <label class="preview-quality-wrap" title="预览清晰度与能耗">${icon('leaf')}<select id="quality" aria-label="预览清晰度"><option value="economy">节能</option><option value="balanced" selected>均衡</option><option value="crisp">清晰</option></select></label>
+            ${button('fit-3d','fit','适应模型 Shift+F')}
           </div>
         </div>
         <div class="preview-stage">
           <div class="stage-grid"></div>
           <div id="preview-host" class="preview-host"></div>
-          <div class="preview-views"><button data-view="iso" class="active">透视</button><button data-view="front">正面</button><button data-view="side">侧面</button><button data-view="top">顶部</button></div>
+          <div id="stage-actions" class="stage-actions"></div>
+          <div class="stage-status"><span class="workspace-status-badge"><i></i><span id="workspace-status-text">所有改动实时可见</span></span><span id="performance-status" class="perf-status-badge">按需渲染</span></div>
           <span class="preview-instruction">拖动旋转 · 滚轮缩放</span>
           <div id="preview-error" class="preview-error" hidden></div>
         </div>
         <div class="fold-controls">
-          <div class="fold-heading"><span>折叠进度</span><strong id="fold-value">100<span>%</span></strong></div>
+          ${button('play-fold','play','播放折叠动画')}
+          <input id="fold-slider" type="range" min="0" max="100" value="100" aria-label="折叠进度"/>
+          <strong id="fold-value" class="fold-value">100<span>%</span></strong>
           <div class="fold-presets" role="group" aria-label="折叠姿态预设">
-            <button class="fold-preset-btn" data-fold-preset="0" title="0% 平面展开刀版">0% 展开</button>
-            <button class="fold-preset-btn" data-fold-preset="0.45" title="45% 护耳与围框折起">45% 围框</button>
-            <button class="fold-preset-btn" data-fold-preset="0.78" title="78% 敞口成型态 (对应参考图左下)">78% 敞口</button>
-            <button class="fold-preset-btn active" data-fold-preset="1.0" title="100% 弧顶合拢态 (对应参考图主图)">100% 合拢</button>
+            <button id="unfold" class="fold-preset-btn" data-fold-preset="0" title="0% 完全展开为平面刀版">展开</button>
+            <button class="fold-preset-btn" data-fold-preset="0.45" title="45% 护耳与围框折起">45%</button>
+            <button class="fold-preset-btn" data-fold-preset="0.78" title="78% 敞口成型态">78%</button>
+            <button id="fold" class="fold-preset-btn active" data-fold-preset="1.0" title="100% 折叠成型">合拢</button>
           </div>
-          <div class="fold-slider-row">${button('play-fold','play','播放折叠动画')}<input id="fold-slider" type="range" min="0" max="100" value="100" aria-label="折叠进度"/></div>
-          <div class="fold-labels"><button id="unfold">完全展开</button><button id="fold">折叠成型</button></div>
         </div>
       </section>
     </div>
   </section>
   <div id="inspector-resizer" class="workspace-resizer resizer-col" title="左右拖动调整属性面板宽度" aria-label="左右拖动调整属性面板宽度"></div>
-  <aside class="right-sidebar"><div class="sidebar-title">属性<span id="selected-type" class="tiny-badge">面板</span></div><div class="panel-picker"><label for="panel-selector">选择面板</label><select id="panel-selector" aria-label="选择面板"></select></div><div id="inspector"></div><div class="inspector-tip">${icon('help')}<p>点击平面或三维模型选择面板。<br/>插舌和粘耳也可单独选择、检查。</p></div></aside>
+  <aside class="right-sidebar" id="right-sidebar" aria-label="属性"><div class="sidebar-title"><h2>属性</h2><span id="selected-type" class="tiny-badge">面板</span><button id="close-inspector" class="icon-button drawer-close" aria-label="关闭属性">${icon('close')}</button></div><div class="panel-picker"><label for="panel-selector">面板</label><label class="select-label"><select id="panel-selector" aria-label="选择面板"></select>${icon('down')}</label></div><div id="inspector"></div><div class="inspector-tip">${icon('help')}<p>点击平面或三维模型选择面板，插舌和粘耳也可单独选择。</p></div></aside>
+  <div id="drawer-scrim" class="drawer-scrim" hidden></div>
 </main>
 <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" hidden/><input id="project-input" type="file" accept=".fold,.foldproj,.json,.svg" hidden/>
 <div id="toast" class="toast" role="status" hidden></div>
-<dialog id="help-dialog"><button id="close-help" class="dialog-close" aria-label="关闭">${icon('close')}</button><span class="dialog-kicker">WELCOME TO FOLD STUDIO</span><h2>让设计，折起来。</h2><p>选择一种盒型或包装容器，调整尺寸，然后在平面画布上添加文字、图片和图形。每一次编辑，都会同步到右侧的三维模型。</p><div class="help-grid"><div><kbd>V</kbd><span>选择工具</span></div><div><kbd>H / 空格</kbd><span>平移画布</span></div><div><kbd>Ctrl Z</kbd><span>撤销编辑</span></div><div><kbd>Delete</kbd><span>删除图层</span></div></div><p class="help-note">拖动选框控制柄可拉伸文字、图片和图形；按住 Shift 等比例缩放。工程自动保存至当前浏览器，也可下载 .fold 文件备份。SVG 导出包含工程信息，可重新打开。</p><p class="help-note">当前版本支持 ${Object.keys(BOX_TYPES).length} 款包装结构与瓶罐容器，涵盖卡纸彩盒、精品礼盒、电商物流和瓶罐容器。模型与刀版用于视觉预览及结构草图。</p><button id="dismiss-help" class="button primary">开始设计 ${icon('chevron')}</button></dialog>
+<dialog id="help-dialog" aria-labelledby="help-title"><button id="close-help" class="dialog-close" aria-label="关闭">${icon('close')}</button><span class="dialog-kicker">FOLD STUDIO · <span class="version-tag">v0.15.0</span></span><h2 id="help-title">让设计，折起来。</h2><p>在平面刀版上排版，三维模型实时折叠成型。每一次编辑都会同步到折叠预览。</p><ol class="help-steps"><li><span>1</span><div><strong>选择结构</strong><small>左侧“更换结构”打开 ${Object.keys(BOX_TYPES).length} 款盒型与容器，再调整尺寸和纸张。</small></div></li><li><span>2</span><div><strong>平面排版</strong><small>工具栏添加文字、图片 / SVG、图形、条码与标志；外面、内面分别设计。</small></div></li><li><span>3</span><div><strong>折叠检查与导出</strong><small>拖动折叠进度检查成型效果，导出 GLB、PNG 或带刀线的 SVG。</small></div></li></ol><div class="help-grid"><div><kbd>V</kbd><span>选择工具</span></div><div><kbd>H / 空格</kbd><span>平移画布</span></div><div><kbd>Ctrl Z</kbd><span>撤销编辑</span></div><div><kbd>?</kbd><span>全部快捷键</span></div></div><p class="help-note local-note">${icon('check')}<span><span class="local-badge">文件留在本地</span>：工程自动保存在当前浏览器，不需要账号，也不会上传。重要设计请用“保存”下载 .fold 备份；SVG 导出包含工程信息，可重新打开。模型与刀版用于视觉预览及结构草图。</span></p><div class="dialog-actions"><button id="dismiss-help" class="button primary">开始设计 ${icon('chevron')}</button></div></dialog>
 <dialog id="shortcuts-dialog"><button id="close-shortcuts" class="dialog-close" aria-label="关闭快捷键">${icon('close')}</button><span class="dialog-kicker">KEYBOARD SHORTCUTS</span><h2>让操作，更顺手。</h2><div class="shortcut-list">${[['Ctrl / ⌘ C','复制选中图层'],['Ctrl / ⌘ X','剪切选中图层'],['Ctrl / ⌘ V','粘贴到当前面板与内外面'],['Ctrl / ⌘ Shift V','粘贴并保留原位置'],['Ctrl / ⌘ D','复制一份图层'],['Ctrl / ⌘ Z','撤销'],['Ctrl / ⌘ Shift Z / Y','重做'],['Ctrl / ⌘ S','下载工程'],['1 / 2','编辑外面 / 内面'],['V / H / 空格','选择 / 平移 / 临时平移'],['T / I / R','添加文字 / 图片 / 矩形'],['M','展开 / 恢复平面画布'],['P','切换 RGB 屏幕 / CMYK 印刷打样'],['Shift T','切换界面主题（中灰/深黑/蓝调/浅色/纸本）'],['F / Shift F','适应平面 / 适应三维'],['G','切换辅助线'],['方向键 / Shift 方向键','移动 1 mm / 5 mm'],['Delete / Esc','删除 / 取消选择'],['?','打开本快捷键表']].map(([key,label])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('')}</div><p class="help-note">复制图层后，可在另一个折间标签页、离线页面或工程中粘贴，图片会一起携带。也可粘贴剪贴板中的普通文字或图片。输入框里的复制粘贴仍按浏览器惯例工作；若粘贴按钮受浏览器限制，请直接按 Ctrl / ⌘ V。</p></dialog>
 <dialog id="confirm-dialog"><h2>切换盒型？</h2><p>将建立一份新盒型示例，替换当前设计。你可以先保存工程；切换后也可以撤销。</p><div class="dialog-actions"><button id="cancel-confirm" class="button subtle">保留当前设计</button><button id="accept-confirm" class="button primary">切换盒型</button></div></dialog>
-<dialog id="export-glb-dialog" class="export-dialog"><button id="close-export-glb" class="dialog-close" aria-label="关闭导出对话框">${icon('close')}</button><span class="dialog-kicker">3D MODEL EXPORT</span><h2>导出三维模型 GLB</h2><p>生成内嵌几何网格、PBR 材质与内外贴图的自包含三维模型，可直接导入 Blender、C4D、KeyShot 或网页 3D/AR 查看器中渲染。</p><div class="export-options"><div class="export-group"><label class="export-label">折叠形态</label><div class="export-radios"><label><input type="radio" name="glb-fold" value="current" checked /><span id="glb-fold-current-label">当前折叠状态</span></label><label><input type="radio" name="glb-fold" value="closed" /><span>100% 完全闭合成型</span></label><label><input type="radio" name="glb-fold" value="flat" /><span>0% 平铺展开刀版</span></label></div></div><div class="export-group"><label class="export-label" for="glb-resolution">贴图烘焙分辨率</label><select id="glb-resolution"><option value="2048" selected>2048 × 2048（推荐 · 细节清晰）</option><option value="4096">4096 × 4096（超清 · 适合近景特写）</option><option value="1024">1024 × 1024（轻量 · 适合 Web/AR）</option></select></div><div class="export-group"><label class="checkbox-label"><input type="checkbox" id="glb-inside" checked /><span>包含内面印刷图案与底色</span></label></div></div><div class="dialog-actions"><button id="cancel-export-glb" class="button subtle">取消</button><button id="confirm-export-glb" class="button primary">${icon('download')}开始导出 GLB</button></div></dialog>
+<dialog id="export-glb-dialog" class="export-dialog"><button id="close-export-glb" class="dialog-close" aria-label="关闭导出对话框">${icon('close')}</button><span class="dialog-kicker">3D MODEL EXPORT</span><h2>导出三维模型 GLB</h2><p>生成内嵌几何网格、PBR 材质与内外贴图的自包含三维模型，可直接导入 Blender、C4D、KeyShot 或网页 3D/AR 查看器中渲染。</p><div class="export-options"><div class="export-group"><label class="export-label">折叠形态</label><div class="export-radios option-cards"><label><input type="radio" name="glb-fold" value="current" checked /><span id="glb-fold-current-label">当前折叠状态</span></label><label><input type="radio" name="glb-fold" value="closed" /><span>100% 闭合成型</span></label><label><input type="radio" name="glb-fold" value="flat" /><span>0% 平铺刀版</span></label></div></div><div class="export-group"><label class="export-label" for="glb-resolution">贴图烘焙分辨率</label><label class="select-label"><select id="glb-resolution"><option value="2048" selected>2048 × 2048（推荐 · 细节清晰）</option><option value="4096">4096 × 4096（超清 · 适合近景特写）</option><option value="1024">1024 × 1024（轻量 · 适合 Web/AR）</option></select></label></div><div class="export-group"><label class="checkbox-label"><input type="checkbox" id="glb-inside" checked /><span>包含内面印刷图案与底色</span></label></div></div><div class="dialog-actions"><button id="cancel-export-glb" class="button subtle">取消</button><button id="confirm-export-glb" class="button primary">${icon('download')}开始导出 GLB</button></div></dialog>
 <dialog id="export-flat-dialog" class="export-dialog" aria-labelledby="export-flat-title"><button id="close-export-flat" class="dialog-close" aria-label="关闭平面 PNG 导出">${icon('close')}</button><span class="dialog-kicker">FLAT PNG EXPORT</span><h2 id="export-flat-title">导出平面设计 PNG</h2><p>当前印刷面：<strong id="flat-export-surface">外面</strong>。选择是否在设计图上显示结构线。</p><div class="export-options"><div class="export-group"><label class="checkbox-label"><input type="checkbox" id="flat-include-lines" checked /><span>包含刀线和折线</span></label><span class="field-note">红色实线为刀线，绿色虚线为折线；取消勾选可导出纯设计图。</span></div></div><div class="dialog-actions"><button id="cancel-export-flat" class="button subtle">取消</button><button id="confirm-export-flat" class="button primary">${icon('download')}导出 PNG</button></div></dialog>
 <dialog id="templates-dialog" class="templates-dialog">
   <button id="close-templates" class="dialog-close" aria-label="关闭包装结构库">${icon('close')}</button>
@@ -166,6 +194,7 @@ $('#app').innerHTML=`
     <h2>包装结构与盒型库</h2>
     <p>选择工业标准纸盒或瓶罐容器结构，一键生成刀版与拟真三维模型</p>
   </div>
+  <div class="template-toolbar">
   <div class="template-filter-tabs" role="tablist" aria-label="包装结构分类">
     <button class="filter-tab active" data-filter="all">全部 <span>${Object.keys(BOX_TYPES).length}</span></button>
     <button class="filter-tab" data-filter="carton">卡纸彩盒 <span>${Object.values(BOX_TYPES).filter(t=>t.category==='carton').length}</span></button>
@@ -173,8 +202,11 @@ $('#app').innerHTML=`
     <button class="filter-tab" data-filter="shipping">电商物流 <span>${Object.values(BOX_TYPES).filter(t=>t.category==='shipping').length}</span></button>
     <button class="filter-tab" data-filter="container">瓶罐容器 <span>${Object.values(BOX_TYPES).filter(t=>t.category==='container').length}</span></button>
   </div>
+  <label class="template-search">${icon('search')}<input id="template-search" type="search" placeholder="搜索名称、英文或特征，如“提手”" aria-label="搜索包装结构" autocomplete="off"/></label>
+  </div>
+  <p id="template-empty" class="template-empty" role="status" hidden>没有匹配的结构，换个关键词或分类试试。</p>
   <div id="box-templates" class="box-templates dialog-template-grid">
-    ${Object.entries(BOX_TYPES).map(([id,t])=>`<button class="template-card ${id===project.type?'active':''}" data-template="${id}" data-category="${t.category}" aria-pressed="${id===project.type}"><span class="template-card-badge">${categoryLabel(t.category)}</span><span class="template-art ${id}">${boxIllustration(id)}</span><div class="template-card-info"><strong>${t.name}</strong><span class="template-eng">${t.english}</span><small>${t.description}</small><span class="template-dim">${t.defaults.length} × ${t.defaults.depth} × ${t.defaults.height} mm</span></div><span class="template-check">${icon('check')}</span></button>`).join('')}
+    ${Object.entries(BOX_TYPES).map(([id,t])=>`<button class="template-card ${id===project.type?'active':''}" data-template="${id}" data-category="${t.category}" data-search="${esc([t.name,t.english,t.description,categoryLabel(t.category)].join(' ').toLowerCase())}" aria-pressed="${id===project.type}"><span class="template-card-badge">${categoryLabel(t.category)}</span><span class="template-art ${id}">${boxIllustration(id)}</span><div class="template-card-info"><strong>${t.name}</strong><span class="template-eng">${t.english}</span><small>${t.description}</small><span class="template-dim">${t.defaults.length} × ${t.defaults.depth} × ${t.defaults.height} mm</span></div><span class="template-check">${icon('check')}</span></button>`).join('')}
   </div>
 </dialog>`;
 
@@ -302,6 +334,7 @@ function refresh({fit=false,build=true}={}){
   if(fit)editor.fit();
   $('#project-name').value=project.name;
   for(const key of ['length','depth','height'])$(`#dim-${key}`).value=project.dimensions[key];
+  $('#dimension-summary').textContent=['length','depth','height'].map(key=>project.dimensions[key]).join(' × ');
   const customDimensions=['triangular-prism-carton','rope-gable-carton','slotted-handle-carton','candy-twist-carton','triangle-slice-box'].includes(project.type);
   const dimensionNames=project.type==='triangular-prism-carton'?[['柱长','L'],['底边','B'],['斜边','S']]:['rope-gable-carton','slotted-handle-carton'].includes(project.type)?[['长','L'],['侧宽','W'],['身高','H']]:project.type==='candy-twist-carton'?[['盒身长','L'],['截宽','W'],['截高','H']]:project.type==='triangle-slice-box'?[['底边','L'],['三角高','D'],['盒厚','H']]:[['长','L'],['宽','W'],['高','H']];
   ['length','depth','height'].forEach((key,i)=>{const input=$(`#dim-${key}`),[label,letter]=dimensionNames[i];input.closest('label').querySelector('span').innerHTML=`${label}<em>${letter}</em>`;input.setAttribute('aria-label',customDimensions?label:`成品${label}度`);input.min=key==='height'&&project.type==='triangular-prism-carton'?Math.max(15,Math.floor(project.dimensions.depth/2)+1):15;});
@@ -474,16 +507,17 @@ document.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>setSide(b.data
 $('#shortcut-help').onclick=()=>$('#shortcuts-dialog').showModal();$('#close-shortcuts').onclick=()=>$('#shortcuts-dialog').close();
 const inspectSide=document.createElement('button');inspectSide.id='inspect-surface';inspectSide.className='inspect-surface';inspectSide.textContent='展开查看当前面';
 inspectSide.onclick=()=>{stopAnimation();setFold(0,true);preview?.showAll();preview?.inspectPanel(panelId,activeSide);};
-$('.preview-stage').appendChild(inspectSide);
+$('#stage-actions').appendChild(inspectSide);
 const inspectPanel=document.createElement('button');inspectPanel.id='inspect-panel';inspectPanel.className='inspect-panel';inspectPanel.textContent='单面检查';
 inspectPanel.onclick=()=>{if(preview?.isolatedPanel)preview.fit();else preview?.inspectPanel(panelId,activeSide,true);};
-$('.preview-stage').appendChild(inspectPanel);
+$('#stage-actions').appendChild(inspectPanel);
 if(preview)preview.onIsolation=active=>{inspectPanel.textContent=active?'返回整盒':'单面检查';};
 $('#panel-selector').onchange=e=>selectLayer(null,e.target.value);
 
+$('#current-template-card').onclick=()=>$('#open-templates').click();
 $('#open-templates').onclick=()=>{
   const dialog=$('#templates-dialog');
-  setTemplateFilter('all');dialog.showModal();
+  $('#template-search').value='';setTemplateFilter('all');dialog.showModal();
   $('#box-templates .template-card.active')?.scrollIntoView({block:'nearest'});
 };
 $('#close-templates').onclick=()=>$('#templates-dialog').close();
@@ -491,14 +525,20 @@ let templateBackdropDown=false;
 function outsideDialog(e){const r=$('#templates-dialog').getBoundingClientRect();return e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom;}
 $('#templates-dialog').addEventListener('pointerdown',e=>{templateBackdropDown=e.target===$('#templates-dialog')&&outsideDialog(e);});
 $('#templates-dialog').addEventListener('click',e=>{if(templateBackdropDown&&e.target===$('#templates-dialog')&&outsideDialog(e))$('#templates-dialog').close();templateBackdropDown=false;});
-function setTemplateFilter(filter){
+let templateFilter='all';
+function setTemplateFilter(filter=templateFilter){
+  templateFilter=filter;
+  const query=$('#template-search').value.trim().toLowerCase();let shown=0;
   document.querySelectorAll('.filter-tab').forEach(tab=>{
     const active=tab.dataset.filter===filter;
     tab.classList.toggle('active',active);tab.setAttribute('aria-selected',active);tab.setAttribute('role','tab');tab.tabIndex=active?0:-1;
   });
-  document.querySelectorAll('#box-templates .template-card').forEach(card=>{card.hidden=filter!=='all'&&card.dataset.category!==filter;});
+  document.querySelectorAll('#box-templates .template-card').forEach(card=>{card.hidden=(filter!=='all'&&card.dataset.category!==filter)||(!!query&&!card.dataset.search.includes(query));if(!card.hidden)shown++;});
+  $('#template-empty').hidden=shown>0;
   $('#box-templates').scrollTop=0;
 }
+$('#template-search').addEventListener('input',()=>setTemplateFilter());
+$('#template-search').addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();$('#box-templates .template-card:not([hidden])')?.click();});
 document.querySelectorAll('.filter-tab').forEach(tab=>{
   tab.onclick=()=>setTemplateFilter(tab.dataset.filter);
   tab.onkeydown=e=>{
@@ -676,9 +716,9 @@ $('#toggle-guides').onclick=()=>{editor.guides=!editor.guides;$('#toggle-guides'
 $('#zoom-in').onclick=()=>editor.zoom(1.2);$('#zoom-out').onclick=()=>editor.zoom(1/1.2);$('#fit-2d').onclick=()=>editor.fit();$('#zoom-label').onclick=()=>editor.fit();$('#fit-3d').onclick=()=>preview?.fit();
 document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{preview?.fit(b.dataset.view);document.querySelectorAll('[data-view]').forEach(v=>v.classList.toggle('active',v===b));});
 $('#fold-slider').oninput=e=>{stopAnimation();setFold(+e.target.value/100);};$('#fold-slider').onchange=commit;
-$('#unfold').onclick=()=>{stopAnimation();setFold(0,true);preview?.fit();};$('#fold').onclick=()=>{stopAnimation();setFold(1,true);preview?.fit();};$('#play-fold').onclick=playAnimation;
+$('#play-fold').onclick=playAnimation;
 document.querySelectorAll('.fold-preset-btn').forEach(btn=>{
-  btn.onclick=()=>{stopAnimation();setFold(+btn.dataset.foldPreset,true);preview?.fit();commit();};
+  btn.onclick=()=>{stopAnimation();setFold(+btn.dataset.foldPreset,true);preview?.fit();};
 });
 $('#extra-dimensions').addEventListener('input',e=>{
   const input=e.target,key=input.dataset.extraDim;
@@ -949,13 +989,6 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){stopAnimat
 window.addEventListener('pagehide',()=>{if(unsaved){clearTimeout(saveTimer);persist();}});
 window.addEventListener('beforeunload',event=>{if(editor?.dirty||closeProtection.shouldWarn(activeProjectId,project)){event.preventDefault();event.returnValue='有未保存的工程修改';}});
 
-const THEMES = [
-  { id: 'gray', name: '工业中灰', desc: '3D与包装推荐 · 中度灰', icon: 'palette' },
-  { id: 'dark', name: '极夜深色', desc: '沉浸高对比 · 纯净深黑', icon: 'moon' },
-  { id: 'slate', name: '工程蓝灰', desc: 'CAD工程调 · 蓝灰工作台', icon: 'layers' },
-  { id: 'light', name: '经典浅色', desc: '明亮纸白 · 经典清新', icon: 'sun' },
-  { id: 'warm', name: '暖沙原纸', desc: '温润原色 · 牛皮纸本', icon: 'leaf' }
-];
 
 const getSavedTheme = () => {
   try {
@@ -1058,8 +1091,8 @@ $('#color-mode-toggle')?.addEventListener('click', () => {
 editorUI=mountEditorUI({editor,images,notify,addShape:()=>addLayer('shape'),select:selectLayer,getState:()=>({project,dieline,selected,ids:getSelectedIds(),panelId,side:activeSide}),change:()=>{textureDirty=true;schedule();commit();}});
 packagingUI=mountPackagingUI(()=>project.layers.find(l=>l.id===selected));
 colorUI=mountColorUI({getState:()=>({project,side:activeSide,ids:getSelectedIds(),panelId}),palettes:PALETTES,update:({commit:save=false,render=false}={})=>{textureDirty=true;schedule();if(save)commit();else scheduleSave();renderSurface();if(render){renderLayers();renderInspector();}}});
-compactWorkspace();
 initWorkspaceResizers();
+initWorkspaceShell();
 
 async function init(){
   $('#app').inert=true;

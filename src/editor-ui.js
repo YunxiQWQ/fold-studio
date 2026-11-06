@@ -39,8 +39,8 @@ function mountNativeUI({editor,addShape}){
   drawing.querySelector('#insert-rect').onclick=addShape;
 
   const trigger=document.createElement('button');trigger.type='button';trigger.id='edit-menu-toggle';trigger.className='icon-button';
-  trigger.title='编辑图层与 SVG';trigger.setAttribute('aria-label',trigger.title);trigger.innerHTML=icon('more');
-  document.querySelector('.flat-pane h1').after(trigger);
+  trigger.title='图层、路径与 SVG 编辑';trigger.setAttribute('aria-label',trigger.title);trigger.innerHTML=icon('more');
+  document.querySelector('#edit-menu-anchor').replaceWith(trigger);
   const edit=menu(trigger,'canvas-edit-menu',
     group('图层',buttonList([['group','组合'],['ungroup','解组'],['front','置顶'],['back','置底'],['duplicate','创建副本'],['delete','删除'],['new-layer','新建图层'],['up-context','返回上一级']],'action'))+
     group('路径与变换',buttonList([['nodes','编辑节点'],['convert','转为路径']],'action')+
