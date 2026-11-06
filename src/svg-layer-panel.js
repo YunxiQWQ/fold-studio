@@ -22,7 +22,8 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
   const hidden=node=>!!node.closest('[display="none"],[visibility="hidden"]');
   const children=node=>[...node.children].filter(child=>!descriptive.has(child.localName));
   const textPart=node=>['tspan','textPath'].includes(node.localName);
-  const editable=node=>!textPart(node)&&!locked(node)&&!node.closest('defs,mask,clipPath,pattern,marker,symbol,filter');
+  const movable=node=>textPart(node)?node.closest('text'):node;
+  const editable=node=>!!movable(node)&&!locked(node)&&!node.closest('defs,mask,clipPath,pattern,marker,symbol,filter');
   const topNodes=nodes=>nodes.filter(node=>!nodes.some(parent=>parent!==node&&parent.contains(node)));
   const labels={ 'new-layer':['plus','新建图层'],group:['group','组合'],ungroup:['ungroup','解组'],up:['up','上移一层'],down:['down','下移一层'],delete:['trash','删除']};
   for(const [command,[glyph,label]]of Object.entries(labels)){
@@ -45,7 +46,7 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
     if(command==='visibility')return !!current&&!current.parentElement?.closest('[display="none"],[visibility="hidden"]');
     if(command==='lock')return !!current&&!current.closest('defs,mask,clipPath,pattern,marker,symbol,filter');
     if(command==='group')return nodes.length>1;
-    if(command==='ungroup')return nodes.some(node=>node.localName==='g'||node.hasAttribute('data-fold-group'));
+    if(command==='ungroup')return nodes.some(node=>['g','svg'].includes(node.localName)||node.hasAttribute('data-fold-group'));
     return nodes.length>0;
   }
   function rename(node){
@@ -134,26 +135,28 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
         for(const button of menu.querySelectorAll('button'))button.disabled=!canRun(button.dataset.layerCommand);
         menu.style.left=`${Math.max(8,Math.min(event.clientX,innerWidth-232))}px`;menu.style.top=`${Math.max(8,Math.min(event.clientY,innerHeight-410))}px`;menu.style.maxHeight='min(400px,calc(100vh - 16px))';menu.showPopover();
       };
-      line.draggable=!isResource&&!locked(node)&&!textPart(node);
+      line.draggable=!isResource&&editable(node);
+      if(textPart(node)){line.dataset.dragOwner=movable(node)?.id;line.title='拖动此分段可调整整段文字的图层顺序';button.title+=' · 拖动时移动整段文字';}
       line.ondragstart=event=>{
         if(!editable(node))return event.preventDefault();
-        dragging=[];if(!selection().includes(node))select(node);
-        dragging=topNodes(selection().filter(editable));event.dataTransfer.setData('application/x-fold-layer',node.id);event.dataTransfer.effectAllowed='move';line.classList.add('is-dragging');
+        const owner=movable(node);dragging=[];if(!selection().includes(owner))select(owner);
+        dragging=topNodes([...new Set(selection().map(movable).filter(editable))]);event.dataTransfer.setData('application/x-fold-layer',owner.id);event.dataTransfer.effectAllowed='move';line.classList.add('is-dragging');
       };
       line.ondragover=event=>{
-        if(!dragging?.length||isResource||dragging.some(source=>source===node||source.contains(node)))return;
+        const target=movable(node);
+        if(!dragging?.length||isResource||!target||dragging.some(source=>source===target||source.contains(target)))return;
         const bounds=line.getBoundingClientRect(),ratio=(event.clientY-bounds.top)/bounds.height;
-        const position=['g','svg'].includes(node.localName)&&ratio>.3&&ratio<.7?'inside':ratio<.5?'before':'after';
-        if(position==='inside'&&locked(node))return;
+        const position=['g','svg'].includes(target.localName)&&ratio>.3&&ratio<.7?'inside':ratio<.5?'before':'after';
+        if(position==='inside'&&locked(target))return;
         event.preventDefault();event.dataTransfer.dropEffect='move';
         if(dropTarget)dropTarget.line.removeAttribute('data-drop');
-        line.dataset.drop=position;dropTarget={node,line,position};
+        line.dataset.drop=position;dropTarget={node:target,line,position};
       };
       line.ondrop=event=>{
-        if(!dragging?.length||dropTarget?.node!==node)return;
-        event.preventDefault();event.stopPropagation();const nodes=dragging,position=dropTarget.position;
+        if(!dragging?.length||dropTarget?.line!==line)return;
+        event.preventDefault();event.stopPropagation();const nodes=dragging,position=dropTarget.position,target=dropTarget.node;
         dragging=null;dropTarget.line.removeAttribute('data-drop');dropTarget=null;
-        try{move(nodes,node,position);status.textContent='已移动图层';}catch(error){status.textContent=error.message;}render();
+        try{move(nodes,target,position);status.textContent='已移动图层';}catch(error){status.textContent=error.message;}render();
       };
       line.ondragend=()=>{dragging=null;if(dropTarget)dropTarget.line.removeAttribute('data-drop');dropTarget=null;render();};
       line.onkeydown=event=>{if(event.key==='F2'){event.preventDefault();event.stopPropagation();rename(node);}};

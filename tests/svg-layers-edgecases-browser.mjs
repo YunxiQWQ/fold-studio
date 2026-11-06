@@ -169,9 +169,11 @@ try{
     assert.equal(await page.evaluate(id=>document.getElementById(id).getAttribute('data-name'),ids.a),name);
     assert.equal(await label('a').textContent(),name);
   });
-  await check('text-span-drag-affordance',async({row,reveal})=>{
+  await check('text-span-drag-affordance',async({row,reveal,ids})=>{
     await reveal('part');
-    assert.equal(await row('part').getAttribute('draggable'),'false','text span drags its whole parent despite showing a span row');
+    assert.equal(await row('part').getAttribute('draggable'),'true');
+    assert.equal(await row('part').getAttribute('data-drag-owner'),ids.words,'text span sorting should explicitly act on the parent text');
+    assert.match(await row('part').getAttribute('title'),/整段文字/);
   });
   await check('large-layer-search',async({page,choose})=>{
     assert.equal(await page.locator('.tree-label').filter({hasText:/^对象 /}).count(),1500);

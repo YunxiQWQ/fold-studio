@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 import {RIGID_REFERENCE_CARTONS,makeRigidReferenceCarton} from './rigid-reference-cartons.js';
+import {SLOTTED_HANDLE_CARTONS,makeSlottedHandleCarton} from './slotted-handle-carton.js';
 
 export const REFERENCE_CARTONS={
   'triangular-prism-carton':{name:'三角柱盒',english:'TRIANGULAR PRISM CARTON',family:'prism',category:'carton',printPanel:'front',description:'三面围合 · 带折边三角端盖 · 站放/平放 · 参考展开326×237mm',defaults:{length:200,depth:74,height:74,glueWidth:15,orientation:'lying'}},
   'rope-gable-carton':{name:'绳提手折顶礼盒',english:'ROPE HANDLE FOLD TOP CARTON',family:'carton',category:'gift',printPanel:'front',description:'斜折顶 · 圆绳提手 · 窄顶穿槽 · 异形锁底 · 参考展开885×403mm',defaults:{length:300,depth:120,height:202,roofDepth:61,topTab:56,bottomFlap:84,glueWidth:45,handleRise:100,handleSpan:120}},
   ...RIGID_REFERENCE_CARTONS,
+  ...SLOTTED_HANDLE_CARTONS,
 };
 const bounded=(dims,key,otherwise,min,max)=>{
   const value=dims[key]??otherwise;
@@ -98,7 +100,7 @@ function ropeGable(dims,add){
 }
 export function makeReferenceCarton(type,dimensions,add){
   const panels=[],remember=(...args)=>{const p=add(...args);panels.push(p);return p;};
-  const result=type==='triangular-prism-carton'?triangularPrism(dimensions,remember):type==='rope-gable-carton'?ropeGable(dimensions,remember):makeRigidReferenceCarton(type,dimensions,remember),edges=new Map();
+  const result=type==='triangular-prism-carton'?triangularPrism(dimensions,remember):type==='rope-gable-carton'?ropeGable(dimensions,remember):type==='slotted-handle-carton'?makeSlottedHandleCarton(dimensions,remember):makeRigidReferenceCarton(type,dimensions,remember),edges=new Map();
   for(const p of panels)for(let i=0;i<p.points.length;i++){const a=p.points[i],b=p.points[(i+1)%p.points.length],key=[a.join(','),b.join(',')].sort().join('|');const entry=edges.get(key)??{count:0,line:[a,b]};entry.count++;edges.set(key,entry);}
   result.nonCutEdges=[...edges.values()].filter(e=>e.count>1).map(e=>e.line);return result;
 }

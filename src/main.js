@@ -11,6 +11,7 @@ import {expandGroups,layerRect} from './editor-commands.js';
 import { BOX_TYPES, makeDieline, cutSegments, creasePaths } from './geometry.js';
 import {PAPER_BAG_PRESETS,paperBagSettings} from './paper-bag.js';
 import {triangleSettings,ropeGableSettings} from './reference-cartons.js';
+import {slottedHandleSettings} from './slotted-handle-carton.js';
 import {candyTwistSettings,triangleSliceSettings} from './rigid-reference-cartons.js';
 import { newProject, History, uid, clone, validateProject, PALETTES, SIDES, sideOf, surfaceOf } from './project.js';
 import { encodeLayers, decodeLayers, layersForPaste, CLIPBOARD_MIME } from './clipboard.js';
@@ -301,8 +302,8 @@ function refresh({fit=false,build=true}={}){
   if(fit)editor.fit();
   $('#project-name').value=project.name;
   for(const key of ['length','depth','height'])$(`#dim-${key}`).value=project.dimensions[key];
-  const customDimensions=['triangular-prism-carton','rope-gable-carton','candy-twist-carton','triangle-slice-box'].includes(project.type);
-  const dimensionNames=project.type==='triangular-prism-carton'?[['柱长','L'],['底边','B'],['斜边','S']]:project.type==='rope-gable-carton'?[['长','L'],['侧宽','W'],['身高','H']]:project.type==='candy-twist-carton'?[['盒身长','L'],['截宽','W'],['截高','H']]:project.type==='triangle-slice-box'?[['底边','L'],['三角高','D'],['盒厚','H']]:[['长','L'],['宽','W'],['高','H']];
+  const customDimensions=['triangular-prism-carton','rope-gable-carton','slotted-handle-carton','candy-twist-carton','triangle-slice-box'].includes(project.type);
+  const dimensionNames=project.type==='triangular-prism-carton'?[['柱长','L'],['底边','B'],['斜边','S']]:['rope-gable-carton','slotted-handle-carton'].includes(project.type)?[['长','L'],['侧宽','W'],['身高','H']]:project.type==='candy-twist-carton'?[['盒身长','L'],['截宽','W'],['截高','H']]:project.type==='triangle-slice-box'?[['底边','L'],['三角高','D'],['盒厚','H']]:[['长','L'],['宽','W'],['高','H']];
   ['length','depth','height'].forEach((key,i)=>{const input=$(`#dim-${key}`),[label,letter]=dimensionNames[i];input.closest('label').querySelector('span').innerHTML=`${label}<em>${letter}</em>`;input.setAttribute('aria-label',customDimensions?label:`成品${label}度`);input.min=key==='height'&&project.type==='triangular-prism-carton'?Math.max(15,Math.floor(project.dimensions.depth/2)+1):15;});
   $('.dimension-section h2').textContent=customDimensions?'结构尺寸':'成品尺寸';
   const paperCmyk=colorMode==='cmyk'?` · ${formatCmyk(project.paper)}`:'';
@@ -320,9 +321,9 @@ function refresh({fit=false,build=true}={}){
 function renderExtraDimensions(){
   const container=$('#extra-dimensions');
   if(!container)return;
-  if(['triangular-prism-carton','rope-gable-carton','candy-twist-carton','triangle-slice-box'].includes(project.type)){
+  if(['triangular-prism-carton','rope-gable-carton','slotted-handle-carton','candy-twist-carton','triangle-slice-box'].includes(project.type)){
     container.hidden=false;
-    const row=(key,label,value,min,max)=>`<div class="extra-dim-row"><div class="extra-dim-label"><span>${label}</span><strong id="val-${key}">${Number(value.toFixed(1))} mm</strong></div><div class="extra-dim-control"><input type="range" class="extra-dim-slider" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}"/><input type="number" class="extra-dim-num" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}数值"/></div></div>`;
+    const row=(key,label,value,min,max,unit='mm')=>`<div class="extra-dim-row"><div class="extra-dim-label"><span>${label}</span><strong id="val-${key}" data-unit="${unit}">${Number(value.toFixed(1))} ${unit}</strong></div><div class="extra-dim-control"><input type="range" class="extra-dim-slider" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}"/><input type="number" class="extra-dim-num" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}数值"/></div></div>`;
     let content;
     if(project.type==='triangular-prism-carton'){
       const b=triangleSettings(project.dimensions);
@@ -330,6 +331,9 @@ function renderExtraDimensions(){
     }else if(project.type==='rope-gable-carton'){
       const b=ropeGableSettings(project.dimensions);
       content=`<div class="extra-dim-heading"><span>绳提手折顶结构</span></div><p class="field-note reference-note">身高不含折顶和提绳。折顶增加 ${b.rise.toFixed(1)} mm，盒体总高 ${(b.H+b.rise).toFixed(1)} mm；窄顶舌保留穿槽。</p>${row('roofDepth','斜顶展开宽',b.R,b.run+2,Math.max(b.run+3,Math.min(240,b.H)))}${row('topTab','折返顶盖宽',b.F,4,b.D*.8)}${row('bottomFlap','锁底展开深',b.B,b.D/2+2,b.D*.95)}${row('glueWidth','侧粘口',b.G,3,Math.min(65,b.L*.3,b.D*.6))}${row('handleRise','提绳弧高',b.handleRise,10,250)}${row('handleSpan','绳孔间距',b.handleSpan,8,b.L*.8)}`;
+    }else if(project.type==='slotted-handle-carton'){
+      const b=slottedHandleSettings(project.dimensions);
+      content=`<div class="extra-dim-heading"><span>插锁提手结构</span></div><p class="field-note reference-note">身高不含提手和侧翼。顶盖各覆盖一半侧宽，成型总高约 ${b.totalHeight.toFixed(1)} mm；展开 ${dieline.width.toFixed(1)} × ${dieline.height.toFixed(1)} mm。</p>${row('handleHeight','提手片高度',b.T,Math.min(8,b.D*.2),Math.max(8,Math.min(150,b.L*.45,b.D*.9)))}${row('handleWidth','提手孔宽',b.handleWidth,Math.min(8,b.L*.3),b.L*.72)}${row('handleHoleHeight','提手孔高',b.holeHeight,Math.min(3,b.T*.2),b.T*.54)}${row('sideFlapHeight','穿槽侧翼高度',b.wing,Math.min(10,b.D*.3),Math.min(200,b.D*.95))}${row('sideFlapAngle','侧翼内折角度',b.angle,15,65,'°')}${row('bottomFlap','扣底展开深',b.B,b.D*.52,b.D*.98)}${row('glueWidth','侧粘口',b.G,Math.min(3,b.L*.1),Math.min(45,b.L*.2,b.D*.4))}`;
     }else if(project.type==='candy-twist-carton'){
       const b=candyTwistSettings(project.dimensions);
       content=`<div class="extra-dim-heading"><span>糖果扭结结构</span></div><p class="field-note reference-note">盒身长不含两端外伸燕尾；闭合后总长约 ${(b.L+2*b.T).toFixed(1)} mm。扭结锁合为视觉近似，不是生产刀模。</p>${row('neckWidth','收脊颈宽',b.N,4,b.W-4)}${row('endRise','端部收脊长',b.E,4,1.5*Math.min(b.W,b.H))}${row('tailLength','燕尾外伸',b.T,6,.6*b.L)}${row('tailFlare','燕尾外扩',b.F,0,Math.max(0,(b.W-b.N)/2-1))}${row('glueWidth','侧粘口',b.G,3,Math.min(24,.3*b.W))}`;
@@ -686,7 +690,7 @@ $('#extra-dimensions').addEventListener('input',e=>{
   project.dimensions[key]=val;
   document.querySelectorAll(`#extra-dimensions [data-extra-dim="${key}"]`).forEach(el=>{if(el!==input)el.value=val;});
   const badge=$(`#val-${key}`);
-  if(badge)badge.textContent=`${val} mm`;
+  if(badge)badge.textContent=`${val} ${badge.dataset.unit??'mm'}`;
   clearTimeout(geometryTimer);
   geometryTimer=setTimeout(()=>refresh({fit:true}),80);
 });

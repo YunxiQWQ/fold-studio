@@ -1,6 +1,6 @@
 import {mountSvgLayerPanel,svgLayerName} from './svg-layer-panel.js';
-import {rgbHex} from './color-values.js';
 import {installSvgPointerGestures} from './svg-pointer-gestures.js';
+import {captureSvgPlacement,restoreSvgPlacement,ungroupSvgLayers} from './svg-layer-operations.js';
 
 // Shared SVGCanvas interface; imported/source-edited SVG is validated before loading.
 export function initializeSvgFrame(SvgCanvas, options={}) {
@@ -292,8 +292,11 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     selected=toggle?(next.at(-1)??null):element;refreshTree();refreshProperties();options.selected?.(selected);
   }
   function moveLayers(nodes,target,position){
+    const visual=node=>['tspan','textPath'].includes(node.localName)?node.closest('text'):node;
+    nodes=[...new Set(nodes.map(visual).filter(Boolean))];target=visual(target);
     const parent=position==='inside'?target:target.parentElement;
     if(!parent||!wrapper.contains(parent)||nodes.some(node=>node===target||node.contains(parent)))throw Error('不能把图层移入自身或子图层');
+    if(!['g','svg'].includes(parent.localName))throw Error('请把图层放到画布或组合中');
     if(parent.closest('defs,mask,clipPath,filter,[data-locked="true"]'))throw Error('此位置无法放入图层');
     const destination=parent.getScreenCTM();
     if(!destination||![destination.a,destination.b,destination.c,destination.d,destination.e,destination.f].every(Number.isFinite)||destination.a*destination.d-destination.b*destination.c===0)throw Error('目标组合的变换不可逆，请先调整组合缩放');
@@ -302,28 +305,14 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     const ordered=[...nodes].sort((a,b)=>a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING?-1:1);
     let reference=position==='inside'?null:position==='before'?target.nextSibling:target;
     while(reference&&nodes.includes(reference))reference=reference.nextSibling;
-    const inherited=['fill','stroke','fill-opacity','stroke-opacity','stroke-width','fill-rule','stroke-linecap','stroke-linejoin','font-family','font-size','font-weight','font-style','text-anchor','letter-spacing'];
     const apply=()=>{
       for(const node of ordered){
         const reparent=node.parentElement!==parent;
-        const world=reparent?node.getScreenCTM():null;
-        const style=reparent?getComputedStyle(node):null;
-        const paint=style?Object.fromEntries(inherited.map(key=>[key,style.getPropertyValue(key)])):null;
+        const placement=reparent?captureSvgPlacement(node,{percentages:true}):null;
+        if(placement)for(const length of placement.lengths)length.node.setAttribute(length.key,length.value);
         parent.insertBefore(node,reference);
         if(!reparent)continue;
-        node.removeAttribute('transform');
-        for(const key of ['transform','transform-origin','transform-box'])node.style.removeProperty(key);
-        const parentMatrix=parent.getScreenCTM(),intrinsic=parentMatrix.inverse().multiply(node.getScreenCTM());
-        const matrix=parentMatrix.inverse().multiply(world).multiply(intrinsic.inverse());
-        if(![matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f].every(Number.isFinite))throw Error('目标组合的变换不可逆，请先调整组合缩放');
-        node.setAttribute('transform',`matrix(${matrix.a} ${matrix.b} ${matrix.c} ${matrix.d} ${matrix.e} ${matrix.f})`);
-        for(const [key,value]of Object.entries(paint)){
-          if(!value)continue;
-          const rgb=value.match(/^rgb\(\s*(\d+),\s*(\d+),\s*(\d+)\s*\)$/);
-          const local=value.replace(/url\(["']?[^#)"']*#([^)"']+)["']?\)/g,(_match,id)=>`url(#${decodeURIComponent(id)})`);
-          node.style.removeProperty(key);
-          node.setAttribute(key,rgb?rgbHex(rgb.slice(1))??local:local);
-        }
+        restoreSvgPlacement(placement,parent);
       }
     };
     try{
@@ -415,15 +404,23 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
         else for(const node of nodes.length?nodes:[selected])changeAttribute(node,'data-locked','true');
         return;
       }
-      if(action==='up'||action==='down'){
-        const nodes=canvas.getSelectedElements().filter(Boolean);
-        if(action==='up')nodes.reverse();
-        for(const node of nodes){
-          let neighbor=action==='up'?node.nextElementSibling:node.previousElementSibling;
-          while(neighbor&&(nodes.includes(neighbor)||['title','desc','defs'].includes(neighbor.localName)))neighbor=action==='up'?neighbor.nextElementSibling:neighbor.previousElementSibling;
-          if(neighbor)action==='up'?neighbor.after(node):neighbor.before(node);
+      if(['up','down','front','back'].includes(action)){
+        const nodes=canvas.getSelectedElements().filter(Boolean),batch=new canvas.history.BatchCommand('调整图层顺序');
+        const graphical=node=>!['title','desc'].includes(node.localName)&&!definitions.has(node.localName);
+        const order=[...nodes].sort((a,b)=>a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING?-1:1);
+        if(action==='up')order.reverse();
+        for(const node of order){
+          const parent=node.parentNode,next=node.nextSibling;
+          if(action==='front')parent.append(node);
+          else if(action==='back'){const first=[...parent.children].find(child=>graphical(child)&&!nodes.includes(child));if(first)parent.insertBefore(node,first);}
+          else{
+            let neighbor=action==='up'?node.nextElementSibling:node.previousElementSibling;
+            while(neighbor&&(nodes.includes(neighbor)||!graphical(neighbor)))neighbor=action==='up'?neighbor.nextElementSibling:neighbor.previousElementSibling;
+            if(neighbor)action==='up'?neighbor.after(node):neighbor.before(node);
+          }
+          if(node.nextSibling!==next)batch.addSubCommand(new canvas.history.MoveElementCommand(node,next,parent));
         }
-        contentChanged();return;
+        if(!batch.isEmpty()){canvas.undoMgr.addCommandToHistory(batch);contentChanged(true);}return;
       }
       if(['bold','italic','underline'].includes(action)){
         const node=selected?.closest('text');if(!node||node.closest('[data-locked="true"]'))return;
@@ -454,6 +451,8 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
           for(const node of nodes)node.removeAttribute('data-fold-group');
           contentChanged();return;
         }
+        const groups=canvas.getSelectedElements().filter(node=>node&&['g','svg'].includes(node.localName));
+        if(groups.length){ungroupSvgLayers(canvas,wrapper,groups,{validate:options.validate,source:snapshot,sourceStyles:options.sourceStyles});contentChanged(true);return;}
       }
       if(action==='duplicate'){copyElements(()=>canvas.cloneSelectedElements(20,20));return;}
       if(action==='copy'||action==='cut'){
@@ -475,7 +474,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
         const methods={'node-add':()=>path.clonePathNode(),'node-delete':()=>path.deletePathNode(),'node-line':()=>path.setSegType(4),'node-curve':()=>path.setSegType(6),'node-link':()=>path.linkControlPoints(true),'node-unlink':()=>path.linkControlPoints(false),'node-close':()=>path.opencloseSubPath(),'node-subpath':()=>path.addSubPath(true)};
         methods[action]?.();contentChanged();return;
       }
-      const methods={delete:'deleteSelectedElements',group:'groupSelectedElements',ungroup:'ungroupSelectedElement',front:'moveToTopSelectedElement',back:'moveToBottomSelectedElement',convert:'convertToPath'};
+      const methods={delete:'deleteSelectedElements',group:'groupSelectedElements',convert:'convertToPath'};
       if(methods[action]){canvas[methods[action]]();contentChanged();}
     }catch(error){showError(error);}
   }

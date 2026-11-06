@@ -1,9 +1,10 @@
 {
-  "geometryHash": "05e2360e50fa5b47a71b9a26a24fbdbd971ee004e2a6554fd13e33b35ee0cefb",
+  "geometryHash": "4ab91dab48d26b3e733e8113eda73a5be46fa7c607a7f3cf08a17251efeb15d7",
   "sources": [
     "src/geometry.js",
     "src/reference-cartons.js",
     "src/rigid-reference-cartons.js",
+    "src/slotted-handle-carton.js",
     "src/paper-bag.js",
     "src/selected-structures.js",
     "src/selected-containers.js",
@@ -362,6 +363,23 @@
       },
       "panels": 7,
       "occupied": 18526
+    },
+    "slotted-handle-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 250,
+        "depth": 200,
+        "height": 120,
+        "handleHeight": 60,
+        "handleWidth": 112,
+        "handleHoleHeight": 25,
+        "sideFlapHeight": 90,
+        "sideFlapAngle": 38,
+        "bottomFlap": 158,
+        "glueWidth": 18
+      },
+      "panels": 15,
+      "occupied": 51439
     }
   }
 }

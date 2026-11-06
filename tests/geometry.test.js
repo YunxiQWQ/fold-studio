@@ -45,6 +45,7 @@ for(const type of Object.keys(BOX_TYPES)){
     }
     if(d.triangle){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,dimensions.depth,d.triangle.altitude][i])<1e-4,`${v} triangular bound`));return;}
     if(d.ropeGable){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,dimensions.height+d.ropeGable.rise,dimensions.depth][i])<1e-4,`${v} roof bound`));return;}
+    if(d.slottedHandle){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,d.slottedHandle.totalHeight,dimensions.depth][i])<1e-4,`${v} handle bound`));return;}
     if(type==='candy-twist-carton'){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.depth,dimensions.length+2*dimensions.tailLength,dimensions.height][i])<1e-4,`${v} candy bound`));return;}
     if(type==='triangle-slice-box'){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,dimensions.depth,dimensions.height][i])<.8,`${v} slice bound`));return;}
     if(d.curvedBody){

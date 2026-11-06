@@ -1,5 +1,26 @@
 # 验证记录
 
+## 未发布 · 插锁提手盒（2026-11-06）
+
+- 根据用户提供的低分辨率刀版及成品图，独立参数化新增 `slotted-handle-carton`，精品礼盒类共用结构库入口，整体库增至 33 款。默认采用用户确认的文字尺寸：长 250、侧宽 200、盒身高 120 mm；身高不含提手/侧翼，默认展开 918×438 mm。
+- 模型含 15 个连续折面：四壁、侧粘口、前后半幅顶盖、双镂空提手、两片带槽梯形侧翼及四片异形底扣。提手两层留出纸厚间隙，顶盖在中线对合。七项结构参数可编辑，侧翼角度以度数显示。缩略图由真实模型生成，不复制参考图的品牌图文。
+- `npm test` 149 项通过，新增单测检查展开尺寸、围合尺寸、提手孔对齐及避让、真实开孔、二维选区/双面印刷裁切、压痕与刀线、折叠铰接连续、参数工程往返和尺寸极值。
+- Chromium 和 Edge 专项验证结构库、七项参数与撤销、八次折叠切换不重建网格、双面文字编辑、原生 SVG 与工程保存回开、离线零 HTTP 请求。两面平面 PNG 实际下载为 3072×1466，两提手孔及两穿槽的中心 alpha 均为 0。
+- 展开、半折叠、闭合三个 GLB 分别导出并重新载入，均保留双面贴图与四个真实开孔。闭合外包络按盒身宽度、侧翼与提手总高、侧宽检查，展开厚度约 0.45 mm。新结构为刚性折面预览，不包含槽口接触/承重或生产刀模补偿验证。
+- 全部 8 个模型浏览器脚本、11 个编辑/导出脚本和旧工程兼容检查通过，含 1,432 项真实 WebGL 面板/双面/折叠贴图检查、33 款内面选取及既有模型的 GLB 回载。新增模型的颜色验证采用实际三角形内的采样点，防止采到提手镂空。缩略图脚本采用临时文件原子替换，避免开发预览在生成时读取半份模块。
+- 证据：`artifacts/slotted-handle-unit-final.log`、`artifacts/slotted-handle-models-final.log`、`artifacts/slotted-handle-browser-regression.log`、`artifacts/slotted-handle-browser-confirmed.log`、`artifacts/slotted-handle-edge-confirmed.log`、`artifacts/slotted-handle-compatibility.log`、`artifacts/slotted-handle/report.json`、`artifacts/slotted-handle/workspace.png`。与前一轮 SVG 解组修复一起保留在本地，当前尚未推送。
+- 另行尝试的历史 `workspace-layout-browser.mjs` 仍断言 Fabric 时期的 `.editor-commandbar` 等旧工具条选择器，与当前 SVG 主编辑器的控件结构不符；当前布局和结构库通过上述现行脚本验证，该历史脚本尚未迁移。
+
+## 未发布 · SVG 解组与文字排序（2026-11-06）
+
+- 实际复现文字分段行不可拖动、向文字分段旁拖放会把独立文字插入另一个 `<text>`、多选置顶只处理一个对象，以及导入组合解组后仍留下 SVG 画板容器的问题。
+- 导入保持一份原稿一个组合，一次解组移除置入画板及单一文档包装，实际图文直接进入当前画布；原稿的并列分组仍保留。解组迁移实际屏幕矩阵、继承字体与颜色、百分比几何和渐变，内外面均可操作，支持撤销重做和工程下载。复用已有结构识别导入组合，不增加工程格式字段。
+- 新增 `tests/svg-ungroup-browser.mjs` 的 21 个场景：文件选择、实际文件拖放、内面、文字分段排序、文字分段旁拖放、多选置顶置底、逐层上移下移、跨组文字拖动、原分组保留和连续解组、多组同时解组、直接解开 SVG 容器、旧导入结构、选中嵌套文字后再次导入、保存、异常回滚，以及像素对照。
+- 像素对照只统计图文覆盖区域，平均通道误差限制为 0.4/255，覆盖继承字体与渐变、百分比渐变、画板裁切和边缘描边。复现并修复了百分比渐变解组后变色和边缘描边额外显露。裁切尽量直接附在对象上，裁切文字仍可作为独立图层排序；原有裁切需要相交时保留必要的裁切包装。
+- Chromium 与 Edge 各自通过 21 个场景；正式构建 HTTP/CSP 和 `file://` 离线版各通过 20 个产品操作场景，故障注入回滚仅在开发服务器执行。证据位于 `artifacts/svg-ungroup/`、`artifacts/svg-ungroup-edge-verified/`、`artifacts/svg-ungroup-built-verified/`、`artifacts/svg-ungroup-offline-verified/`。
+- `npm test` 142 项、全部 11 个主浏览器脚本和旧工程兼容检查通过。收尾裁切修正后重跑上述解组专项与构建。日志为 `artifacts/ungroup-unit-verified.log`、`artifacts/ungroup-browser-final.log`、`artifacts/ungroup-final-scenarios.log`、`artifacts/ungroup-compatibility.log`、`artifacts/ungroup-build-verified.log`。模型几何未修改，本轮未重复模型几何专项。
+- 整体透明度、蒙版、滤镜与混合会保留效果组，直接拆除会明确提示，不按逐元素分发效果来冒充完整外观保留。当前为本地修复，未推送或部署。
+
 ## 未发布 · 画布移动与控制柄缩放（2026-11-06）
 
 - 重新实测复现导入图文拖动 40×25 屏幕像素却只移动约 25.14×15.71 像素、父组旋转时方向偏转，以及带矩阵图形和组合缩放后跳位。旧检查仅确认对象发生变化，未充分约束拖动距离。

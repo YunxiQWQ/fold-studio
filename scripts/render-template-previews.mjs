@@ -1,12 +1,13 @@
 import {createHash} from 'node:crypto';
-import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {readFile,writeFile,mkdir,rename,unlink} from 'node:fs/promises';
 import {existsSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 
-const sources=['src/geometry.js','src/reference-cartons.js','src/rigid-reference-cartons.js','src/paper-bag.js','src/selected-structures.js','src/selected-containers.js','src/source-containers.generated.js','src/curved-carton.js','src/curved-carton-mesh.js','src/folding.js','src/model3d.js','src/preview3d.js','src/project.js','src/artwork.js','src/artwork-space.js','scripts/render-template-previews.mjs'];
+const sources=['src/geometry.js','src/reference-cartons.js','src/rigid-reference-cartons.js','src/slotted-handle-carton.js','src/paper-bag.js','src/selected-structures.js','src/selected-containers.js','src/source-containers.generated.js','src/curved-carton.js','src/curved-carton-mesh.js','src/folding.js','src/model3d.js','src/preview3d.js','src/project.js','src/artwork.js','src/artwork-space.js','scripts/render-template-previews.mjs'];
 const hash=createHash('sha256');for(const file of sources)hash.update(await readFile(file));const geometryHash=hash.digest('hex');
+async function writeAtomic(file,content){const temporary=`${file}.${process.pid}.tmp`;try{await writeFile(temporary,content);await rename(temporary,file);}finally{await unlink(temporary).catch(()=>{});}}
 const manifestPath='src/template-previews.manifest.json',modulePath='src/template-previews.generated.js';
 try{const old=JSON.parse(await readFile(manifestPath,'utf8'));if(old.geometryHash===geometryHash&&existsSync(modulePath)){console.log('结构预览与当前模型一致，无需重新生成');process.exit(0);}}catch{}
 const server=await createServer({plugins:[{name:'template-preview-page',configureServer(s){s.middlewares.use('/__template-previews',(_req,res)=>{res.setHeader('Content-Type','text/html');res.end('<!doctype html><html><body style="margin:0"><div id="host" style="width:384px;height:288px"></div></body></html>');});}}],server:{port:0,host:'127.0.0.1',hmr:false,watch:null}});await server.listen();
@@ -36,7 +37,7 @@ try{
  });
  if(errors.length)throw Error(errors.join('\n'));await mkdir('artifacts/template-previews',{recursive:true});
  for(const [type,entry]of Object.entries(previews))await writeFile(`artifacts/template-previews/${type}.png`,Buffer.from(entry.src.split(',')[1],'base64'));
- await writeFile(modulePath,'// Generated from the actual Preview3D model. Run npm run build:previews after geometry changes.\nexport const TEMPLATE_PREVIEWS='+JSON.stringify(previews)+';\n');
- await writeFile(manifestPath,JSON.stringify({geometryHash,sources,previews:Object.fromEntries(Object.entries(previews).map(([type,{src,...entry}])=>[type,entry]))},null,2)+'\n');
+ await writeAtomic(modulePath,'// Generated from the actual Preview3D model. Run npm run build:previews after geometry changes.\nexport const TEMPLATE_PREVIEWS='+JSON.stringify(previews)+';\n');
+ await writeAtomic(manifestPath,JSON.stringify({geometryHash,sources,previews:Object.fromEntries(Object.entries(previews).map(([type,{src,...entry}])=>[type,entry]))},null,2)+'\n');
  console.log(`已从实际模型生成 ${Object.keys(previews).length} 款结构预览，运行时不增加 WebGL 上下文`);
 }finally{await browser?.close();await server.close();}

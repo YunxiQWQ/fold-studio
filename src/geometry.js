@@ -80,7 +80,7 @@ export function makeDieline(type,dimensions){
   if(!Object.hasOwn(BOX_TYPES,type))throw new Error('不支持的盒型');
   const{length:L,depth:D,height:H}=dimensions;
   for(const value of[L,D,H])if(!Number.isFinite(value)||value<15||value>600)throw new Error('尺寸需介于 15–600 mm');
-  const panels=[],add=(...args)=>{const p=rectangle(...args);panels.push(p);return p;};let rootId,curvedBody=null,paperBag=null,triangle=null,ropeGable=null,ropeHandles=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[];
+  const panels=[],add=(...args)=>{const p=rectangle(...args);panels.push(p);return p;};let rootId,curvedBody=null,paperBag=null,triangle=null,ropeGable=null,ropeHandles=null,slottedHandle=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[];
   const addTray=(prefix,x,y,w,d,h,parent=null)=>{
     const id=name=>prefix?`${prefix}-${name}`:name,baseId=prefix==='lid'?'lid':id('base');
     const base=add(baseId,prefix?'上盖顶面':'底面',x+h,y+h,w,d,parent);
@@ -97,7 +97,7 @@ export function makeDieline(type,dimensions){
     return base;
   };
   if(Object.hasOwn(REFERENCE_CARTONS,type)){
-    const result=makeReferenceCarton(type,dimensions,add);({rootId,triangle=null,ropeGable=null,ropeHandles=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[]}=result);
+    const result=makeReferenceCarton(type,dimensions,add);({rootId,triangle=null,ropeGable=null,ropeHandles=null,slottedHandle=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[]}=result);
   }else if(type==='paper-shopping-bag'){
     const result=makePaperBag(dimensions,add);rootId=result.rootId;paperBag=result.paperBag;extraCreases=result.extraCreases;
   }else if(Object.hasOwn(SELECTED_BOXES,type)){
@@ -280,7 +280,7 @@ export function makeDieline(type,dimensions){
   const points=panels.flatMap(p=>p.points),minX=Math.min(...points.map(p=>p[0])),minY=Math.min(...points.map(p=>p[1])),maxX=Math.max(...points.map(p=>p[0])),maxY=Math.max(...points.map(p=>p[1]));
   const isContainer=BOX_TYPES[type].family==='container';
   return{
-    type,panels,rootId,width:maxX-minX,height:maxY-minY,minX,minY,maxX,maxY,curvedBody,paperBag,triangle,ropeGable,ropeHandles,nonCutEdges,extraCreases,
+    type,panels,rootId,width:maxX-minX,height:maxY-minY,minX,minY,maxX,maxY,curvedBody,paperBag,triangle,ropeGable,ropeHandles,slottedHandle,nonCutEdges,extraCreases,
     rootRotationX:rootRotationX??(BOX_TYPES[type].family==='tray'?Math.PI/2:0),rootRotationZ,
     cylinder:isContainer?{diameter:L,height:H,labelHeight:panels[0].h,topHeight:panels[1].h,bottomHeight:panels[2].h,sourceType:BOX_TYPES[type].sourceMesh?type:null}:null,
   };
