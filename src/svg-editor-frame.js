@@ -330,6 +330,21 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     }
     canvas.call('changed',[element]);refreshTree();refreshProperties();
   }
+  function transaction(title,apply){
+    const previous=canvas.getSelectedElements().filter(Boolean),batch=new canvas.history.BatchCommand(title);
+    canvas.leaveContext();
+    let result;
+    const edit=()=>{result=apply(batch);options.validate?.(snapshot());};
+    try{if(options.sourceStyles)options.sourceStyles(edit);else edit();}
+    catch(error){
+      batch.unapply();canvas.setContext(sourceElement());canvas.selectOnly(previous.filter(node=>node.isConnected),true);
+      refreshTree();refreshProperties();throw error;
+    }
+    if(batch.isEmpty())return result;
+    canvas.undoMgr.addCommandToHistory(batch);canvas.setContext(sourceElement());
+    canvas.selectOnly((result?.selection??previous).filter(node=>node.isConnected),true);
+    contentChanged(true);return result;
+  }
   function refreshProperties() {
     const host=$('#properties');
     // Layout/selection notifications can repeat while a field is being typed.
@@ -588,7 +603,8 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   }
   if(!options.message)window.addEventListener('message',event=>{if(event.source===parent&&event.data?.channel==='fold-svg-editor')receive(event.data);});
   send('ready');
-  return {canvas,receive,source:snapshot,run,layout,zoom,endText,select:selectElement,refreshTree,refreshProperties,
+  return {canvas,receive,source:snapshot,run,layout,zoom,endText,select:selectElement,refreshTree,refreshProperties,transaction,
+    sourceStyles(action){return options.sourceStyles?options.sourceStyles(action):action();},
     endRename(){layersPanel.finishRename(true);},get layerDirty(){return layersPanel.dirty;},
     get hasClipboard(){return !!clipboard;},
     get selected(){return selected;},get wrapper(){return sourceElement();},

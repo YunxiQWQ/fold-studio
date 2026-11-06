@@ -4,8 +4,9 @@ import {escapeHtml as esc,icon} from './icons.js';
 import {setTextScale} from './text-transform.js';
 import {svgSupport,svgLimitations} from './svg-support.js';
 import {svgCommandState} from './svg-editor-ui-state.js';
+import {mountDesignTools} from './design-tools-ui.js';
 
-function mountNativeUI({editor,addShape}){
+function mountNativeUI({editor,addShape,notify}){
   const buttonList=(items,attribute)=>items.map(([value,label])=>`<button type="button" data-${attribute}="${value}">${label}</button>`).join('');
   const select=(id,label,items)=>`<select id="${id}" aria-label="${label}"><option value="">${label}</option>${items.map(([value,text])=>`<option value="${value}">${text}</option>`).join('')}</select>`;
   const group=(label,content)=>`<section class="native-menu-group" aria-label="${label}"><span>${label}</span>${content}</section>`;
@@ -48,6 +49,7 @@ function mountNativeUI({editor,addShape}){
       select('arrange','排列与变换',[['flip-x','水平翻转'],['flip-y','垂直翻转'],['align-l','左对齐'],['align-c','水平居中'],['align-r','右对齐'],['align-t','上对齐'],['align-m','垂直居中'],['align-b','下对齐'],['align-dh','水平分布'],['align-dv','垂直分布']])+
       select('node-actions','节点操作',[['node-add','插入节点'],['node-delete','删除节点'],['node-line','转直线'],['node-curve','转曲线'],['node-link','关联控制柄'],['node-unlink','独立控制柄'],['node-close','开合子路径'],['node-subpath','绘制子路径']]))+
     group('SVG', '<button type="button" data-action="source">编辑源码</button><button type="button" id="svg-support-button">支持说明</button>'));
+  const designTools=mountDesignTools({editor,menu:edit,notify});
   const count=document.createElement('span');count.id='editor-selection-count';count.className='toolbar-selection-count';
   trigger.before(count);
   function sync(){
@@ -59,6 +61,7 @@ function mountNativeUI({editor,addShape}){
     edit.querySelector('#node-actions').disabled=mode!=='pathedit';
     for(const button of drawing.querySelectorAll('[data-mode]')){const selected=button.dataset.mode===mode;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));}
     for(const [id,value]of [['tool-select','select'],['tool-pan','pan']])document.getElementById(id).setAttribute('aria-pressed',String(mode===value));
+    designTools.sync();
   }
   editor.updateToolbar=sync;sync();
   edit.addEventListener('beforetoggle',event=>{if(event.newState==='open')sync();});

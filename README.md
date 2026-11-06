@@ -8,6 +8,8 @@
 **开源许可：** MIT，版权署名 Yun-xi、OpenAI Codex 与 DeepSeek Harness。第三方代码和图标的许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 **贡献者：** [Yun-xi 与 OpenAI Codex](CONTRIBUTORS.md)。
 
+**快速排版：** 画布工具栏 **⋯ → 快速排版** 提供同填色／同类型选择、毫米间距阵列复制、居中及等比适配当前包装面。[使用与功能范围](docs/design-tools.md)。
+
 ![折间工作台：左侧调整结构与尺寸，中间编辑平面刀版，右侧实时预览三维折叠](docs/images/fold-studio-workspace.png)
 
 ## 快速开始

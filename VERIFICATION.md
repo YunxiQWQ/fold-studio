@@ -1,5 +1,12 @@
 # 验证记录
 
+## 未发布 · 快速排版工具
+
+- 评估用户提供的 Illustrator 面板中 205 个按钮，仅选择“相同对象选择、阵列复制、面板定位”三类功能独立实现；原脚本、编译载荷、字体和素材未纳入代码。功能筛选与明确边界见 `docs/design-tools.md`。
+- `tests/design-tools-browser.mjs` 的 11 组实际浏览器场景通过 Chromium、Edge、`file://` 离线和构建 HTTP/CSP：等价 RGB／HEX 填色、CMYK 预览下选色、同类型选择跳过隐藏／锁定／资源；旋转与 CSS 父组的多选居中和适配；内面镜像；毫米净间距、缩放／平移后的跨父组阵列；局部裁切、渐变与 use 引用编号；独立条码内容和元数据；保存重开和可编辑 SVG 导出；无效事务回滚、容量拒绝、取消／Escape；零宽直线、主题与手机对话框。
+- 操作复用 SVGCanvas 历史与全工程撤销。批量先验证完整场景，失败回滚 DOM；源文件不增加格式字段，也不将路径和文字栅格化。副本中的引用重新映射，外部于选区的本地 SVG 定义继续共用；条码副本保留生成数据。
+- 149 项单元测试、现行 15 个编辑浏览器脚本逐项、旧工程兼容、生产构建和离线 HTML 生成通过。新专项与当前编辑、图层、视图、导出和旧工程回归的记录保存在 `artifacts/design-tools/report.json`、`design-tools-environments.json`、`design-regression-results.json`、`design-final-regression-results.json` 和 `design-complete-regression-results.json`。模型几何、折叠求解及服务器存储未修改。
+
 ## 未发布 · 界面接续与二维视图稳定性（2026-11-06）
 
 - 用户将 Opus 界面重构交回 Codex，继续 `figma/ui-redesign`；未变更几何实现和工程格式。新增 `svg-editor-ui-state.js` 与 `svg-inspector.js`，所有原始 SVG 属性控件及处理器保留，高级字段收于可展开分区。
