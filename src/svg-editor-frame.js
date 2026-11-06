@@ -31,7 +31,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     options.mode?.(mode);
   };
   let sourceRoot, wrapperId, wrapper, viewport, loading=true, selected=null, clipboard=null;
-  let originalStyle = new Map(),changedTimer,layersPanel;
+  let originalStyle = new Map(),changedTimer,layersPanel,propertyNode;
   let pan={x:0,y:0},panDrag=null,textSession=null,laidOutZoom,copying=false;
   const tagName = element => element.localName;
   const title = element => [...element.children].find(child=>tagName(child)==='title');
@@ -331,10 +331,14 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     canvas.call('changed',[element]);refreshTree();refreshProperties();
   }
   function refreshProperties() {
-    const host=$('#properties');host.replaceChildren();
+    const host=$('#properties');
+    // Layout/selection notifications can repeat while a field is being typed.
+    // Keep that draft and its focused DOM control until selection actually changes.
+    if(propertyNode===selected&&host.contains(document.activeElement))return;
+    propertyNode=selected;host.replaceChildren();
     const heading=document.createElement('h3');heading.textContent=selected?`${label(selected)} · ${tagName(selected)}`:'选择图层或对象';host.appendChild(heading);
     if(!selected){options.properties?.(host,null,canvas);return;}
-    if(selected.closest('[data-locked="true"]')){const note=document.createElement('p');note.textContent='对象已锁定，请在图层树中解锁后编辑。';host.append(note);return;}
+    if(selected.closest('[data-locked="true"]')){const note=document.createElement('p');note.textContent='对象已锁定，请在图层树中解锁后编辑。';host.append(note);options.properties?.(host,selected,canvas);return;}
     const nameLabel=document.createElement('label');nameLabel.textContent='图层 / 对象名称';
     const name=document.createElement('input');name.id='node-name';name.value=label(selected);
     name.onchange=()=>changeAttribute(selected,'data-name',name.value);

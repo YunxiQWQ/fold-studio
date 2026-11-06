@@ -4,6 +4,7 @@ import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
+import {installBrowserModuleMap} from './browser-module-map.mjs';
 import {SELECTED_BOXES} from '../src/selected-structures.js';
 import {SELECTED_CONTAINERS} from '../src/selected-containers.js';
 
@@ -35,6 +36,7 @@ try{
   // A clean module harness checks the exported binary through the actual GLTF loader.
   const harness=await browser.newPage({viewport:{width:1800,height:930}});harness.on('pageerror',e=>errors.push(e.message));
   await harness.route('**/selected-harness',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));await harness.goto(url+'/selected-harness');
+  await installBrowserModuleMap(harness);
   const results=await harness.evaluate(async types=>{
     const [{exportGLB},{BOX_TYPES,makeDieline},{newProject,validateProject},{ImageCache},{GLTFLoader},THREE]=await Promise.all([import('/src/export3d.js'),import('/src/geometry.js'),import('/src/project.js'),import('/src/artwork.js'),import('/node_modules/three/examples/jsm/loaders/GLTFLoader.js'),import('/node_modules/three/build/three.module.js')]);
     const results=[];

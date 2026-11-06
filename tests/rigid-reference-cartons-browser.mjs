@@ -4,6 +4,7 @@ import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
+import {installBrowserModuleMap} from './browser-module-map.mjs';
 
 const projectRoot=fileURLToPath(new URL('..',import.meta.url));
 const types=['candy-twist-carton','triangle-slice-box'];
@@ -38,6 +39,7 @@ try{
   checks.push('33 library entries; two new reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking, custom dimensions, undo and SVG project round trips');
   const harness=await browser.newPage({viewport:{width:1500,height:900}});harness.on('pageerror',e=>errors.push(e.message));
   await harness.route('**/rigid-reference-harness',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));await harness.goto(url+'/rigid-reference-harness');
+  await installBrowserModuleMap(harness);
   const results=await harness.evaluate(async types=>{
     const [{exportGLB},{BOX_TYPES,makeDieline},{newProject,validateProject},{ImageCache},{GLTFLoader},THREE]=await Promise.all([import('/src/export3d.js'),import('/src/geometry.js'),import('/src/project.js'),import('/src/artwork.js'),import('/node_modules/three/examples/jsm/loaders/GLTFLoader.js'),import('/node_modules/three/build/three.module.js')]);
     const expected={

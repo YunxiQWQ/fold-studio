@@ -4,6 +4,7 @@ import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
+import {installBrowserModuleMap} from './browser-module-map.mjs';
 
 const server=await createServer({server:{port:0,host:'127.0.0.1',hmr:false,watch:null}});await server.listen();
 const url=`http://127.0.0.1:${server.httpServer.address().port}`,installed=process.env.FOLD_BROWSER_PATH??resolve(process.env.LOCALAPPDATA??'','ms-playwright/chromium-1228/chrome-win64/chrome.exe');
@@ -34,6 +35,7 @@ try{
  }
  checks.push('33 library entries; both existing reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking; custom dimensions, prism orientation and valid sides; undo/redo and SVG project round trips');
  const harness=await browser.newPage({viewport:{width:1800,height:900}});harness.on('pageerror',e=>errors.push(e.message));await harness.route('**/reference-harness',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));await harness.goto(url+'/reference-harness');
+ await installBrowserModuleMap(harness);
  const results=await harness.evaluate(async()=>{
   const [{exportGLB},{makeDieline},{newProject},{ImageCache},{GLTFLoader},{Preview3D},THREE]=await Promise.all([import('/src/export3d.js'),import('/src/geometry.js'),import('/src/project.js'),import('/src/artwork.js'),import('/node_modules/three/examples/jsm/loaders/GLTFLoader.js'),import('/src/preview3d.js'),import('/node_modules/three/build/three.module.js')]);
   document.body.style='margin:0;background:#f7f5ef;font:16px sans-serif;color:#302d28';document.body.innerHTML='<h1 style="margin:30px 32px 8px">折间 · 本轮新增结构</h1><p style="margin:0 32px;color:#817567">三角柱盒：平放 / 竖立共用一个模型 · 绳提手折顶礼盒：折顶、穿槽与锁底</p><div id="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:27px"></div><div id="host" style="position:fixed;left:-650px;width:550px;height:620px"></div>';

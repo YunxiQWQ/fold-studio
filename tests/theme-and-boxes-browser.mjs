@@ -123,7 +123,9 @@ try {
   await page.keyboard.up('Shift');
   await page.waitForTimeout(100);
   const cycledTheme = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
-  assert.equal(cycledTheme, 'dark', 'Shift+T should cycle from gray to dark');
+  assert.equal(cycledTheme, 'slate', 'Shift+T should cycle from gray to slate, following the theme menu');
+  await page.keyboard.press('Shift+KeyT');
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), 'dark', 'the next shortcut selects dark');
 
   console.log('Passed: Multi-theme selection (Gray/Dark/Slate/Light/Warm), persistence, Shift+T, and screenshots');
 

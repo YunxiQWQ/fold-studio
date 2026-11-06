@@ -5,6 +5,7 @@ import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
 import {PAPER_BAG_PRESETS} from '../src/paper-bag.js';
+import {installBrowserModuleMap} from './browser-module-map.mjs';
 
 const server=await createServer({server:{port:0,host:'127.0.0.1',hmr:false,watch:null}});await server.listen();
 const url=`http://127.0.0.1:${server.httpServer.address().port}`,installed=process.env.FOLD_BROWSER_PATH??resolve(process.env.LOCALAPPDATA??'','ms-playwright/chromium-1228/chrome-win64/chrome.exe');
@@ -34,6 +35,7 @@ try{
  await page.locator('#panel-selector').selectOption('front');await page.locator('#fit-3d').click();await page.waitForTimeout(3200);await page.screenshot({path:'artifacts/paper-bag-workspace.png'});
  checks.push('one library entry; three reference presets; custom dimensions and handle options; undo/redo; both print sides; SVG project round trip; stable geometry/textures while folding');
  const harness=await browser.newPage({viewport:{width:1560,height:800}});harness.on('pageerror',e=>errors.push(e.message));await harness.route('**/bag-harness',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));await harness.goto(url+'/bag-harness');
+ await installBrowserModuleMap(harness);
  const results=await harness.evaluate(async()=>{
   const [{exportGLB},{makeDieline},{newProject},{ImageCache},{GLTFLoader},{PAPER_BAG_PRESETS},{Preview3D},THREE]=await Promise.all([import('/src/export3d.js'),import('/src/geometry.js'),import('/src/project.js'),import('/src/artwork.js'),import('/node_modules/three/examples/jsm/loaders/GLTFLoader.js'),import('/src/paper-bag.js'),import('/src/preview3d.js'),import('/node_modules/three/build/three.module.js')]);
   document.body.style='margin:0;background:#f7f5f0;font:15px sans-serif;color:#302d28';document.body.innerHTML='<h1 style="margin:28px 32px 8px">折间 · 手提纸袋</h1><p style="margin:0 32px;color:#7d776b">一个模型，横 / 方 / 竖三组尺寸；缎带 / 绳提手、提起 / 垂落可切换</p><div id="grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:25px 26px"></div><div id="host" style="position:fixed;left:-600px;width:480px;height:560px"></div>';

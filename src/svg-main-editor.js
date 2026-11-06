@@ -16,6 +16,7 @@ import {appendImageTools} from './svg-image-tools.js';
 import {barcodeStatus} from './barcode.js';
 import {qrStatus} from './qrcode.js';
 import {proofColor} from './color.js';
+import {arrangeSvgInspector} from './svg-inspector.js';
 
 const ns='http://www.w3.org/2000/svg';
 const path=regions=>regionPath(regions).map(p=>p.join(' ')).join(' ');
@@ -73,6 +74,7 @@ export class SvgMainEditor {
         document.querySelector('#tool-select').classList.toggle('active',mode==='select');
         document.querySelector('#tool-pan').classList.toggle('active',mode==='pan');
         document.querySelector('#add-shape').classList.toggle('active',['path','fhpath','rect','ellipse','line','text'].includes(mode));
+        this.updateToolbar?.();
       },
       textEditing:active=>{
         if(active){this.textEditing=true;this.textDirty=false;}
@@ -80,9 +82,9 @@ export class SvgMainEditor {
       },
       message:data=>this.message(data),changed:source=>this.store(source),
       command:command=>callbacks.command?.(command),zoom:scale=>{this.view.scale=scale;callbacks.zoom(scale);},
-      layout:()=>this.structure(),selected:()=>{document.querySelector('#copy-layer').disabled=!this.hasSelection;document.querySelector('#cut-layer').disabled=!this.hasSelection;},
+      layout:()=>this.structure(),selected:()=>{document.querySelector('#copy-layer').disabled=!this.hasSelection;document.querySelector('#cut-layer').disabled=!this.hasSelection;this.updateToolbar?.();},
       treeCount:(objects,selected)=>{document.querySelector('#layer-count').textContent=`${this.side==='inside'?'内面':'外面'} · ${selected?'已选 '+selected+' / ':''}${objects} 项`;},
-      properties:(host,node)=>this.properties(host,node),
+      properties:(host,node)=>{this.properties(host,node);arrangeSvgInspector(host,node,this);},
     });
     document.addEventListener('input',event=>{if(event.target.closest('#properties,#source-dialog,#native-image-crop-dialog'))this.pendingInput=true;});
     document.querySelector('#source-cancel').addEventListener('click',()=>{this.pendingInput=false;});
@@ -186,22 +188,37 @@ export class SvgMainEditor {
   }
   structure(){
     if(!this.api?.wrapper||!this.project||!this.dieline)return;
-    const canvas=this.api.canvas,root=canvas.getSvgRoot(),content=canvas.getSvgContent(),holder=this.api.wrapper,d=this.dieline;
-    root.querySelector('#fold-paper-guide')?.remove();root.querySelector('#fold-line-guide')?.remove();
-    const m=root.getScreenCTM()?.inverse().multiply(holder.getScreenCTM());if(!m)return;
-    const transform=`matrix(${m.a} ${m.b} ${m.c} ${m.d} ${m.e} ${m.f})`+(this.side==='inside'?` translate(${d.minX+d.maxX} 0) scale(-1 1)`:'');
-    const paper=element('g',{id:'fold-paper-guide',transform,'pointer-events':'none'}),lines=element('g',{id:'fold-line-guide',transform,'pointer-events':'none'});
+    const canvas=this.api.canvas,root=canvas.getSvgRoot(),holder=this.api.wrapper,d=this.dieline;
+    // Paper, lines and artwork share the engine's SVG viewport. A second,
+    // screen-derived transform can lag behind native viewport updates and
+    // moves the dieline independently until the next pan/zoom event.
+    const transform=(holder.getAttribute('transform')??'')+(this.side==='inside'?` translate(${d.minX+d.maxX} 0) scale(-1 1)`:'');
+    const paper=root.querySelector('#fold-paper-guide')??element('g',{id:'fold-paper-guide','pointer-events':'none'});
+    const lines=root.querySelector('#fold-line-guide')??element('g',{id:'fold-line-guide','pointer-events':'none'});
+    if(paper.getAttribute('transform')!==transform)paper.setAttribute('transform',transform);
+    if(lines.getAttribute('transform')!==transform)lines.setAttribute('transform',transform);
     const colors=this.side==='inside'?this.project.insidePanelColors:this.project.panelColors,fill=this.side==='inside'?this.project.insidePaper:this.project.paper;
-    for(const p of d.panels)paper.append(element('path',{d:path(printRegions(d,{panel:p.id,clipToPanel:true})),fill:proofColor(p.kind==='glue'?'#deddd0':colors?.[p.id]??fill,this.colorMode)}));
-    lines.append(element('path',{d:cutSegments(d).map(([a,b])=>`M${a.join(' ')}L${b.join(' ')}`).join(' '),fill:'none',stroke:'#c05656','stroke-width':.35,'vector-effect':'non-scaling-stroke'}));
-    if(this.guides)for(const p of creasePaths(d))lines.append(element('path',{d:p.d,fill:'none',stroke:'#688d61','stroke-width':.5,'stroke-dasharray':'3 2','vector-effect':'non-scaling-stroke'}));
-    root.insertBefore(paper,content);root.insertBefore(lines,canvas.selectorManager.selectorParentGroup);
+    const key=JSON.stringify([this.side,this.colorMode,this.guides,colors,fill]);
+    if(this.guideDieline!==d||this.guideKey!==key||!paper.children.length){
+      paper.replaceChildren();lines.replaceChildren();
+      for(const p of d.panels)paper.append(element('path',{d:path(printRegions(d,{panel:p.id,clipToPanel:true})),fill:proofColor(p.kind==='glue'?'#deddd0':colors?.[p.id]??fill,this.colorMode)}));
+      lines.append(element('path',{d:cutSegments(d).map(([a,b])=>`M${a.join(' ')}L${b.join(' ')}`).join(' '),fill:'none',stroke:'#c05656','stroke-width':.35,'vector-effect':'non-scaling-stroke'}));
+      if(this.guides)for(const p of creasePaths(d))lines.append(element('path',{d:p.d,fill:'none',stroke:'#688d61','stroke-width':.5,'stroke-dasharray':'3 2','vector-effect':'non-scaling-stroke'}));
+      this.guideDieline=d;this.guideKey=key;
+    }
+    // SVGCanvas can add its own layer around the source wrapper. Use the
+    // actual parent so both guides also inherit that layer's coordinates.
+    const parent=holder.parentNode;
+    if(paper.parentNode!==parent||paper.nextSibling!==holder)parent.insertBefore(paper,holder);
+    if(lines.parentNode!==parent||lines!==parent.lastChild)parent.append(lines);
     this.refreshProof(holder);
     const screen=holder.getScreenCTM(),r=this.host.getBoundingClientRect();if(screen){this.view={scale:screen.a,x:screen.e-r.left,y:screen.f-r.top};}
   }
   properties(host,node){
     if(!this.project)return;
-    document.querySelector('#selected-type').textContent=node?`${node.getAttribute('data-name')||node.id} · ${node.localName}`:'包装面板';
+    const kinds={g:'组合',svg:'SVG 画布',text:'文字',tspan:'文字分段',textPath:'路径文字',path:'路径',rect:'矩形',circle:'圆形',ellipse:'椭圆',image:'图片',use:'引用'};
+    document.querySelector('#selected-type').textContent=node?(kinds[node.localName]??'SVG 对象'):'包装面板';
+    if(node?.closest('[data-locked="true"]'))return;
     if(node)appendImageTools(host,node,this);
     const generator=node&&(this.project.svgGenerators?.[node.id]??this.project.layers.find(l=>l.id===node.id&&['barcode','qrcode'].includes(l.type)));
     if(node?.localName==='text'&&node.querySelector('tspan')&&!node.querySelector('textPath')){

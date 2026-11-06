@@ -95,6 +95,8 @@ export function initWorkspaceResizers() {
     if (savedLayerH && layerSection) {
       layerSection.style.height = `${savedLayerH}px`;
       layerSection.style.flex = 'none';
+      workspace.style.setProperty('--document-settings-max', 'none');
+      workspace.style.setProperty('--document-settings-flex', '1 1 auto');
     }
   } catch {}
 
@@ -148,6 +150,8 @@ export function initWorkspaceResizers() {
       const newH = Math.max(140, Math.min(maxH, startH - deltaY));
       layerSection.style.height = `${newH}px`;
       layerSection.style.flex = 'none';
+      workspace.style.setProperty('--document-settings-max', 'none');
+      workspace.style.setProperty('--document-settings-flex', '1 1 auto');
       return newH;
     }, finalH => {
       try { localStorage.setItem('fold-layout-layer-h', finalH); } catch {}

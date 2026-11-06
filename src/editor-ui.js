@@ -3,6 +3,7 @@ import {sideOf,clone} from './project.js';
 import {escapeHtml as esc,icon} from './icons.js';
 import {setTextScale} from './text-transform.js';
 import {svgSupport,svgLimitations} from './svg-support.js';
+import {svgCommandState} from './svg-editor-ui-state.js';
 
 function mountNativeUI({editor,addShape}){
   const buttonList=(items,attribute)=>items.map(([value,label])=>`<button type="button" data-${attribute}="${value}">${label}</button>`).join('');
@@ -25,7 +26,7 @@ function mountNativeUI({editor,addShape}){
       panel.style.bottom=openAbove?`${innerHeight-box.top+4}px`:'auto';
       panel.style.maxHeight=`${Math.max(80,openAbove?above:below)}px`;
     });
-    panel.addEventListener('click',event=>{if(event.target.closest('button'))panel.hidePopover();});
+    panel.addEventListener('click',event=>{if(event.target.closest('button')){panel.hidePopover();trigger.focus({preventScroll:true});}});
     panel.addEventListener('change',event=>{
       const field=event.target.closest('select');if(!field?.value)return;
       editor.run(field.value);field.value='';panel.hidePopover();trigger.focus();
@@ -42,12 +43,26 @@ function mountNativeUI({editor,addShape}){
   trigger.title='图层、路径与 SVG 编辑';trigger.setAttribute('aria-label',trigger.title);trigger.innerHTML=icon('more');
   document.querySelector('#edit-menu-anchor').replaceWith(trigger);
   const edit=menu(trigger,'canvas-edit-menu',
-    group('图层',buttonList([['group','组合'],['ungroup','解组'],['front','置顶'],['back','置底'],['duplicate','创建副本'],['delete','删除'],['new-layer','新建图层'],['up-context','返回上一级']],'action'))+
+    group('图层',buttonList([['group','组合'],['ungroup','解组'],['up','上移一层'],['down','下移一层'],['front','置顶'],['back','置底'],['duplicate','创建副本'],['delete','删除'],['lock','锁定 / 解锁'],['new-layer','新建图层'],['up-context','返回上一级']],'action'))+
     group('路径与变换',buttonList([['nodes','编辑节点'],['convert','转为路径']],'action')+
       select('arrange','排列与变换',[['flip-x','水平翻转'],['flip-y','垂直翻转'],['align-l','左对齐'],['align-c','水平居中'],['align-r','右对齐'],['align-t','上对齐'],['align-m','垂直居中'],['align-b','下对齐'],['align-dh','水平分布'],['align-dv','垂直分布']])+
       select('node-actions','节点操作',[['node-add','插入节点'],['node-delete','删除节点'],['node-line','转直线'],['node-curve','转曲线'],['node-link','关联控制柄'],['node-unlink','独立控制柄'],['node-close','开合子路径'],['node-subpath','绘制子路径']]))+
     group('SVG', '<button type="button" data-action="source">编辑源码</button><button type="button" id="svg-support-button">支持说明</button>'));
-  edit.addEventListener('beforetoggle',event=>{if(event.newState==='open')edit.querySelector('#node-actions').disabled=editor.api.canvas.getMode()!=='pathedit';});
+  const count=document.createElement('span');count.id='editor-selection-count';count.className='toolbar-selection-count';
+  trigger.before(count);
+  function sync(){
+    const state=svgCommandState(editor.api.canvas,editor.api.selected,editor.api.wrapper),mode=editor.api.canvas.getMode();
+    count.textContent=state.nodes.length?`${state.nodes.length} 项`:'';count.title=state.nodes.length?`已选中 ${state.nodes.length} 个对象`:'';
+    for(const button of edit.querySelectorAll('[data-action]'))button.disabled=!state.can(button.dataset.action);
+    for(const option of edit.querySelectorAll('#arrange option[value]'))if(option.value)option.disabled=!state.can(option.value);
+    edit.querySelector('#arrange').disabled=![...edit.querySelectorAll('#arrange option')].some(option=>option.value&&!option.disabled);
+    edit.querySelector('#node-actions').disabled=mode!=='pathedit';
+    for(const button of drawing.querySelectorAll('[data-mode]')){const selected=button.dataset.mode===mode;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));}
+    for(const [id,value]of [['tool-select','select'],['tool-pan','pan']])document.getElementById(id).setAttribute('aria-pressed',String(mode===value));
+  }
+  editor.updateToolbar=sync;sync();
+  edit.addEventListener('beforetoggle',event=>{if(event.newState==='open')sync();});
+  drawing.addEventListener('beforetoggle',event=>{if(event.newState==='open')sync();});
   const support=edit.querySelector('#svg-support-button');
   const dialog=document.createElement('dialog');dialog.id='svg-support-dialog';dialog.className='crop-dialog';
   const heading=document.createElement('h2');heading.textContent='SVG 支持说明';dialog.append(heading);

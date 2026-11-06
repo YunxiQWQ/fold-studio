@@ -83,6 +83,7 @@ $('#app').innerHTML=`
 <main class="workspace" id="workspace-main">
   <aside class="left-sidebar" id="left-sidebar" aria-label="结构与图层">
     <div class="drawer-head"><strong>结构与图层</strong><button id="close-left-panel" class="icon-button" aria-label="关闭结构与图层">${icon('close')}</button></div>
+    <div class="document-settings" id="document-settings" aria-label="包装结构与纸张设置">
     <section class="sidebar-section template-section collapsible-section" data-section="template">
       <div class="section-heading" title="点击折叠 / 展开"><h2>包装结构</h2><span class="section-summary">${Object.keys(BOX_TYPES).length} 款</span><span class="collapse-icon">${icon('down')}</span></div>
       <div class="collapsible-content">
@@ -112,6 +113,7 @@ $('#app').innerHTML=`
         <div class="paper-color-control"><input id="paper-color" type="color" aria-label="自定义纸张颜色"/></div>
       </div>
     </section>
+    </div>
     <div id="layer-resizer" class="panel-v-resizer" title="上下拖动调整图层面板高度" aria-label="上下拖动调整图层面板高度"></div>
     <section id="layer-section" class="layer-section">
       <div class="section-heading"><h2>${icon('layers')}图层</h2><span id="layer-count"></span></div>

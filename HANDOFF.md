@@ -1,5 +1,18 @@
 # 折间 Fold Studio · 界面重构交接说明
 
+## Codex 接续状态（2026-11-06）
+
+- 用户已将后续界面工作交回 Codex。当前在本机独立 worktree 的 `figma/ui-redesign` 接续，没有合并 `main`。
+- Make 导出的 ZIP 没有包含被忽略的 `artifacts/` 和 Git bundle。三个检查点已于此前恢复并推送，远端基点为 `aec3c17617ac4b7d837d5c5ca270f0f82cbac66b`。原提交对应恢复提交：`c4f7b33 → b728c56`、`86f8b5a → 6a6ee92`、`3303583 → aec3c17`。Make 本地的合并提交 `6ed46fa` 未包含在该源码导出中，本机没有冒充恢复此提交。
+- 本次继续工具栏、图层和属性区：菜单状态、多选操作、完整高级属性、输入草稿保护、独立滚动与图层键盘操作；同时针对用户反馈的滚轮缩放／平移抖动，统一刀版和图文视图坐标，复用底图，取消原生滚动干扰。
+- 现行验证入口：`npm test`、`npm run test:browser`、`npm run test:models`、`npm run test:compatibility`；专项为 `npm run test:viewport` 和 `npm run test:workspace`。具体实测结果写在 `VERIFICATION.md` 本次记录中。
+- 五份旧 Fabric UI 测试 `browser.mjs`、`color-ui-browser.mjs`、`transform-controls-browser.mjs`、`surfaces-browser.mjs`、`packaging-features-browser.mjs` 仍引用旧图层／属性选择器，不属于现行 `test:browser`。相关产品操作通过现行原生 SVG、图层、手势、编码、双面与导出脚本验证，不将旧脚本的超时当成功。
+- 本次代码的提交和推送状态以 Git 为准，原 Make 环境的失效凭证不用于本机。本机预览地址及测试产物为临时状态，见本轮交付说明。
+
+## 原 Make 交接记录（历史快照）
+
+以下保留导出时的原说明，其中“尚未推送”、环境测试状态和 bundle 可用性不代表当前状态。
+
 分支：`figma/ui-redesign`（请保留，不要删除或改写历史）
 远端：`https://github.com/YunxiQWQ/fold-studio.git`
 

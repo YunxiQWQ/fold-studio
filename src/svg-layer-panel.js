@@ -14,7 +14,7 @@ export function svgLayerName(node){
 }
 
 export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,count,active}){
-  host.innerHTML='<div class="tree-search"><input type="search" id="layer-search" aria-label="搜索图层" placeholder="搜索名称、文字或 ID"><button type="button" id="collapse-layers" title="折叠所有组" aria-label="折叠所有组">⌃</button></div><div class="tree-scroll" role="tree" aria-label="图层与对象" aria-multiselectable="true"></div><nav class="tree-actions" aria-label="图层操作"></nav><div class="tree-status" aria-live="polite"></div>';
+  host.innerHTML=`<div class="tree-search"><input type="search" id="layer-search" aria-label="搜索图层" placeholder="搜索名称、文字或 ID"><button type="button" id="clear-layer-search" title="清空搜索" aria-label="清空图层搜索" hidden>${icon('close')}</button><button type="button" id="expand-layers" title="展开所有组" aria-label="展开所有组">${icon('down')}</button><button type="button" id="collapse-layers" title="折叠所有组" aria-label="折叠所有组">${icon('up')}</button></div><div class="tree-scroll" role="tree" aria-label="图层与对象" aria-multiselectable="true"></div><nav class="tree-actions" aria-label="图层操作"></nav><div class="tree-status" aria-live="polite"></div>`;
   const tree=host.querySelector('.tree-scroll'),search=host.querySelector('input'),status=host.querySelector('.tree-status'),expanded=new Map();
   let anchor=null,dragging=null,dropTarget=null,revealing=false,renaming=null;
   const selection=()=>canvas.getSelectedElements().filter(Boolean);
@@ -32,7 +32,30 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
     button.onclick=()=>run(command);host.querySelector('.tree-actions').append(button);
   }
   host.querySelector('#collapse-layers').onclick=()=>{for(const node of root().querySelectorAll('[id]'))expanded.set(node.id,false);render();};
+  host.querySelector('#expand-layers').onclick=()=>{for(const node of root().querySelectorAll('[id]'))expanded.set(node.id,true);render();};
+  host.querySelector('#clear-layer-search').onclick=()=>{search.value='';render();search.focus();};
   search.oninput=()=>render();
+  tree.addEventListener('keydown',event=>{
+    if(event.target.closest('input,textarea')||event.altKey||event.ctrlKey||event.metaKey)return;
+    const button=event.target.closest('.tree-label');if(!button)return;
+    const visible=[...tree.querySelectorAll('.tree-label')].filter(label=>label.getClientRects().length),index=visible.indexOf(button);
+    const box=button.closest('[data-tree-node]');let next;
+    if(event.key==='ArrowDown')next=visible[Math.min(index+1,visible.length-1)];
+    else if(event.key==='ArrowUp')next=visible[Math.max(0,index-1)];
+    else if(event.key==='Home')next=visible[0];
+    else if(event.key==='End')next=visible.at(-1);
+    else if(event.key==='ArrowRight'){
+      if(box.tagName==='DETAILS'&&!box.open)box.querySelector(':scope > summary .tree-toggle').click();
+      else next=box.querySelector('.tree-children .tree-label');
+    }else if(event.key==='ArrowLeft'){
+      if(box.tagName==='DETAILS'&&box.open)box.querySelector(':scope > summary .tree-toggle').click();
+      else next=box.parentElement.closest('[data-tree-node]')?.querySelector(':scope > .tree-row .tree-label');
+    }else if(event.key==='ContextMenu'||event.key==='F10'&&event.shiftKey){
+      const bounds=button.getBoundingClientRect();button.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:bounds.left,clientY:bounds.bottom}));
+    }else return;
+    event.preventDefault();event.stopPropagation();
+    if(next){next.focus({preventScroll:true});next.dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:event.shiftKey}));}
+  });
 
   const menu=document.createElement('div');menu.id='layer-context-menu';menu.className='native-edit-menu';menu.popover='auto';document.body.append(menu);
   for(const [command,label]of [['rename','重命名'],['duplicate','创建副本'],['group','组合'],['ungroup','解组'],['up','上移一层'],['down','下移一层'],['front','置于顶层'],['back','置于底层'],['visibility','显示 / 隐藏'],['lock','锁定 / 解锁'],['delete','删除']]){
@@ -93,6 +116,8 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
     if(dragging||!root())return;
     if(renaming?.node.isConnected&&renaming.input.isConnected)return;
     renaming=null;
+    const focused=document.activeElement,focusInside=tree.contains(focused),focusId=focusInside?focused.closest('[data-tree-node]')?.dataset.treeNode:null;
+    const focusControl=focused?.matches('.tree-eye')?'.tree-eye':focused?.matches('.tree-lock')?'.tree-lock':'.tree-label';
     const scroll=tree.scrollTop,selected=new Set(selection()),query=search.value.trim().toLocaleLowerCase();
     const matching=new Set();
     if(query)for(const node of root().querySelectorAll('*')){
@@ -176,6 +201,11 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
     }
     if(query&&!matching.size){const empty=document.createElement('p');empty.className='tree-empty';empty.textContent='没有匹配的图层';fragment.append(empty);}
     tree.replaceChildren(fragment);if(!revealing)tree.scrollTop=scroll;
+    host.querySelector('#clear-layer-search').hidden=!query;
+    const focusNode=(focusId&&tree.querySelector(`[data-tree-node="${CSS.escape(focusId)}"] > .tree-row ${focusControl}`))??tree.querySelector('.tree-label.selected')??tree.querySelector('.tree-label');
+    const focusLabel=focusNode?.closest('[data-tree-node]')?.querySelector(':scope > .tree-row .tree-label');
+    for(const button of tree.querySelectorAll('.tree-label'))button.tabIndex=button===focusLabel?0:-1;
+    if(focusInside&&focusNode)focusNode.focus({preventScroll:true});
     for(const button of host.querySelectorAll('.tree-actions button')){
       button.disabled=!canRun(button.dataset.layerCommand);
     }

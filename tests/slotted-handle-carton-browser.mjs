@@ -4,6 +4,7 @@ import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
+import {installBrowserModuleMap} from './browser-module-map.mjs';
 const server=await createServer({server:{host:'127.0.0.1',port:0,hmr:false,watch:null}});await server.listen();
 const executable=process.env.FOLD_BROWSER_PATH??resolve(process.env.LOCALAPPDATA??'','ms-playwright/chromium-1228/chrome-win64/chrome.exe');
 const browser=await chromium.launch({...(existsSync(executable)?{executablePath:executable}:{}),args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
@@ -43,6 +44,7 @@ try{
   }
   await page.locator('#side-outside').click();await ready();checks.push('actual flat PNG downloads on both surfaces preserve transparency in both handles and both wing slots');
   await page.locator('#fit-3d').click();await page.waitForTimeout(500);await page.screenshot({path:resolve(directory,'workspace.png')});
+  await installBrowserModuleMap(page);
   const glbs=await page.evaluate(async()=>{
     const [{exportGLB},{ImageCache},{GLTFLoader},THREE,{foldMatrices}]=await Promise.all([import('/src/export3d.js'),import('/src/artwork.js'),import('/node_modules/three/examples/jsm/loaders/GLTFLoader.js'),import('/node_modules/three/build/three.module.js'),import('/src/folding.js')]);
     const project=window.__foldStudio.project,d=window.__foldStudio.geometry,root=d.panels.find(p=>p.id===d.rootId),cx=root.x+root.w/2,cy=root.y+root.h/2,results=[];

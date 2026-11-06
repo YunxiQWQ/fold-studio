@@ -1,5 +1,15 @@
 # 验证记录
 
+## 未发布 · 界面接续与二维视图稳定性（2026-11-06）
+
+- 用户将 Opus 界面重构交回 Codex，继续 `figma/ui-redesign`；未变更几何实现和工程格式。新增 `svg-editor-ui-state.js` 与 `svg-inspector.js`，所有原始 SVG 属性控件及处理器保留，高级字段收于可展开分区。
+- `svg-viewport-browser.mjs` 使用实际滚轮和鼠标输入，覆盖普通盒与插锁提手盒、内外面、100%／125% 像素比例、高倍率缩放、连续反向平移、松手后 15 帧稳定性、选择后的底图透明度与工程不变性。每种配置 48 次缩放／平移，按 0.5 屏幕像素约束底图／线条／图文一致性、鼠标跟手与滚轮锚点；保存源码不含编辑辅助图形。
+- `workspace-editing-browser.mjs` 实际操作菜单、SVG 属性、多选组合／撤销、改名、图层方向键与 F2、搜索／清空、组展开／折叠、长参数区滚动和分隔条记忆；覆盖浅色、slate、平板抽屉与手机编辑。响应式测试等待抽屉解除 `inert` 后输入，避免在布局切换前人为向不可交互面板填值。
+- 本机原始恢复代码的六项失败报告中，`svg-common` 和 `export-flat` 实际通过；其余四份脚本及额外 `browser.mjs` 使用旧 Fabric 选择器。现行回归以 `package.json` 的原生 SVG 测试入口为准，旧脚本未伪报通过。
+- 模型回归修正主题顺序断言（gray 后为 slate，再为 dark），并为直接由 Playwright 返回的模块测试页声明 Three.js import map，解决 junction 工作树下原始 GLTFLoader 的裸模块导入；不修改模型实现或导出结果。
+- 149 项单元、生产构建与离线 HTML 生成通过。现行 14 个编辑／视图／布局／导出浏览器脚本、旧工程兼容、8 个模型脚本及 GLB 回载通过，包含 1,432 次三维面板检查和 33 款内面点击；SVG 与共享纹理渲染的平均通道差为外面 0.0675、内面 0.0637（0–255）。
+- 两项新增工作区／视图检查均通过构建版 Chromium、Edge 和 `file://` 离线运行，另通过原生 SVG 离线零 HTTP 请求及正式构建 HTTP/CSP 检查。证据为 `artifacts/ui-editing-regression-results.json`、`ui-built-final-results.json`、`ui-edge-results.json`、`ui-offline-results.json`、`ui-model-final-results.json` 与 `ui-delivery-results.json`。这些检查限定于本机环境，不代表已在 Make 的旧预览中更新代码。
+
 ## 未发布 · 插锁提手盒（2026-11-06）
 
 - 根据用户提供的低分辨率刀版及成品图，独立参数化新增 `slotted-handle-carton`，精品礼盒类共用结构库入口，整体库增至 33 款。默认采用用户确认的文字尺寸：长 250、侧宽 200、盒身高 120 mm；身高不含提手/侧翼，默认展开 918×438 mm。
