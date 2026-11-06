@@ -10,7 +10,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.js",
     "test:svg": "node --test tests/export-svg.test.js && node tests/export-svg-browser.mjs",
-    "test:browser": "node tests/svg-main-browser.mjs && node tests/svg-editor-workflow-browser.mjs && node tests/svg-workspace-browser.mjs && node tests/svg-common-browser.mjs && node tests/export-svg-browser.mjs && node tests/export-flat-browser.mjs && node tests/close-protection-browser.mjs",
+    "test:browser": "node tests/svg-main-browser.mjs && node tests/svg-gestures-browser.mjs && node tests/svg-layers-browser.mjs && node tests/svg-layers-edgecases-browser.mjs && node tests/svg-editor-workflow-browser.mjs && node tests/svg-workspace-browser.mjs && node tests/svg-common-browser.mjs && node tests/export-svg-browser.mjs && node tests/export-flat-browser.mjs && node tests/close-protection-browser.mjs",
+    "test:layers": "node tests/svg-layers-browser.mjs && node tests/svg-layers-edgecases-browser.mjs",
     "test:models": "node tests/model-selection-browser.mjs && node tests/theme-and-boxes-browser.mjs && node tests/curved-carton-browser.mjs && node tests/paper-bag-browser.mjs && node tests/reference-cartons-browser.mjs && node tests/rigid-reference-cartons-browser.mjs && node tests/selected-models-browser.mjs",
     "test:delivery": "npm run build && npm test && npm run test:browser && npm run test:compatibility && npm run test:models && node tests/export-glb-browser.mjs && npm run test:import-svg:offline && node tests/import-svg-standalone.mjs --http",
     "test:compatibility": "node tests/legacy-project-browser.mjs",
@@ -21,7 +22,7 @@
     "test:import-svg": "node --test tests/svg-asset.test.js tests/svg-scene.test.js && node tests/svg-main-browser.mjs",
     "test:import-svg:offline": "node tests/import-svg-standalone.mjs",
     "test:svg-common": "node --test tests/svg-common.test.js && node tests/svg-common-browser.mjs",
-    "test:transforms": "node --test tests/text-transform.test.js && node tests/svg-main-browser.mjs",
+    "test:transforms": "node --test tests/text-transform.test.js && node tests/svg-main-browser.mjs && node tests/svg-gestures-browser.mjs",
     "test:close-protection": "node --test tests/close-protection.test.js && node tests/close-protection-browser.mjs"
   },
   "dependencies": {

@@ -3,8 +3,19 @@ import assert from 'node:assert/strict';
 import {newProject,validateProject} from '../src/project.js';
 import {makeDieline} from '../src/geometry.js';
 import {svgSceneLayers} from '../src/svg-scene.js';
-import {copySvgNodes} from '../src/svg-asset.js';
+import {copySvgNodes,svgAssetMarkup,validateSvgAsset} from '../src/svg-asset.js';
 const asset=()=>({viewBox:[-12,-8,420,300],nodes:[{tag:'path',attrs:{id:'editable',d:'M 1 2 L 30 40',stroke:'#123456',fill:'none'},children:[]}]});
+
+test('layer names keep Unicode and punctuation as escaped metadata',()=>{
+  const document=asset(),name='图层 <>& "中文" 😀';
+  document.nodes[0].attrs['data-name']=name;
+  validateSvgAsset(document);
+  const project=newProject();project.svgArtwork={outside:document};
+  assert.equal(validateProject(project).svgArtwork.outside.nodes[0].attrs['data-name'],name);
+  assert.ok(svgAssetMarkup(document).includes('图层 &lt;&gt;&amp; &quot;中文&quot; 😀'));
+  assert.throws(()=>validateSvgAsset({...document,nodes:[{...document.nodes[0],attrs:{...document.nodes[0].attrs,'data-name':'bad\u0000name'}}]}));
+  assert.throws(()=>validateSvgAsset({...document,nodes:[{...document.nodes[0],attrs:{...document.nodes[0].attrs,onload:'alert(1)'}}]}));
+});
 
 test('legacy group metadata survives project validation and copies use independent groups',()=>{
   const document=asset();

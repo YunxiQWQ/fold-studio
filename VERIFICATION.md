@@ -1,5 +1,26 @@
 # 验证记录
 
+## 未发布 · 画布移动与控制柄缩放（2026-11-06）
+
+- 重新实测复现导入图文拖动 40×25 屏幕像素却只移动约 25.14×15.71 像素、父组旋转时方向偏转，以及带矩阵图形和组合缩放后跳位。旧检查仅确认对象发生变化，未充分约束拖动距离。
+- 新增 `tests/svg-gestures-browser.mjs`，通过真实鼠标输入比对屏幕位移、缩放固定点与手柄位置。覆盖普通对象、父组平移/非等比缩放/旋转、对象矩阵、嵌套 SVG 与视口自身、文字、CSS 变换、镜像、图片、symbol/use、八个控制柄、不同倍率和平移、内外面、跨父组多选、Shift 比例、Esc 取消、画布外松手、工程下载重开和缩放后路径节点编辑。
+- 31 个专项场景通过 Chromium；Edge 的 30 个常规场景和单独增加的路径节点场景全部通过。正式构建 HTTP/CSP 与 `file://` 离线单文件各自完整通过 31 个场景。拖动位移容差为 0.25 像素，文字/缩放顶点容差为 1 像素，控制柄容差为 2 像素。
+- `npm test` 142 项、`npm run test:browser` 的全部 10 个脚本及旧工程兼容检查通过，涵盖图层操作、节点、三维联动、SVG/PNG 导出和关闭保护。构建和离线文件已更新，本机预览端口为 4186。原 SVG 可编辑几何、层级与定义保留，变换写入工程历史；不增加新的工程格式版本。
+- 证据：`artifacts/svg-gestures-built/report.json`、`artifacts/svg-gestures-offline/report.json`、`artifacts/svg-gestures-edge/report.json`、`artifacts/svg-gestures-edge-path/report.json`，以及 `artifacts/gesture-unit.log`、`artifacts/gesture-browser-verified.log`、`artifacts/gesture-compatibility.log`、`artifacts/gesture-build-final.log`。此次仍为本地修复。
+
+## 未发布 · 图层扩展回归（2026-11-06）
+
+- 新增 18 个实际浏览器场景，覆盖搜索后的连选、继承显隐与锁定、右键命令状态、多对象拖动和历史、无效变换保护、嵌套视口与渐变、重命名草稿关闭提醒、后台刷新、保存快捷键、画布选择定位、循环拖动拒绝、锁定目标旁排序、零缩放对象、Unicode 与特殊字符名称、文字分段、1,500 个对象搜索，以及合并容量上限。
+- 实测发现并修复筛选误选、继承状态按钮无效、锁定对象菜单无效、重命名草稿缺少关闭保护、文字分段拖动提示失实、特殊名称无法保存、超限 SVG 留在画布却未写入工程，以及改名框拦截保存快捷键的问题。继承隐藏和继承锁定分别校验，共九项修复。
+- `npm test` 142 项通过，18 个扩展场景在 Chromium 与 Edge 各自全部通过。完整浏览器、32 款结构模型、GLB、旧工程、离线与 HTTP/CSP 检查通过。证据位于 `artifacts/svg-layers-edgecases/`、`artifacts/svg-layers-edgecases-edge/`。最终日志为 `artifacts/layers-expanded-browser-final.log`、`artifacts/layers-expanded-edge-final.log`、`artifacts/layers-expanded-offline-final.log`、`artifacts/layers-expanded-models.log` 和 `artifacts/layers-expanded-exports.log`。
+
+## 未发布 · 图层面板（2026-11-05）
+
+- 新增 `npm run test:layers`。Chromium 和 Edge 实际验证前后层序、全部多选高亮、Shift 连选、Ctrl 切换、行内重命名、筛选、拖动排序、跨变换组移动、组锁定与显隐、组合解组，以及工程保存恢复和撤销重做。
+- 跨组移动时关闭预览软打样取原色，保留几何位置、尺寸和继承颜色。移动后重新验证 SVG，非法或不可逆的变换会恢复操作前的文档。
+- 导入本机已有的多路径 SVG，563 条路径和 147 个椭圆均保留，搜索和折叠操作通过。原文件仅用于本地验证。自动编号改为可读标签，SVG 定义集中在资源区，源文档的名称、ID 和层级保留。
+- 证据位于 `artifacts/svg-layers/`，原有回归、兼容和离线结果位于 `artifacts/layers-regression.log`、`artifacts/layers-edge.log`、`artifacts/layers-offline.log`。本轮是本地修复。
+
 ## v0.15.0 · 旧工程兼容（2026-11-05）
 
 - `npm run test:compatibility` 实测第 1 版单面工程、第 2 版双面工程，以及保留的旧版图片、文字拉伸和 SVG 工程。分别打开、转换为 SVG 场景、下载及重开。尺寸、内外面底色、面板色、图片原始字节均保留。

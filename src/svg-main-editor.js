@@ -61,9 +61,13 @@ export class SvgMainEditor {
     this.api=initializeSvgFrame(SvgCanvas,{
       textSize:6,
       openWorkspace:true,
-      imageShiftScaling:true,
       systemClipboard:true,copied:()=>this.copyToSystem(),
       panActive:()=>this.space||this.tool==='pan',
+      validate:source=>svgSceneAsset(source),
+      sourceStyles:action=>{
+        const disabled=this.proofStyle.disabled;this.proofStyle.disabled=true;
+        try{return action();}finally{this.proofStyle.disabled=disabled;}
+      },
       mode:mode=>{
         this.canvas.style.cursor=mode==='pan'?'grab':'';
         document.querySelector('#tool-select').classList.toggle('active',mode==='select');
@@ -77,6 +81,7 @@ export class SvgMainEditor {
       message:data=>this.message(data),changed:source=>this.store(source),
       command:command=>callbacks.command?.(command),zoom:scale=>{this.view.scale=scale;callbacks.zoom(scale);},
       layout:()=>this.structure(),selected:()=>{document.querySelector('#copy-layer').disabled=!this.hasSelection;document.querySelector('#cut-layer').disabled=!this.hasSelection;},
+      treeCount:(objects,selected)=>{document.querySelector('#layer-count').textContent=`${this.side==='inside'?'内面':'外面'} · ${selected?'已选 '+selected+' / ':''}${objects} 项`;},
       properties:(host,node)=>this.properties(host,node),
     });
     document.addEventListener('input',event=>{if(event.target.closest('#properties,#source-dialog,#native-image-crop-dialog'))this.pendingInput=true;});
@@ -86,7 +91,7 @@ export class SvgMainEditor {
     host.addEventListener('wheel',event=>{event.preventDefault();const box=host.getBoundingClientRect();this.api.zoom(Math.exp(-event.deltaY*.001),event.clientX-box.left,event.clientY-box.top);},{passive:false});
     host.addEventListener('mousedown',event=>{if(!this.api.selected&&this.dieline){const m=this.api.wrapper?.getScreenCTM();if(m){const p=new DOMPoint(event.clientX,event.clientY).matrixTransform(m.inverse());const x=this.side==='inside'?this.dieline.minX+this.dieline.maxX-p.x:p.x;const panel=panelAt(this.dieline,x,p.y);if(panel)callbacks.select(null,panel.id,[]);}}});
   }
-  get hasSelection(){return !!this.api?.selected;}
+  get hasSelection(){return this.api?.canvas.getSelectedElements().some(Boolean)??false;}
   get isEditing(){return ['textedit','pathedit'].includes(this.api?.canvas.getMode());}
   get tool(){return this.api?.canvas.getMode()==='pan'?'pan':'select';}
   set tool(value){this.api?.canvas.setMode(value==='pan'?'pan':'select');}
@@ -246,6 +251,9 @@ export class SvgMainEditor {
     const container=xmlRoot(this.dieline.width,this.dieline.height);
     const placement=element('g',{'data-name':name});placement.innerHTML=safe;
     placement.firstElementChild.removeAttribute('data-name');container.append(placement);
+    const combined=new DOMParser().parseFromString(this.api.source(),'image/svg+xml');
+    combined.documentElement.append(combined.importNode(placement,true));
+    svgSceneAsset(serialize(combined.documentElement));
     this.api.append(serialize(container));this.up();
   }
   copyToSystem(){
@@ -257,7 +265,7 @@ export class SvgMainEditor {
     }catch{/* The core's internal clipboard remains available for linked objects. */}
   }
   run(action){this.api.run(action);}
-  renderLayers(){this.api?.refreshTree();document.querySelector('#layer-count').textContent=`${this.side==='inside'?'内面':'外面'} · SVG 对象`;}
+  renderLayers(){this.api?.refreshTree();}
   renderInspector(){this.api?.refreshProperties();}
   setTheme(value){this.host.dataset.theme=value;}
   refreshProof(holder){
@@ -276,8 +284,8 @@ export class SvgMainEditor {
   fit(){this.api?.layout(true);}
   zoom(factor){this.api.zoom(factor);}
   invalidate(){this.structure();}
-  up(){if(!this.guard){this.api?.endText();this.api?.flush();}}
+  up(){if(!this.guard){this.api?.endRename();this.api?.endText();this.api?.flush();}}
   flushInput(){if(document.activeElement?.closest('#properties'))document.activeElement.blur();this.up();}
-  get dirty(){return !!this.pendingInput;}
+  get dirty(){return !!this.pendingInput||!!this.api?.layerDirty;}
 }
 function hostReady(host,value){host.dataset.svgReady=String(value);host.inert=!value;}

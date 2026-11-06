@@ -45,6 +45,11 @@ const filterFunction = /^(?:(?:blur|brightness|contrast|grayscale|hue-rotate|inv
 
 export function normalizeSvgValue(tag, key, value) {
   if (key === 'href' || key === 'xlink:href') return validSvgHref(tag, value) ? value : null;
+  // Names are plain metadata, escaped by the SVG serializer and rendered as text.
+  if(key==='data-name'){
+    if(typeof value!=='string'||value.length>8e6||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value))return null;
+    return value.trim();
+  }
   if (typeof value !== 'string' || value.length > 8e6 ||
       /[\\<>{};\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value)) return null;
   value = value.trim();
