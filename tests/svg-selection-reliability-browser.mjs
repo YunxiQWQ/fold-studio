@@ -44,6 +44,7 @@ async function check(name,action){
 }
 try{
   await page.goto(url);await page.locator('#editor-host[data-svg-ready="true"]').waitFor();
+  await page.evaluate(()=>window.__foldStudio.nativeEditor.setSnapping(false)); // Selection checks use exact, free-drag distances.
   for(const options of [{},{side:'inside'},{type:'lidbox'},{side:'inside',nested:true}])await check('marquee-'+(options.type??'carton')+'-'+(options.side??'outside')+(options.nested?'-nested':''),async()=>{
     await fixture(options);const before=await page.evaluate(()=>({source:window.__foldStudio.nativeEditor.source(),history:window.svgCanvas.undoMgr.getUndoStackSize()}));
     const bounds=await node('one').boundingBox(),drag=await marquee(bounds);

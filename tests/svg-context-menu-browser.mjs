@@ -30,7 +30,7 @@ const command=key=>page.locator(`#canvas-context-menu [data-context-command="${k
 const source=()=>page.evaluate(()=>window.__foldStudio.nativeEditor.source());
 const box=id=>page.locator('#svgcontent #'+id).boundingBox();
 try{
-  await page.goto(url);await page.locator('#editor-host[data-svg-ready="true"]').waitFor();await fixture();
+  await page.goto(url);await page.locator('#editor-host[data-svg-ready="true"]').waitFor();await page.evaluate(()=>window.__foldStudio.nativeEditor.setSnapping(false));await fixture();
   const before=await source(),history=await page.evaluate(()=>window.svgCanvas.undoMgr.getUndoStackSize());
   await page.evaluate(()=>{window.contextDefault=[];window.addEventListener('contextmenu',event=>window.contextDefault.push(event.defaultPrevented));});
   await open('two');assert.deepEqual(await selected(),['two']);assert.equal(await source(),before);assert.equal(await page.evaluate(()=>window.svgCanvas.undoMgr.getUndoStackSize()),history);assert.equal(await page.evaluate(()=>window.svgCanvas.getStarted()),false);assert.equal(await page.evaluate(()=>window.contextDefault.at(-1)),true);

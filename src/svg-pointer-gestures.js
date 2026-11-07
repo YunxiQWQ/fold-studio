@@ -1,8 +1,8 @@
 // SVGCanvas's drag coordinates assume one untransformed layer. Imported SVGs
 // have independent parent coordinate systems, so apply screen gestures through
 // each object's actual DOM matrices without flattening its editable geometry.
-export function installSvgPointerGestures(canvas,container,{root,panActive,changed,interaction,validate,error}){
-  let gesture=null,priorTransforms,priorSelection=[];
+export function installSvgPointerGestures(canvas,container,{root,panActive,snapping,changed,interaction,validate,error}){
+  let gesture=null,priorTransforms,priorSelection=[],lastPointer;
   const domMatrix=value=>value?new DOMMatrix([value.a,value.b,value.c,value.d,value.e,value.f]):null;
   const finite=matrix=>matrix&&['a','b','c','d','e','f'].every(key=>Number.isFinite(matrix[key]));
   const inverse=matrix=>{if(!finite(matrix)||Math.abs(matrix.a*matrix.d-matrix.b*matrix.c)<1e-12)return null;return matrix.inverse();};
@@ -34,7 +34,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
       intrinsic=parentInverse.multiply(domMatrix(node.getScreenCTM()));
     }finally{setAttribute(node,'transform',old.transform);setAttribute(node,'style',old.style);}
     const intrinsicInverse=inverse(intrinsic);if(!intrinsicInverse)return null;
-    return {node,old,world,worldInverse,parentInverse,intrinsicInverse};
+    const box=node.getBBox();return {node,old,world,worldInverse,parentInverse,intrinsicInverse,box:{x:box.x,y:box.y,width:box.width,height:box.height}};
   }
   function start(event,mode,dir=''){
     const nodes=selection(),items=nodes.map(capture);
@@ -43,6 +43,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
     gesture={mode,dir,items,x:event.clientX,y:event.clientY,moved:false,box,center,angle:0,previousAngle:Math.atan2(event.clientY-center.y,event.clientX-center.x),initialAngle:degrees(Math.atan2(items[0].world.b,items[0].world.a)),exclusive:mode!=='select'||event.altKey,copyRequested:mode==='select'&&event.altKey,clicked:mode==='select'?canvas.getMouseTarget(event):null,modified:event.shiftKey||event.ctrlKey||event.metaKey,before:priorSelection};
     canvas.setStarted(true);canvas.setCurrentMode(mode);
     interaction?.(mode==='select');
+    lastPointer={x:event.clientX,y:event.clientY};
     return true;
   }
   function applyDelta(items,delta){
@@ -112,17 +113,20 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
     for(const [node,transform]of priorTransforms??[])setAttribute(node,'transform',transform);
     start(event,'select');priorTransforms=null;
   });
-  document.addEventListener('mousemove',event=>{
+  function drag(event){
     if(!gesture)return;
     if(!(event.buttons&1)){finish(null,true);return;}
     event.preventDefault();event.stopImmediatePropagation();
+    lastPointer={x:event.clientX,y:event.clientY};
     let dx=event.clientX-gesture.x,dy=event.clientY-gesture.y;
     if(!gesture.moved&&Math.max(Math.abs(dx),Math.abs(dy))<(gesture.mode==='rotate'?0.25:3)){event.preventDefault();event.stopImmediatePropagation();return;}
     gesture.moved=true;
     let worldDelta;
     if(gesture.mode==='select'){
       if(!gesture.copies&&(gesture.copyRequested||event.altKey)){try{copyForDrag(gesture);}catch(cause){finish(event,true);error?.(cause);return;}}
-      if(event.shiftKey){const angle=Math.round(Math.atan2(dy,dx)/(Math.PI/4))*Math.PI/4,length=Math.hypot(dx,dy);dx=Math.cos(angle)*length;dy=Math.sin(angle)*length;}
+      let constraint=null;
+      if(event.shiftKey){const angle=Math.round(Math.atan2(dy,dx)/(Math.PI/4))*Math.PI/4,length=Math.hypot(dx,dy);constraint={x:Math.cos(angle),y:Math.sin(angle)};dx=constraint.x*length;dy=constraint.y*length;}
+      if(snapping){if(!snapping.active||gesture.snapItems!==gesture.items){snapping.begin(gesture.items);gesture.snapItems=gesture.items;}({dx,dy}=snapping.move(dx,dy,{constraint,bypass:event.ctrlKey||event.metaKey}));}
       worldDelta=new DOMMatrix().translate(dx,dy);
     }else if(gesture.mode==='rotate'){
       const {center}=gesture,angle=Math.atan2(event.clientY-center.y,event.clientX-center.x),delta=normalized(degrees(angle-gesture.previousAngle));gesture.previousAngle=angle;gesture.angle+=delta*(event.altKey?0.1:1);
@@ -139,15 +143,31 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
       const safe=value=>Math.abs(value)<.0001?(value<0?-.0001:.0001):value;
       sx=safe(sx);sy=safe(sy);
       const ax=x+(dir.includes('w')?width:dir.includes('e')?0:width/2),ay=y+(dir.includes('n')?height:dir.includes('s')?0:height/2);
+      if(snapping){
+        if(!snapping.active){snapping.begin(gesture.items);gesture.snapItems=gesture.items;}
+        const mx=x+(dir.includes('w')?0:dir.includes('e')?width:width/2),my=y+(dir.includes('n')?0:dir.includes('s')?height:height/2);
+        const moving=new DOMPoint(ax+(mx-ax)*sx,ay+(my-ay)*sy).matrixTransform(item.world);
+        const origin=new DOMPoint(ax,ay).matrixTransform(item.world),direction={x:moving.x-origin.x,y:moving.y-origin.y};
+        const constraint=event.shiftKey||!horizontal||!vertical?direction:null;
+        const point=snapping.point(moving,{constraint,bypass:event.ctrlKey||event.metaKey}),q=new DOMPoint(point.x,point.y).matrixTransform(item.worldInverse);
+        if(horizontal&&Math.abs(mx-ax)>1e-8)sx=(q.x-ax)/(mx-ax);if(vertical&&Math.abs(my-ay)>1e-8)sy=(q.y-ay)/(my-ay);
+        if(event.shiftKey){const scale=horizontal&&Math.abs(mx-ax)>1e-8?sx:sy;sx=sy=scale;}
+        sx=safe(sx);sy=safe(sy);
+      }
       const local=new DOMMatrix().translate(ax,ay).scale(sx,sy).translate(-ax,-ay);
       worldDelta=item.world.multiply(local).multiply(item.worldInverse);
     }
     applyDelta(gesture.items,worldDelta);
     refresh();
+  }
+  document.addEventListener('mousemove',drag,true);
+  for(const type of ['keydown','keyup'])document.addEventListener(type,event=>{
+    if(!gesture||!gesture.moved||gesture.mode==='rotate'||!lastPointer||!['Control','Meta'].includes(event.key))return;
+    drag({clientX:lastPointer.x,clientY:lastPointer.y,buttons:1,shiftKey:event.shiftKey,altKey:event.altKey,ctrlKey:event.ctrlKey,metaKey:event.metaKey,preventDefault(){},stopImmediatePropagation(){}});
   },true);
   function finish(event,cancel=false){
     if(!gesture)return;
-    const current=gesture;gesture=null;interaction?.(false);
+    const current=gesture;gesture=null;snapping?.end();interaction?.(false);
     if(!cancel&&!current.moved&&current.mode==='select'&&!current.exclusive){
       // Defer collapsing an existing multi-selection until release: a drag
       // still moves every selected object, while a plain click selects one.

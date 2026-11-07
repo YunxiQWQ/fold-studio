@@ -54,7 +54,7 @@ function flattenGenerated(node,name){
 
 export class SvgMainEditor {
   constructor(host,images,callbacks){
-    Object.assign(this,{host,images,callbacks,native:true,view:{scale:1,x:0,y:0},guides:true,snap:true,rulers:true,side:'outside',sequence:0,guard:false});
+    Object.assign(this,{host,images,callbacks,native:true,view:{scale:1,x:0,y:0},guides:true,rulers:true,side:'outside',sequence:0,guard:false});
     this.canvas=host;host.classList.add('native-main-canvas');host.dataset.testid='editor-canvas';
     host.innerHTML='<div id="canvas-container"></div>';
     document.querySelector('#layer-list').innerHTML='<div id="layers" class="native-main-tree"></div>';
@@ -80,6 +80,7 @@ export class SvgMainEditor {
       openWorkspace:true,
       systemClipboard:true,copied:()=>this.copyToSystem(),
       panActive:()=>this.space||this.tool==='pan',
+      snapGeometry:()=>({dieline:this.dieline,side:this.side,panelId:this.panelId}),snappingChanged:()=>this.updateToolbar?.(),
       validate:source=>svgSceneAsset(source),
       sourceStyles:action=>{
         const disabled=this.proofStyle.disabled;this.proofStyle.disabled=true;
@@ -111,6 +112,8 @@ export class SvgMainEditor {
     host.addEventListener('contextmenu',event=>callbacks.context?.(event));
   }
   get hasSelection(){return this.api?.canvas.getSelectedElements().some(Boolean)??false;}
+  get snap(){return this.api?.snapping??true;}
+  set snap(value){this.api?.setSnapping(value);}
   get isEditing(){return ['textedit','pathedit'].includes(this.api?.canvas.getMode());}
   get tool(){return this.api?.canvas.getMode()==='pan'?'pan':'select';}
   set tool(value){this.api?.canvas.setMode(value==='pan'?'pan':'select');}

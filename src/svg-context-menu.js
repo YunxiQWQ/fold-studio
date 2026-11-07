@@ -23,7 +23,7 @@ export function mountSvgContextMenu({editor,designTools}){
     if(key.startsWith('design:'))return designTools.can(key.slice(7));
     if(key==='undo'||key==='redo')return !document.getElementById(key)?.disabled;
     if(key==='paste')return api.hasClipboard;
-    if(key==='select-all'||key==='fit')return true;
+    if(key==='select-all'||key==='fit'||key==='snap')return true;
     if(key==='rotation-zero')return state.can('duplicate')&&Number.isFinite(api.rotation);
     return state.can(key);
   }
@@ -37,7 +37,7 @@ export function mountSvgContextMenu({editor,designTools}){
     const items=page?groups[page].items:[row('undo','撤销','Ctrl Z','undo'),row('redo','重做','Ctrl Shift Z','redo'),null,
       ...(selected?[row('cut','剪切','Ctrl X','cut'),row('copy','复制','Ctrl C','copy')]:[]),row('paste','原位粘贴','Ctrl V','paste'),
       ...(selected?[row('duplicate','创建副本','Ctrl D','copy'),null,row('group','组合','Ctrl G','group'),row('ungroup','解组','Ctrl Shift G','ungroup'),row('arrange','排列','','layers'),row('transform','变换与对齐','','settings'),row('similar','选择相同','','cursor'),row('layout','快速排版','','grid'),row('path','路径'),null,row('lock','锁定','Ctrl L','lock'),row('delete','删除','Delete','trash'),null]:[]),
-      row('select-all','全选当前层','Ctrl A'),row('fit','适应画布','','fit')];
+      row('select-all','全选当前层','Ctrl A'),row('fit','适应画布','','fit'),row('snap',`智能吸附：${editor.api.snapping?'开':'关'}`,'Ctrl 暂停',editor.api.snapping?'check':'')];
     menu.replaceChildren();
     if(page){const back=document.createElement('button');back.type='button';back.dataset.contextCommand='back-menu';back.setAttribute('role','menuitem');back.className='svg-context-back';back.innerHTML=`<span aria-hidden="true">‹</span><span>${groups[page].label}</span>`;menu.append(back);}
     for(const item of items){
@@ -45,6 +45,7 @@ export function mountSvgContextMenu({editor,designTools}){
       const button=document.createElement('button');button.type='button';button.dataset.contextCommand=item.key;button.setAttribute('role','menuitem');button.disabled=!allowed(item.key);
       if(groups[item.key]){button.setAttribute('aria-haspopup','menu');button.setAttribute('aria-expanded','false');}
       if(item.key==='delete')button.className='svg-context-danger';
+      if(item.key==='snap'){button.setAttribute('role','menuitemcheckbox');button.setAttribute('aria-checked',String(editor.api.snapping));}
       button.innerHTML=`<span class="svg-context-icon">${item.glyph?icon(item.glyph):''}</span><span>${item.label}</span>${groups[item.key]?'<span class="svg-context-arrow" aria-hidden="true">›</span>':`<kbd>${item.shortcut}</kbd>`}`;
       menu.append(button);
     }

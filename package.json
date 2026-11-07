@@ -37,11 +37,12 @@
     "test:inline-text": "node tests/svg-inline-text-browser.mjs",
     "test:marquee": "node tests/svg-marquee-after-drag-browser.mjs",
     "test:svg-interactions": "node tests/svg-import-interactions-browser.mjs && node tests/svg-rich-text-browser.mjs",
-    "pretest:browser": "npm run test:svg-interactions && npm run test:rotation-copy && npm run test:selection && npm run test:lock-state && npm run test:context-menu && npm run test:preview-depth",
+    "pretest:browser": "npm run test:snapping && npm run test:svg-interactions && npm run test:rotation-copy && npm run test:selection && npm run test:lock-state && npm run test:context-menu && npm run test:preview-depth",
     "test:rotation-copy": "node tests/svg-rotation-copy-browser.mjs",
     "test:context-menu": "node tests/svg-context-menu-browser.mjs",
     "test:selection": "node tests/svg-selection-reliability-browser.mjs",
     "test:lock-state": "node tests/svg-lock-state-browser.mjs",
+    "test:snapping": "node --test tests/svg-snap-math.test.js && node tests/svg-snapping-browser.mjs",
     "test:preview-depth": "node --test tests/preview-depth.test.js && node tests/preview-depth-browser.mjs"
   },
   "dependencies": {

@@ -78,3 +78,9 @@
 .svg-context-menu .svg-context-danger{color:var(--danger,#b4443c)}
 [data-fold-guide],[data-fold-guide] *{pointer-events:none!important;user-select:none}
 .native-main-canvas [data-locked="true"],.native-main-canvas [data-locked="true"] *{pointer-events:none!important}
+.native-snap-guides{position:fixed;z-index:30;overflow:hidden;pointer-events:none!important;user-select:none;color:#aa57d1}
+.native-snap-guides *{pointer-events:none!important}
+.native-snap-guides line{stroke:currentColor;stroke-width:1;stroke-dasharray:4 3;fill:none}
+.native-snap-guides line.snap-distance{stroke-dasharray:none}
+.native-snap-guides text{fill:currentColor;stroke:var(--surface,#fff);stroke-width:3px;paint-order:stroke;font:10px system-ui,sans-serif}
+.native-snap-note{grid-column:1/-1;font-size:10px;line-height:1.6;color:var(--muted);margin:0 0 4px}

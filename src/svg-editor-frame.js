@@ -5,6 +5,7 @@ import {readSvgText,writeSvgText} from './svg-typography.js';
 import {canonicalizeImageElement} from './svg-capacity.js';
 import {installSvgInlineText} from './svg-inline-text.js';
 import {selectableSvgNode,svgMarqueeNodes,svgArtworkIntersects} from './svg-selection.js';
+import {createSvgSnapping} from './svg-snapping.js';
 
 // Shared SVGCanvas interface; imported/source-edited SVG is validated before loading.
 export function initializeSvgFrame(SvgCanvas, options={}) {
@@ -158,7 +159,8 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     }
     alignViewportSelector(selector);return selector;
   };
-  const pointerGestures=installSvgPointerGestures(canvas,container,{root:sourceElement,panActive:options.panActive,changed:()=>contentChanged(true),interaction:active=>{movingObject=active;refreshCursor();},validate:()=>options.validate?.(snapshot()),error:showError});
+  const snapping=createSvgSnapping(canvas,container,{root:sourceElement,geometry:options.snapGeometry,changed:options.snappingChanged});
+  const pointerGestures=installSvgPointerGestures(canvas,container,{root:sourceElement,panActive:options.panActive,snapping,changed:()=>contentChanged(true),interaction:active=>{movingObject=active;refreshCursor();},validate:()=>options.validate?.(snapshot()),error:showError});
   function syncSelectors(){
     const manager=canvas.selectorManager,nodes=new Set(canvas.getSelectedElements().filter(node=>node?.isConnected)),kept=new Map();
     for(const selector of manager.selectors){
@@ -348,7 +350,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     return new XMLSerializer().serializeToString(root);
   }
   function loadDocument(source,dimensions,initial=true,preserveView=false) {
-    inlineText?.end(false);stopPan();
+    inlineText?.end(false);stopPan();snapping.end();
     const previousZoom=canvas.getZoom();
     clearTimeout(changedTimer);changedTimer=null;
     loading=true;
@@ -520,6 +522,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   function run(action) {
     try{
       $('#message').textContent='';
+      if(action==='snap'){snapping.setEnabled(!snapping.enabled);return;}
       if(options.handleAction?.(action))return;
       if(action==='apply'){send('apply',{source:snapshot()});return;}
       if(action==='cancel'){send('cancel');return;}
@@ -700,6 +703,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   if(!options.message)window.addEventListener('message',event=>{if(event.source===parent&&event.data?.channel==='fold-svg-editor')receive(event.data);});
   send('ready');
   return {canvas,receive,source:snapshot,run,layout,zoom,endText,select:selectElement,refreshTree,refreshProperties,refreshCursor,transaction,
+    get snapping(){return snapping.enabled;},setSnapping:value=>snapping.setEnabled(value),
     get rotation(){return pointerGestures.rotation;},rotateTo:value=>pointerGestures.rotateTo(value),
     get textRange(){return inlineText.range;},formatTextRange:apply=>inlineText.formatSelection(apply),
     sourceStyles(action){return options.sourceStyles?options.sourceStyles(action):action();},

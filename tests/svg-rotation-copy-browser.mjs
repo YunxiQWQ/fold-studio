@@ -20,6 +20,7 @@ for(const name of cases){
   const page=await browser.newPage({viewport:{width:1800,height:1100},acceptDownloads:true}),errors=[],trace=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(15000);
   try{
     await page.goto(url);await page.locator('#editor-host[data-svg-ready="true"]').waitFor();
+    await page.evaluate(()=>window.__foldStudio.nativeEditor.setSnapping(false)); // These cases assert unsnapped matrix deltas; snapping has its own suite.
     const project=newProject();project.name='Rotation '+name;project.layers=[];const d=makeDieline(project.type,project.dimensions),front=d.panels.find(p=>p.id==='front'),angle=37*Math.PI/180;
     let shape=el('rect',{id:'target',x:10,y:12,width:30,height:20,fill:'#ad365e',transform:`matrix(${Math.cos(angle)} ${Math.sin(angle)} ${-Math.sin(angle)} ${Math.cos(angle)} 20 10)`});
     if(name==='reference-copy')shape=el('g',{id:'target',transform:shape.attrs.transform},[el('defs',{},[el('linearGradient',{id:'ink'},[el('stop',{offset:0,'stop-color':'#123456'}),el('stop',{offset:1,'stop-color':'#abcdef'})]),el('clipPath',{id:'clip'},[el('circle',{cx:25,cy:22,r:10})])]),el('rect',{id:'painted',x:10,y:12,width:30,height:20,fill:'url(#ink)','clip-path':'url(#clip)'})]);

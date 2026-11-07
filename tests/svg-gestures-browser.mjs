@@ -35,6 +35,7 @@ async function fixture(markup,{inside=false,zoom=1,pan=false}={}){
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(url);
   const ready=()=>page.locator('#editor-host[data-svg-ready="true"]').waitFor();await ready();
+  await page.evaluate(()=>window.__foldStudio.nativeEditor.setSnapping(false)); // Verify raw pointer transforms independently of smart snapping.
   if(inside){await page.locator('#side-inside').click();await ready();}
   await page.locator('#image-input').setInputFiles({name:'gesture.svg',mimeType:'image/svg+xml',buffer:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="140" height="100">${markup}</svg>`)});
   await page.locator('#svgcontent [id$="-target"]').waitFor();

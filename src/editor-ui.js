@@ -49,7 +49,9 @@ function mountNativeUI({editor,addShape,notify}){
     group('路径与变换',buttonList([['nodes','编辑节点'],['convert','转为路径']],'action')+
       select('arrange','排列与变换',[['flip-x','水平翻转'],['flip-y','垂直翻转'],['align-l','左对齐'],['align-c','水平居中'],['align-r','右对齐'],['align-t','上对齐'],['align-m','垂直居中'],['align-b','下对齐'],['align-dh','水平分布'],['align-dv','垂直分布']])+
       select('node-actions','节点操作',[['node-add','插入节点'],['node-delete','删除节点'],['node-line','转直线'],['node-curve','转曲线'],['node-link','关联控制柄'],['node-unlink','独立控制柄'],['node-close','开合子路径'],['node-subpath','绘制子路径']]))+
+    group('画布','<button type="button" id="smart-snapping-toggle" role="switch" aria-checked="true" style="grid-column:1/-1">智能吸附：开</button><p class="native-snap-note">移动、缩放时对齐图文与面板；Ctrl／⌘ 拖动暂时跳过吸附。</p>')+
     group('SVG', '<button type="button" data-action="source">编辑源码</button><button type="button" id="svg-support-button">支持说明</button>'));
+  edit.querySelector('#smart-snapping-toggle').onclick=()=>editor.run('snap');
   const designTools=mountDesignTools({editor,menu:edit,notify});
   const contextMenu=mountSvgContextMenu({editor,designTools});
   const count=document.createElement('span');count.id='editor-selection-count';count.className='toolbar-selection-count';
@@ -61,6 +63,7 @@ function mountNativeUI({editor,addShape,notify}){
     for(const option of edit.querySelectorAll('#arrange option[value]'))if(option.value)option.disabled=!state.can(option.value);
     edit.querySelector('#arrange').disabled=![...edit.querySelectorAll('#arrange option')].some(option=>option.value&&!option.disabled);
     edit.querySelector('#node-actions').disabled=mode!=='pathedit';
+    const snap=edit.querySelector('#smart-snapping-toggle');snap.textContent=`智能吸附：${editor.api.snapping?'开':'关'}`;snap.setAttribute('aria-checked',String(editor.api.snapping));
     for(const button of drawing.querySelectorAll('[data-mode]')){const selected=button.dataset.mode===mode;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));}
     for(const [id,value]of [['tool-select','select'],['tool-pan','pan']])document.getElementById(id).setAttribute('aria-pressed',String(mode===value));
     designTools.sync();

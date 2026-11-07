@@ -27,7 +27,7 @@ function moved(result,dx=25,dy=15){assert.ok(Math.abs(result.after.x-result.befo
 async function immovable(){const result=await move();assert.ok(Math.abs(result.after.x-result.before.x)<.1&&Math.abs(result.after.y-result.before.y)<.1,'locked artwork moved');}
 async function check(name,run){try{await run();results.push({name,passed:true});}catch(error){results.push({name,passed:false,error:error.message,style:await target().getAttribute('style')});await page.screenshot({path:resolve(directory,name+'-failure.png')});}}
 try{
-  await page.goto(url);await ready();image=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=90;canvas.height=60;const ctx=canvas.getContext('2d');ctx.fillStyle='#477b54';ctx.fillRect(0,0,90,60);ctx.fillStyle='#e5dba6';ctx.fillRect(20,10,50,40);return canvas.toDataURL('image/png');});
+  await page.goto(url);await ready();await page.evaluate(()=>window.__foldStudio.nativeEditor.setSnapping(false));image=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=90;canvas.height=60;const ctx=canvas.getContext('2d');ctx.fillStyle='#477b54';ctx.fillRect(0,0,90,60);ctx.fillStyle='#e5dba6';ctx.fillRect(20,10,50,40);return canvas.toDataURL('image/png');});
   for(const shape of [false,true])await check(shape?'shape-immediate-unlock':'image-immediate-unlock',async()=>{
     await fixture({shape});await immovable();await lock('target').click();assert.equal(await lock('target').getAttribute('aria-pressed'),'false');assert.notEqual(await target().evaluate(n=>getComputedStyle(n).pointerEvents),'none','UI is unlocked but the DOM still blocks pointer hits');moved(await move());
   });
