@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -25,31 +26,31 @@ try{
   for(const mode of ['rgb','cmyk']){
     await page.locator('#print-settings').click();await page.locator('#print-document-mode').selectOption(mode);await page.locator('#apply-print-settings').click();assert.equal(await page.evaluate(()=>window.__foldStudio.colorMode),mode);assert.equal(await page.evaluate(()=>window.__foldStudio.project.documentColorMode),mode);
     if(mode==='cmyk'){await page.locator('#undo').click();await page.waitForFunction(()=>window.__foldStudio.colorMode==='rgb');await page.locator('#redo').click();await page.waitForFunction(()=>window.__foldStudio.colorMode==='cmyk');await page.waitForSelector('#editor-host[data-svg-ready="true"]');}
-    const svg=await download(async()=>{await page.locator('#export-toggle').click();await page.locator('#export-svg').click();},mode+'.svg');const text=svg.toString();assert.ok(text.includes('<text')&&text.includes('<path')&&text.includes('<image'));
+    const svg=await download(async()=>{await page.locator('#export-toggle').click();await chooseExport(page,'flat','svg',true);},mode+'.svg');const text=svg.toString();assert.ok(text.includes('<text')&&text.includes('<path')&&text.includes('<image'));
     assert.equal(text.includes('data-fold-color-preview="cmyk"'),mode==='cmyk');
     const fill=await page.evaluate(source=>new DOMParser().parseFromString(source,'image/svg+xml').querySelector('[id$="solid"]').getAttribute('fill'),text);assert.equal(fill,mode==='rgb'?'#00ff00':'#6ab43f');
     for(const side of ['outside','inside']){
       await page.locator(`[data-side="${side}"]`).click();
       for(const format of ['jpg','pdf']){
-        await page.locator('#export-toggle').click();await page.locator(format==='jpg'?'#export-flat-jpg':'#export-pdf').click();assert.equal(await page.locator('#color-export-mode').inputValue(),mode);await page.locator('#color-export-lines').uncheck();
+        await page.locator('#export-toggle').click();await chooseExport(page,'flat',format);assert.equal(await page.locator('#export-mode').inputValue(),mode);await page.locator('#export-lines').uncheck();
         if(format==='pdf'&&mode==='rgb'&&side==='outside'){
-          await page.locator('#color-export-font').setInputFiles({name:'invalid.ttf',mimeType:'application/octet-stream',buffer:Buffer.alloc(100)});await page.waitForFunction(()=>document.querySelector('#color-export-error').textContent.length>0);assert.equal(await page.locator('#color-export-font-name').textContent(),'内置中文字体 · 常用简体字');
+          await page.locator('#export-font').setInputFiles({name:'invalid.ttf',mimeType:'application/octet-stream',buffer:Buffer.alloc(100)});await page.waitForFunction(()=>document.querySelector('#export-error').textContent.length>0);assert.equal(await page.locator('#export-font-name').textContent(),'内置中文字体 · 常用简体字');
         }
-        if(format==='pdf'&&mode==='cmyk'&&side==='inside'){await page.locator('#color-export-font').setInputFiles(resolve('src/fonts/FoldPrintSans-Regular.woff2'));await page.waitForFunction(()=>document.querySelector('#color-export-font-name').textContent==='FoldPrintSans-Regular.woff2');}
-        const data=await download(()=>page.locator('#confirm-color-export').click(),`${mode}-${side}.${format}`);
+        if(format==='pdf'&&mode==='cmyk'&&side==='inside'){await page.locator('#export-font').setInputFiles(resolve('src/fonts/FoldPrintSans-Regular.woff2'));await page.waitForFunction(()=>document.querySelector('#export-font-name').textContent==='FoldPrintSans-Regular.woff2');}
+        const data=await download(()=>page.locator('#confirm-export').click(),`${mode}-${side}.${format}`);
         if(format==='pdf')assert.equal(data.subarray(0,5).toString(),'%PDF-');else assert.deepEqual([...data.subarray(0,2)],[255,216]);
       }
     }
-    await page.locator('#export-toggle').click();await page.locator('#export-jpg').click();await download(()=>page.locator('#confirm-color-export').click(),mode+'-3d.jpg');
+    await page.locator('#export-toggle').click();await chooseExport(page,'3d','jpg');await download(()=>page.locator('#confirm-export').click(),mode+'-3d.jpg');
     checks.push(mode+': selectable document mode, both-side editable SVG / JPG / vector PDF and 3D JPG');
   }
-  await page.locator('#export-toggle').click();await page.locator('#export-flat-jpg').click();await page.locator('#color-export-mode').selectOption('rgb');await download(()=>page.locator('#confirm-color-export').click(),'mode-override-rgb.jpg');assert.equal(await page.evaluate(()=>window.__foldStudio.project.documentColorMode),'cmyk');checks.push('undo/redo restores the mode; a one-off export override leaves the document mode unchanged');
+  await page.locator('#export-toggle').click();await chooseExport(page,'flat','jpg');await page.locator('#export-mode').selectOption('rgb');await download(()=>page.locator('#confirm-export').click(),'mode-override-rgb.jpg');assert.equal(await page.evaluate(()=>window.__foldStudio.project.documentColorMode),'cmyk');checks.push('undo/redo restores the mode; a one-off export override leaves the document mode unchanged');
   assert.equal(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork)),artwork,'exports must not bake colors into the project');
   const saved=JSON.parse((await download(()=>page.locator('#save-project').click(),'mode.fold')).toString());assert.equal(saved.documentColorMode,'cmyk');await page.reload();await ready();assert.equal(await page.evaluate(()=>window.__foldStudio.colorMode),'cmyk');checks.push('document mode and untouched artwork survive project save/reload');
   const unsupported=structuredClone(project);unsupported.name='Unsupported PDF';unsupported.svgArtwork.outside.nodes.push(node('filter',{id:'blur'},[node('feGaussianBlur',{stdDeviation:2})]));unsupported.svgArtwork.outside.nodes[1].attrs.filter='url(#blur)';
   await page.locator('#project-input').setInputFiles({name:'unsupported.fold',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(unsupported))});await page.waitForFunction(()=>window.__foldStudio.project.name==='Unsupported PDF');
-  await page.locator('#export-toggle').click();await page.locator('#export-pdf').click();const count=downloads;await page.locator('#confirm-color-export').click();await page.waitForFunction(()=>document.querySelector('#color-export-error').textContent.includes('滤镜'));assert.equal(downloads,count);await page.locator('#export-color-dialog [data-close]').first().click();checks.push('unsupported filters fail explicitly without downloading a partial PDF');
-  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.__foldStudio.setTheme('slate'));await page.locator('#export-toggle').click();await page.locator('#export-flat-jpg').click();const box=await page.locator('#export-color-dialog').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=844);await page.screenshot({path:resolve(dir,'mobile-export.png'),animations:'disabled'});await page.locator('#export-color-dialog [data-close]').first().click();checks.push('mobile/slate export controls fit and cancel safely');
+  await page.locator('#export-toggle').click();await chooseExport(page,'flat','pdf');const count=downloads;await page.locator('#confirm-export').click();await page.waitForFunction(()=>document.querySelector('#export-error').textContent.includes('滤镜'));assert.equal(downloads,count);await page.locator('#export-dialog [data-export-close]').first().click();checks.push('unsupported filters fail explicitly without downloading a partial PDF');
+  await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.__foldStudio.setTheme('slate'));await page.locator('#export-toggle').click();await chooseExport(page,'flat','jpg');const box=await page.locator('#export-dialog').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=844);await page.screenshot({path:resolve(dir,'mobile-export.png'),animations:'disabled'});await page.locator('#export-dialog [data-export-close]').first().click();checks.push('mobile/slate export controls fit and cancel safely');
   assert.deepEqual(errors,[]);if(url.startsWith('file:'))assert.deepEqual(requests,[]);writeFileSync(resolve(dir,'report.json'),JSON.stringify({checks,errors,networkCount:requests.length,sample:{x:x+10,y:y+10,width:d.width,height:d.height},downloads},null,2));console.log(JSON.stringify({checks,errors,networkCount:requests.length,downloads},null,2));
-}catch(error){console.error({errors,toast:await page.locator('#toast').textContent().catch(()=>''),exportError:await page.locator('#color-export-error').textContent().catch(()=>''),downloads});await page.screenshot({path:resolve(dir,'failure.png')}).catch(()=>{});throw error;}
+}catch(error){console.error({errors,toast:await page.locator('#toast').textContent().catch(()=>''),exportError:await page.locator('#export-error').textContent().catch(()=>''),downloads});await page.screenshot({path:resolve(dir,'failure.png')}).catch(()=>{});throw error;}
 finally{await browser.close();await server?.close();}

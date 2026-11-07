@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {BOX_TYPES} from '../src/geometry.js';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
@@ -27,7 +28,7 @@ try{
     for(const side of ['inside','outside']){await page.locator(`[data-side="${side}"]`).click();await page.locator('#inspect-panel').click();const canvas=page.locator('[data-testid="preview-canvas"]'),b=await canvas.boundingBox();await canvas.click({position:{x:b.width/2,y:b.height/2}});assert.equal((await page.evaluate(()=>window.__foldStudio.selection)).side,side);await page.locator('#inspect-panel').click();}
     await page.locator('#add-text').click();await page.locator('#node-text').fill('新增模型实测');await page.locator('#node-text').blur();
     await page.waitForFunction(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('新增模型实测'));
-    await page.locator('#export-toggle').click();const dl=page.waitForEvent('download');await page.locator('#export-svg').click();const file=await dl;const dest=resolve(artifacts,`selected-${type}.svg`);await file.saveAs(dest);
+    await page.locator('#export-toggle').click();const dl=page.waitForEvent('download');await chooseExport(page,'flat','svg',true);const file=await dl;const dest=resolve(artifacts,`selected-${type}.svg`);await file.saveAs(dest);
     await page.locator('#project-input').setInputFiles(dest);await page.waitForFunction(t=>window.__foldStudio.project.type===t,type);
     assert.ok(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('新增模型实测')));
   }

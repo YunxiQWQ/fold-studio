@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {BOX_TYPES} from '../src/geometry.js';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
@@ -14,7 +15,7 @@ const checks=[],errors=[],page=await browser.newPage({viewport:{width:1800,heigh
 const ready=()=>page.locator('#editor-host[data-svg-ready="true"]').waitFor();
 async function choose(page,type){await page.locator('#open-templates').click();await page.locator(`[data-template="${type}"]`).click();if(await page.locator('#confirm-dialog').isVisible())await page.locator('#accept-confirm').click();await page.waitForFunction(type=>window.__foldStudio.project.type===type,type);await page.locator('#editor-host[data-svg-ready="true"]').waitFor();}
 async function fold(page,value){await page.locator('#fold-slider').fill(String(value));await page.locator('#fold-slider').dispatchEvent('input');await page.waitForFunction(value=>window.__foldStudio.stats.fold===value/100,value);}
-async function download(button,name){const promise=page.waitForEvent('download');await page.locator(button).click();const path=resolve(directory,name);await(await promise).saveAs(path);return path;}
+async function download(button,name){const promise=page.waitForEvent('download');if(button==='#export-svg')await chooseExport(page,'flat','svg',true);else await page.locator(button).click();const path=resolve(directory,name);await(await promise).saveAs(path);return path;}
 try{
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}`);await ready();await choose(page,type);
   for(const [key,value]of [['length','250'],['depth','200'],['height','120']])assert.equal(await page.locator('#dim-'+key).inputValue(),value);
@@ -37,7 +38,7 @@ try{
   checks.push('both print sides remain editable and native SVG plus .fold exports preserve the new construction and artwork');
   const pngs=[];
   for(const side of ['outside','inside']){
-    await page.locator('#side-'+side).click();await ready();await page.locator('#export-toggle').click();await page.locator('#export-flat').click();await page.locator('#flat-include-lines').uncheck();const path=await download('#confirm-export-flat','slotted-handle-'+side+'.png');
+    await page.locator('#side-'+side).click();await ready();await page.locator('#export-toggle').click();await chooseExport(page,'flat','png');await page.locator('#export-lines').uncheck();const path=await download('#confirm-export','slotted-handle-'+side+'.png');
     const pixels=await page.evaluate(async({base64,side})=>{
       const image=new Image();image.src='data:image/png;base64,'+base64;await image.decode();const c=document.createElement('canvas');c.width=image.naturalWidth;c.height=image.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(image,0,0);const d=window.__foldStudio.geometry,scale=3072/Math.max(d.width,d.height),alphas=[];
       for(const p of d.panels.filter(p=>p.holes)){const h=p.holes[0],x=h.reduce((n,p)=>n+p[0],0)/h.length,y=h.reduce((n,p)=>n+p[1],0)/h.length,px=Math.floor((side==='inside'?d.maxX-x:x-d.minX)*scale),py=Math.floor((y-d.minY)*scale);alphas.push(ctx.getImageData(px,py,1,1).data[3]);}return {width:c.width,height:c.height,alphas};

@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -55,7 +56,7 @@ try{
   }
   assert.equal(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork)),before);checks.push('proof does not bake colors or proof image into project');
   await page.locator('[data-side="outside"]').click();await proofReady();
-  const svg=await download(async()=>{await page.locator('#export-toggle').click();await page.locator('#export-svg').click();},'source.svg');
+  const svg=await download(async()=>{await page.locator('#export-toggle').click();await chooseExport(page,'flat','svg',true);},'source.svg');
   assert.ok(svg.toString().includes('#00ff00'));assert.ok(svg.toString().includes('#6ab43f'));assert.ok(!svg.toString().includes('blob:'));checks.push('editable SVG exports CMYK gamut preview without mutating source');
   await page.evaluate(()=>{const api=window.__foldStudio.nativeEditor;api.select(api.wrapper.querySelector('[id$="solid"]'));});
   const sourceBeforeMove=await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork)),oldHref=await page.locator('#fold-proof-image').getAttribute('href');
@@ -72,8 +73,8 @@ try{
   // Restore the built-in relative/BPC profile before the independent TIFF check.
   await page.locator('#print-settings').click();await page.locator('#print-profile').selectOption('fogra39l');await page.locator('#print-intent').selectOption('1');await page.locator('#print-bpc').check();await page.locator('#apply-print-settings').click();
   for(const side of ['outside','inside']){
-    await page.locator(`[data-side="${side}"]`).click();await page.locator('#export-toggle').click();await page.locator('#export-cmyk').click();await page.locator('#cmyk-dpi').selectOption('600');assert.equal(await page.locator('#confirm-export-cmyk').isDisabled(),true);await page.locator('#cmyk-dpi').selectOption('150');
-    const tiff=await download(()=>page.locator('#confirm-export-cmyk').click(),side+'.tif');const v=new DataView(tiff.buffer,tiff.byteOffset,tiff.length),tags=new Map();for(let i=0;i<v.getUint16(8,true);i++){const a=10+i*12;tags.set(v.getUint16(a,true),{count:v.getUint32(a+4,true),value:v.getUint32(a+8,true)});}
+    await page.locator(`[data-side="${side}"]`).click();await page.locator('#export-toggle').click();await chooseExport(page,'flat','tiff');await page.locator('#export-dpi').selectOption('600');assert.equal(await page.locator('#confirm-export').isDisabled(),true);await page.locator('#export-dpi').selectOption('150');
+    const tiff=await download(()=>page.locator('#confirm-export').click(),side+'.tif');const v=new DataView(tiff.buffer,tiff.byteOffset,tiff.length),tags=new Map();for(let i=0;i<v.getUint16(8,true);i++){const a=10+i*12;tags.set(v.getUint16(a,true),{count:v.getUint32(a+4,true),value:v.getUint32(a+8,true)});}
     assert.equal(tags.get(262).value,5);assert.equal(tags.get(277).value,4);const icc=tags.get(34675);assert.deepEqual(tiff.subarray(icc.value,icc.value+icc.count),readFileSync('src/color-profiles/FOGRA39L_coated.icc'));
     const width=tags.get(256).value,offset=tags.get(273).value+(Math.floor((y+10-d.minY)*150/25.4)*width+Math.floor((x+10-d.minX)*150/25.4))*4;assert.deepEqual([...tiff.subarray(offset,offset+4)],[165,0,246,0]);
     assert.deepEqual([...tiff.subarray(tags.get(273).value,tags.get(273).value+4)],[0,0,0,0]);checks.push(side+': CMYK TIFF four-channel ink bytes, ICC and white outside');
@@ -82,20 +83,23 @@ try{
     const file=resolve(process.env.FOLD_TEST_ICC),icc=readFileSync(file);
     await page.locator('#print-settings').click();await page.locator('#print-icc-input').setInputFiles(file);await page.locator('#apply-print-settings').click();await proofReady();
     assert.equal(await page.evaluate(()=>window.__foldStudio.project.printSettings.profile),'custom');
-    await page.locator('#export-toggle').click();await page.locator('#export-cmyk').click();
-    const tiff=await download(()=>page.locator('#confirm-export-cmyk').click(),'custom-press.tif'),v=new DataView(tiff.buffer,tiff.byteOffset,tiff.length);
+    await page.locator('#export-toggle').click();await chooseExport(page,'flat','tiff');
+    const tiff=await download(()=>page.locator('#confirm-export').click(),'custom-press.tif'),v=new DataView(tiff.buffer,tiff.byteOffset,tiff.length);
     let found=false;for(let i=0;i<v.getUint16(8,true);i++){const a=10+i*12;if(v.getUint16(a,true)===34675){const count=v.getUint32(a+4,true),offset=v.getUint32(a+8,true);assert.deepEqual(tiff.subarray(offset,offset+count),icc);found=true;}}
     assert.ok(found);checks.push('external print ICC accepted, proofed and embedded unchanged in TIFF');
   }
   const broken={...structuredClone(project),name:'Invalid ICC recovery',printSettings:{profile:'custom',name:'missing-tables.icc',icc:missingTables.toString('base64'),intent:1,blackPointCompensation:true}};
   await page.locator('#project-input').setInputFiles({name:'invalid-profile.fold',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(broken))});await page.waitForFunction(()=>window.__foldStudio.project.name==='Invalid ICC recovery'&&document.querySelector('#toast').textContent.includes('工程已导入'));
   await page.locator('#color-mode-toggle').click();assert.equal(await page.evaluate(()=>window.__foldStudio.colorMode),'rgb');assert.match(await page.locator('#toast').textContent(),/ICC/);
+  await chooseExport(page,'flat','png');assert.equal(await page.locator('#export-mode').inputValue(),'rgb');assert.equal(await page.locator('#confirm-export').isEnabled(),true);
+  const recoveredRgb=await download(()=>page.locator('#confirm-export').click(),'invalid-icc-rgb.png');assert.equal(recoveredRgb.subarray(1,4).toString(),'PNG');
+  await chooseExport(page,'flat','jpg');await page.locator('#export-mode').selectOption('cmyk');assert.equal(await page.locator('#confirm-export').isDisabled(),true);assert.match(await page.locator('#export-error').textContent(),/ICC/);await page.locator('#export-mode').selectOption('rgb');assert.equal(await page.locator('#confirm-export').isEnabled(),true);await page.keyboard.press('Escape');checks.push('invalid print ICC leaves RGB export usable but explicitly blocks CMYK instead of using a stale profile');
   await page.locator('#print-settings').click();await page.locator('#print-profile').selectOption('fogra39l');await page.locator('#print-document-mode').selectOption('cmyk');await page.locator('#apply-print-settings').click();await proofReady();checks.push('a project with unusable ICC cannot silently proof with a previous profile; valid settings recover it');
   await proofReady();await page.screenshot({path:resolve(dir,'icc-workspace.png')});
   await page.locator('#print-settings').click();await page.screenshot({path:resolve(dir,'icc-settings.png'),animations:'disabled'});await page.locator('#print-settings-dialog [data-close]').first().click();
   await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.__foldStudio.setTheme('slate'));await page.locator('#print-settings').click();
   let box=await page.locator('#print-settings-dialog').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=844);await page.screenshot({path:resolve(dir,'icc-settings-mobile.png'),animations:'disabled'});await page.locator('#print-settings-dialog [data-close]').first().click();
-  await page.locator('#export-toggle').click();await page.locator('#export-cmyk').click();box=await page.locator('#export-cmyk-dialog').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=844);await page.locator('#export-cmyk-dialog [data-close]').first().click();checks.push('settings and export dialogs remain reachable on mobile in slate theme');
+  await page.locator('#export-toggle').click();await chooseExport(page,'flat','tiff');box=await page.locator('#export-dialog').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=390&&box.y>=0&&box.y+box.height<=844);await page.locator('#export-dialog [data-export-close]').first().click();checks.push('settings and export dialogs remain reachable on mobile in slate theme');
   assert.deepEqual(errors,[]);if(url.startsWith('file:'))assert.deepEqual(network,[]);
   writeFileSync(resolve(dir,'report.json'),JSON.stringify({url,checks,errors,networkCount:network.length},null,2));console.log(JSON.stringify({passed:checks.length,checks,errors,networkCount:network.length},null,2));
 }catch(error){await page.screenshot({path:resolve(dir,'failure.png')}).catch(()=>{});console.error({errors,toast:await page.locator('#toast').textContent().catch(()=>null)});throw error;}

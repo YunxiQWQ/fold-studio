@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -18,7 +19,7 @@ const ready=()=>page.locator('#editor-host[data-svg-ready="true"]').waitFor();
 async function choose(type){await page.locator('#open-templates').click();await page.locator(`[data-template="${type}"]`).click();if(await page.locator('#confirm-dialog').isVisible())await page.locator('#accept-confirm').click();await page.waitForFunction(type=>window.__foldStudio.project.type===type,type);await ready();}
 async function fold(n){await page.locator('#fold-slider').fill(String(n));await page.locator('#fold-slider').dispatchEvent('input');await page.waitForFunction(n=>window.__foldStudio.stats.fold===n/100,n);}
 async function number(key,value){const input=page.locator(`input[type="number"][data-extra-dim="${key}"]`);await input.fill(String(value));await input.dispatchEvent('input');await input.dispatchEvent('change');await page.waitForFunction(([key,value])=>window.__foldStudio.project.dimensions[key]===value,[key,value]);await ready();}
-async function download(id,file){const promise=page.waitForEvent('download');await page.locator(id).click();const path=resolve(dir,file);await(await promise).saveAs(path);return path;}
+async function download(id,file){const promise=page.waitForEvent('download');if(id==='#export-svg')await chooseExport(page,'flat','svg',true);else await page.locator(id).click();const path=resolve(dir,file);await(await promise).saveAs(path);return path;}
 try{
   await page.goto(url);await ready();await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),Object.keys(BOX_TYPES).length);
   for(const [query,type]of [['挂耳','retail-carton'],['自锁底','retail-carton'],['手提袋','paper-bag-basic'],['硬盒','wrapped-lidbox'],['软盒','lidbox']]){await page.locator('#template-search').fill(query);assert.equal(await page.locator(`[data-template="${type}"]`).isVisible(),true);}

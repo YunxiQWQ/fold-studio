@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -62,8 +63,8 @@ try{
   console.log('Passed: image upload');
 
   const exportWait=page.waitForEvent('download');await page.locator('#save-project').click();const exported=await exportWait;await exported.saveAs(resolve(artifacts,'roundtrip.fold'));
-  const svgWait=page.waitForEvent('download');await page.locator('#export-toggle').click();await page.locator('#export-svg').click();const svg=await svgWait;await svg.saveAs(resolve(artifacts,'roundtrip.svg'));
-  const pngWait=page.waitForEvent('download');await page.locator('#export-toggle').click();await page.locator('#export-png').click();await(await pngWait).saveAs(resolve(artifacts,'preview.png'));
+  const svgWait=page.waitForEvent('download');await page.locator('#export-toggle').click();await chooseExport(page,'flat','svg',true);const svg=await svgWait;await svg.saveAs(resolve(artifacts,'roundtrip.svg'));
+  const pngWait=page.waitForEvent('download');await page.locator('#export-toggle').click();await chooseExport(page,'3d','png',true);await(await pngWait).saveAs(resolve(artifacts,'preview.png'));
   const expected=await page.evaluate(()=>window.__foldStudio.project);
   await page.locator('#project-name').fill('临时更名');await page.locator('#project-name').blur();await page.locator('#project-input').setInputFiles(resolve(artifacts,'roundtrip.svg'));
   await page.waitForFunction(name=>window.__foldStudio.project.name===name,expected.name);

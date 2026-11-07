@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -82,7 +83,7 @@ try{
   await b.locator('#shortcut-help').click();await b.waitForSelector('#shortcuts-dialog[open]');await b.locator('#close-shortcuts').click();
   await b.locator('#side-outside').click();await b.keyboard.press('2');assert.equal(await b.evaluate(()=>window.__foldStudio.selection.side),'inside');await b.keyboard.press('1');assert.equal(await b.evaluate(()=>window.__foldStudio.selection.side),'outside');await b.keyboard.press('f');await b.keyboard.press('g');checks.push('shortcut panel and keyboard side, fit and guides controls');
   const saved=await b.evaluate(()=>window.__foldStudio.project);await b.waitForTimeout(800);await b.reload();await ready(b);assert.deepEqual(await b.evaluate(()=>window.__foldStudio.project),saved);checks.push('both surfaces persist after reload');
-  await b.locator('#side-inside').click();const download=b.waitForEvent('download');await b.locator('#export-toggle').click();await b.locator('#export-svg').click();await(await download).saveAs(resolve(artifacts,'inside-roundtrip.svg'));
+  await b.locator('#side-inside').click();const download=b.waitForEvent('download');await b.locator('#export-toggle').click();await chooseExport(b,'flat','svg',true);await(await download).saveAs(resolve(artifacts,'inside-roundtrip.svg'));
   const beforeImport=await b.evaluate(()=>window.__foldStudio.project);await b.locator('#project-input').setInputFiles(resolve(artifacts,'inside-roundtrip.svg'));await b.waitForTimeout(150);assert.deepEqual(await b.evaluate(()=>window.__foldStudio.project),beforeImport);checks.push('inside SVG exports and reopens with both surfaces');
   await b.locator('#side-inside').click();await b.locator('#inspect-surface').click();await b.screenshot({path:resolve(artifacts,'08-inside-tray.png'),fullPage:true});
   const restricted=await browser.newContext({viewport:{width:1440,height:900}});

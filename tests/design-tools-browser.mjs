@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -81,7 +82,7 @@ try{
   await page.locator('#expand-layers').click();await page.locator('#layers .tree-label').filter({hasText:'可编辑标志'}).last().click();assert.ok(await page.locator('#properties').isVisible());
   checks.push('array remaps local clip/use references without duplicate IDs, keeps text/vector layers and survives project saving/reload');
 
-  const svgDownload=page.waitForEvent('download');await page.locator('#export-toggle').click();await page.locator('#export-svg').click();const svgFile=await svgDownload;const svgPath=resolve(directory,'array.svg');await svgFile.saveAs(svgPath);const exported=readFileSync(svgPath,'utf8');assert.ok(exported.includes('Editable')&&exported.includes('<use')&&exported.includes('<clipPath'));assert.ok(!exported.includes('data:image/'),'vector array export contains no bitmap');
+  const svgDownload=page.waitForEvent('download');await page.locator('#export-toggle').click();await chooseExport(page,'flat','svg',true);const svgFile=await svgDownload;const svgPath=resolve(directory,'array.svg');await svgFile.saveAs(svgPath);const exported=readFileSync(svgPath,'utf8');assert.ok(exported.includes('Editable')&&exported.includes('<use')&&exported.includes('<clipPath'));assert.ok(!exported.includes('data:image/'),'vector array export contains no bitmap');
   const transactionBefore=await documentSource();const rejected=await page.evaluate(()=>{
     const api=window.__foldStudio.nativeEditor,node=api.wrapper.querySelector('[id$="-a"]');
     try{api.transaction('invalid test',batch=>{const old={fill:node.getAttribute('fill')};node.setAttribute('fill','url(https://invalid.example/paint)');batch.addSubCommand(new api.canvas.history.ChangeElementCommand(node,old));});return false;}catch{return true;}

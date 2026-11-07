@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -71,7 +72,7 @@ try{
   checks.push('both print sides: six affine-safe alignments, stationary key object, panel and sheet references, equal edge gaps, specified mm spacing for two objects, center distribution, and undo across transformed parents');
   await choose('a');await choose('b',true);await page.locator('#alignment-target').selectOption('selection');await page.locator('#alignment-distribution').selectOption('gaps');await page.locator('#alignment-gap').fill('-2');const before=await bounds(['a','b']);await page.locator('[data-inspector-action="align-dh"]').click();const after=await bounds(['a','b']);for(const id of ['a','b'])for(const key of ['x','y','w','h'])near(after[id][key],before[id][key],'invalid gap leaves geometry unchanged',1e-7);
   await choose('one');await edit('#typography-family','Georgia, serif');await page.locator('[data-typography-action="underline"]').click();await edit('#typography-family','url(https://example.com/font)');assert.equal(await page.locator('#typography-family').getAttribute('aria-invalid'),'true');await choose('one');
-  await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await page.locator('#export-svg').click();const file=resolve(dir,'edited.svg');await(await download).saveAs(file);const svg=readFileSync(file,'utf8');assert.ok(svg.includes('<text'));assert.ok(svg.includes('<tspan'));assert.ok(svg.includes('text-decoration'));assert.ok(!svg.includes('typography-family'));
+  await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await chooseExport(page,'flat','svg',true);const file=resolve(dir,'edited.svg');await(await download).saveAs(file);const svg=readFileSync(file,'utf8');assert.ok(svg.includes('<text'));assert.ok(svg.includes('<tspan'));assert.ok(svg.includes('text-decoration'));assert.ok(!svg.includes('typography-family'));
   await page.locator('#project-input').setInputFiles(file);await ready();await page.locator('#expand-layers').click();await choose('one');assert.equal(await page.locator('#node-text').inputValue(),'第一行 Mixed\n第二行 Text');
   await page.evaluate(()=>window.__foldStudio.setTheme('slate'));await choose('a');await choose('b',true);await page.locator('#alignment-gap').fill('4');await page.screenshot({path:resolve(dir,'alignment-panel.png')});
   await page.setViewportSize({width:390,height:844});await page.locator('#right-sidebar:not([inert])').waitFor();assert.ok(await page.locator('#alignment-target').isVisible());await page.screenshot({path:resolve(dir,'phone-panel.png'),fullPage:true});

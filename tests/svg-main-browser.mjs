@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {resolve} from 'node:path';
@@ -121,7 +122,7 @@ try{
   await choose('title');const draft=page.locator('#node-text'),prior=await draft.inputValue();await draft.fill('Uncommitted draft');
   assert.equal(await page.evaluate(()=>{const e=new Event('beforeunload',{cancelable:true});window.dispatchEvent(e);return e.defaultPrevented;}),true);
   await draft.fill(prior);await draft.blur();checks.push('uncommitted inspector text also triggers browser close protection');
-  const exported=page.waitForEvent('download');await page.locator('#export-toggle').click();await page.locator('#export-svg').click();await(await exported).saveAs(resolve('artifacts/svg-main/sheet.svg'));
+  const exported=page.waitForEvent('download');await page.locator('#export-toggle').click();await chooseExport(page,'flat','svg',true);await(await exported).saveAs(resolve('artifacts/svg-main/sheet.svg'));
   const svg=readFileSync('artifacts/svg-main/sheet.svg','utf8');assert.ok(svg.includes('Directly edited'));assert.ok(svg.includes('linearGradient'));assert.equal((svg.match(/<image\b/g)??[]).length,1);assert.ok(!JSON.stringify(await page.evaluate(()=>window.__foldStudio.project.svgArtwork)).includes('fold-paper-guide'));checks.push('sheet SVG exports native content and only the real photograph as an embedded image');
   const comparisons=await page.evaluate(async()=>{
     const [{ImageCache,paintArtwork},{svgSceneLayers},{exportSVG}]=await Promise.all([import('/src/artwork.js'),import('/src/svg-scene.js'),import('/src/export-svg.js')]);

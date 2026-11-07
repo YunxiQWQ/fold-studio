@@ -23,8 +23,6 @@ import { Preview3D } from './preview3d.js';
 import { download } from './storage.js';
 import { createDocument, getActiveDocument, getDocument, getRevision, listDocuments, listRevisions, saveDocument, saveRevision, setActiveDocument } from './project-library-storage.js';
 import { mountProjectLibrary } from './project-library-ui.js';
-import { exportGLB } from './export3d.js';
-import { exportSVG } from './export-svg.js';
 import {resizeTextDimension} from './text-transform.js';
 import {CloseProtection} from './close-protection.js';
 import {importSvgDocument} from './import-svg.js';
@@ -34,10 +32,8 @@ import { PACKAGING_SYMBOLS } from './symbols.js';
 import {formatCmyk} from './color.js';
 import {colorReady} from './color-runtime.js';
 import {colorStatus,configureColorManagement} from './color.js';
-import {renderPrintSurface} from './print-surface.js';
 import {mountPrintUI} from './print-ui.js';
-import {mountExportColorUI} from './export-color-ui.js';
-import {exportMenuMarkup,mountExportMenu} from './export-menu.js';
+import {mountExportUI} from './export-ui.js';
 
 const $=selector=>document.querySelector(selector);
 const $$=selector=>document.querySelectorAll(selector);
@@ -84,7 +80,7 @@ $('#app').innerHTML=`
       <button id="shortcut-help" class="icon-button" title="快捷键 · ?" aria-label="快捷键">${icon('keyboard')}</button>
       <button id="help" class="icon-button" title="使用指南" aria-label="使用指南">${icon('help')}</button>
     </div>
-    <div class="export-wrap"><button id="export-toggle" class="button primary" aria-haspopup="menu" aria-controls="export-menu" aria-expanded="false">${icon('download')}<span>导出</span>${icon('down')}</button><div id="export-menu" class="dropdown export-menu" role="menu" aria-label="导出文件" hidden>${exportMenuMarkup()}</div></div>
+    <button id="export-toggle" class="button primary" aria-haspopup="dialog" aria-controls="export-dialog">${icon('download')}<span>导出</span></button>
   </div>
 </header>
 <main class="workspace" id="workspace-main">
@@ -194,8 +190,6 @@ $('#app').innerHTML=`
 <dialog id="help-dialog" aria-labelledby="help-title"><button id="close-help" class="dialog-close" aria-label="关闭">${icon('close')}</button><span class="dialog-kicker">FOLD STUDIO · <span class="version-tag">v0.15.0</span></span><h2 id="help-title">让设计，折起来。</h2><p>在平面刀版上排版，三维模型实时折叠成型。每一次编辑都会同步到折叠预览。</p><ol class="help-steps"><li><span>1</span><div><strong>选择结构</strong><small>左侧“更换结构”打开 ${Object.keys(BOX_TYPES).length} 款盒型与容器，再调整尺寸和纸张。</small></div></li><li><span>2</span><div><strong>平面排版</strong><small>工具栏添加文字、图片 / SVG、图形、条码与标志；外面、内面分别设计。</small></div></li><li><span>3</span><div><strong>折叠检查与导出</strong><small>拖动折叠进度检查成型效果，导出 GLB、PNG 或带刀线的 SVG。</small></div></li></ol><div class="help-grid"><div><kbd>V</kbd><span>选择工具</span></div><div><kbd>H / 空格</kbd><span>平移画布</span></div><div><kbd>Ctrl Z</kbd><span>撤销编辑</span></div><div><kbd>?</kbd><span>全部快捷键</span></div></div><p class="help-note local-note">${icon('check')}<span><span class="local-badge">文件留在本地</span>：工程自动保存在当前浏览器，不需要账号，也不会上传。重要设计请用“保存”下载 .fold 备份；SVG 导出包含工程信息，可重新打开。模型与刀版用于视觉预览及结构草图。</span></p><div class="dialog-actions"><button id="dismiss-help" class="button primary">开始设计 ${icon('chevron')}</button></div></dialog>
 <dialog id="shortcuts-dialog"><button id="close-shortcuts" class="dialog-close" aria-label="关闭快捷键">${icon('close')}</button><span class="dialog-kicker">KEYBOARD SHORTCUTS</span><h2>让操作，更顺手。</h2><div class="shortcut-list">${[['Ctrl / ⌘ C','复制选中图层'],['Ctrl / ⌘ X','剪切选中图层'],['Ctrl / ⌘ V','粘贴到当前面板与内外面'],['Ctrl / ⌘ Shift V','粘贴并保留原位置'],['Ctrl / ⌘ D','复制一份图层'],['Ctrl / ⌘ Z','撤销'],['Ctrl / ⌘ Shift Z / Y','重做'],['Ctrl / ⌘ S','下载工程'],['1 / 2','编辑外面 / 内面'],['V / H / 空格','选择 / 平移 / 临时平移'],['T / I / R','添加文字 / 图片 / 矩形'],['M','展开 / 恢复平面画布'],['P','切换 RGB 屏幕 / CMYK 印刷打样'],['Shift T','切换界面主题（中灰/深黑/蓝调/浅色/纸本）'],['F / Shift F','适应平面 / 适应三维'],['G','切换辅助线'],['方向键 / Shift 方向键','移动 1 mm / 5 mm'],['Delete / Esc','删除 / 取消选择'],['?','打开本快捷键表']].map(([key,label])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('')}</div><p class="help-note">复制图层后，可在另一个折间标签页、离线页面或工程中粘贴，图片会一起携带。也可粘贴剪贴板中的普通文字或图片。输入框里的复制粘贴仍按浏览器惯例工作；若粘贴按钮受浏览器限制，请直接按 Ctrl / ⌘ V。</p></dialog>
 <dialog id="confirm-dialog"><h2>切换盒型？</h2><p>将建立一份新盒型示例，替换当前设计。你可以先保存工程；切换后也可以撤销。</p><div class="dialog-actions"><button id="cancel-confirm" class="button subtle">保留当前设计</button><button id="accept-confirm" class="button primary">切换盒型</button></div></dialog>
-<dialog id="export-glb-dialog" class="export-dialog"><button id="close-export-glb" class="dialog-close" aria-label="关闭导出对话框">${icon('close')}</button><span class="dialog-kicker">3D MODEL EXPORT</span><h2>导出三维模型 GLB</h2><p>生成内嵌几何网格、PBR 材质与内外贴图的自包含三维模型，可直接导入 Blender、C4D、KeyShot 或网页 3D/AR 查看器中渲染。</p><div class="export-options"><div class="export-group"><label class="export-label">折叠形态</label><div class="export-radios option-cards"><label><input type="radio" name="glb-fold" value="current" checked /><span id="glb-fold-current-label">当前折叠状态</span></label><label><input type="radio" name="glb-fold" value="closed" /><span>100% 闭合成型</span></label><label><input type="radio" name="glb-fold" value="flat" /><span>0% 平铺刀版</span></label></div></div><div class="export-group"><label class="export-label" for="glb-resolution">贴图烘焙分辨率</label><label class="select-label"><select id="glb-resolution"><option value="2048" selected>2048 × 2048（推荐 · 细节清晰）</option><option value="4096">4096 × 4096（超清 · 适合近景特写）</option><option value="1024">1024 × 1024（轻量 · 适合 Web/AR）</option></select></label></div><div class="export-group"><label class="checkbox-label"><input type="checkbox" id="glb-inside" checked /><span>包含内面印刷图案与底色</span></label></div></div><div class="dialog-actions"><button id="cancel-export-glb" class="button subtle">取消</button><button id="confirm-export-glb" class="button primary">${icon('download')}开始导出 GLB</button></div></dialog>
-<dialog id="export-flat-dialog" class="export-dialog" aria-labelledby="export-flat-title"><button id="close-export-flat" class="dialog-close" aria-label="关闭平面 PNG 导出">${icon('close')}</button><span class="dialog-kicker">FLAT PNG EXPORT</span><h2 id="export-flat-title">导出平面设计 PNG</h2><p>当前印刷面：<strong id="flat-export-surface">外面</strong>。选择是否在设计图上显示结构线。</p><div class="export-options"><div class="export-group"><label class="checkbox-label"><input type="checkbox" id="flat-include-lines" checked /><span>包含刀线和折线</span></label><span class="field-note">红色实线为刀线，绿色虚线为折线；取消勾选可导出纯设计图。</span></div></div><div class="dialog-actions"><button id="cancel-export-flat" class="button subtle">取消</button><button id="confirm-export-flat" class="button primary">${icon('download')}导出 PNG</button></div></dialog>
 <dialog id="templates-dialog" class="templates-dialog">
   <button id="close-templates" class="dialog-close" aria-label="关闭包装结构库">${icon('close')}</button>
   <div class="dialog-header">
@@ -820,64 +814,6 @@ $('#project-input').onchange=async e=>{
   }catch(error){notify(`打开失败：${error.message}`);}
 };
 function safeName(){return project.name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').slice(0,80)||'折间工程';}
-$('#export-toggle').onclick=()=>$('#export-menu').hidden=!$('#export-menu').hidden;
-mountExportMenu();
-$('#export-artwork-svg').onclick=()=>{editor.flushInput();$('#export-menu').hidden=true;editor.run('download');};
-document.addEventListener('click',e=>{if(!e.target.closest('.export-wrap'))$('#export-menu').hidden=true;});
-async function flatCanvas(max=3072,side=activeSide,{includeLines=false}={}){
-  const copy=clone(project);return renderPrintSurface(copy,makeDieline(copy.type,copy.dimensions),images,{max,side,includeLines,proof:colorMode==='cmyk'});
-}
-$('#export-glb').onclick=()=>{
-  $('#export-menu').hidden=true;
-  $('#glb-fold-current-label').textContent=`当前折叠状态 (${Math.round(project.fold*100)}%)`;
-  $('#export-glb-dialog').showModal();
-};
-$('#close-export-glb').onclick=()=>$('#export-glb-dialog').close();
-$('#cancel-export-glb').onclick=()=>$('#export-glb-dialog').close();
-$('#confirm-export-glb').onclick=async()=>{
-  const foldChoice=$('input[name="glb-fold"]:checked')?.value||'current';
-  const foldValue=foldChoice==='closed'?1:foldChoice==='flat'?0:project.fold;
-  const foldName=foldChoice==='closed'?'闭合':foldChoice==='flat'?'平铺':`${Math.round(project.fold*100)}%折叠`;
-  const resolution=parseInt($('#glb-resolution').value,10)||2048;
-  const includeInside=$('#glb-inside').checked;
-  const btn=$('#confirm-export-glb'),oldText=btn.innerHTML;
-  btn.disabled=true;btn.innerHTML='正在生成 3D 模型...';
-  try{
-    const glbBuffer=await exportGLB(project,dieline,images,{fold:foldValue,resolution,includeInside});
-    const blob=new Blob([glbBuffer],{type:'model/gltf-binary'});
-    download(blob,`${safeName()}-${foldName}.glb`);
-    $('#export-glb-dialog').close();
-    const sizeMB=(blob.size/(1024*1024)).toFixed(2);
-    notify(`已导出三维模型：${safeName()}-${foldName}.glb（${sizeMB} MB）`);
-  }catch(err){
-    notify(`导出三维模型失败：${err.message}`);
-  }finally{
-    btn.disabled=false;btn.innerHTML=oldText;
-  }
-};
-$('#export-png').onclick=async()=>{if(!preview){notify('三维预览尚未启动');return;}await images.preload([...svgSceneLayers(project,dieline),...project.layers]);preview.paint(project);const blob=await preview.capture();if(blob)download(blob,`${safeName()}-3D.png`);$('#export-menu').hidden=true;};
-$('#export-flat').onclick=()=>{
-  editor.up();$('#export-menu').hidden=true;$('#flat-export-surface').textContent=SIDES[activeSide];$('#export-flat-dialog').showModal();
-};
-$('#close-export-flat').onclick=()=>$('#export-flat-dialog').close();
-$('#cancel-export-flat').onclick=()=>$('#export-flat-dialog').close();
-$('#confirm-export-flat').onclick=async()=>{
-  const btn=$('#confirm-export-flat');btn.disabled=true;
-  try{
-    const side=activeSide,includeLines=$('#flat-include-lines').checked,name=safeName(),canvas=await flatCanvas(3072,side,{includeLines});
-    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('图片编码失败');
-    download(blob,`${name}-${SIDES[side]}-平面${includeLines?'-带线':''}.png`);$('#export-flat-dialog').close();
-    notify(`已导出${SIDES[side]}平面 PNG${includeLines?'（含刀线和折线）':''}`);
-  }catch(error){notify(`平面图片导出失败：${error.message}`);}
-  finally{btn.disabled=false;}
-};
-$('#export-svg').onclick=async()=>{
-  try{
-    editor.up();
-    const side=activeSide,mode=colorMode,copy=clone(project),svg=await exportSVG(copy,makeDieline(copy.type,copy.dimensions),images,{side,colorMode:mode});
-    download(new Blob([svg],{type:'image/svg+xml'}),`${safeName()}-${SIDES[side]}-刀版-${mode==='cmyk'?'CMYK打样':'RGB'}.svg`);$('#export-menu').hidden=true;notify(mode==='cmyk'?'已导出可编辑 CMYK 色域 SVG；真正四色矢量请用 PDF':`已导出${SIDES[side]}可编辑 RGB SVG；工程数据包含内外两面`);
-  }catch(error){notify(`导出失败：${error.message}`);}
-};
 $('#help').onclick=()=>$('#help-dialog').showModal();$('#close-help').onclick=()=>$('#help-dialog').close();$('#dismiss-help').onclick=()=>$('#help-dialog').close();
 const editingText=target=>(target instanceof Element&&!!target.closest('input,textarea,select,[contenteditable="true"]'));
 function selectedClipboard(){
@@ -1030,7 +966,6 @@ function cycleTheme() {
 
 $('#theme-toggle')?.addEventListener('click', (e) => {
   e.stopPropagation();
-  $('#export-menu')?.setAttribute('hidden', '');
   const menu = $('#theme-menu');
   if (!menu) return;
   menu.hidden = !menu.hidden;
@@ -1103,10 +1038,10 @@ colorUI=mountColorUI({getState:()=>({project,side:activeSide,ids:getSelectedIds(
 initWorkspaceResizers();
 initWorkspaceShell();
 mountPrintUI({images,getState:()=>({project,dieline,side:activeSide,colorMode}),flush:()=>editor.up(),notify,apply:(settings,mode)=>{project.printSettings=settings;refresh({build:false});applyColorMode(mode);commit();}});
-mountExportColorUI({images,getState:()=>({project,dieline,side:activeSide,colorMode}),flush:()=>editor.up(),notify,captureRgb:async()=>{
+mountExportUI({images,getState:()=>({project,dieline,side:activeSide,colorMode}),flush:()=>{editor.flushInput();editor.up();},artworkSource:()=>editor.api.source(),notify,captureRgb:async(fold)=>{
   if(!preview)throw Error('三维预览尚未启动');await images.preload([...svgSceneLayers(project,dieline),...project.layers]);
-  try{preview.setColorMode('rgb');const blob=await preview.capture();if(!blob)throw Error('三维截图失败');const image=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;canvas.getContext('2d').drawImage(image,0,0);image.close();return canvas;}
-  finally{preview.setColorMode(colorMode);}
+  try{preview.setColorMode('rgb');if(fold!==undefined)preview.setFold(fold);const blob=await preview.capture();if(!blob)throw Error('三维截图失败');const image=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;canvas.getContext('2d').drawImage(image,0,0);image.close();return canvas;}
+  finally{preview.setFold(project.fold);preview.setColorMode(colorMode);}
 }});
 
 async function init(){

@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {BOX_TYPES} from '../src/geometry.js';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
@@ -33,7 +34,7 @@ try{
     const input=page.locator(`input[type="number"][data-extra-dim="${extra[0]}"]`);await input.fill(extra[1]);await input.dispatchEvent('change');await page.waitForFunction(([key,value])=>window.__foldStudio.project.dimensions[key]===value,[extra[0],+extra[1]]);
     await page.locator('#undo').click();await page.waitForFunction(([key,value])=>window.__foldStudio.project.dimensions[key]===value,[extra[0],extra[2]]);
     await page.locator('#add-text').click();await page.locator('#node-text').fill('新增参考结构实测');await page.locator('#node-text').blur();
-    await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await page.locator('#export-svg').click();const file=resolve(artifacts,type+'-export.svg');await(await download).saveAs(file);
+    await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await chooseExport(page,'flat','svg',true);const file=resolve(artifacts,type+'-export.svg');await(await download).saveAs(file);
     await page.locator('#project-input').setInputFiles(file);await page.waitForFunction(t=>window.__foldStudio.project.type===t,type);assert.ok(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('新增参考结构实测')));
     await page.locator('#fit-3d').click();await page.waitForTimeout(400);await page.screenshot({path:resolve(artifacts,type+'-workspace.png')});
   }

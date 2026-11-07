@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
@@ -25,7 +26,7 @@ try{
   const saved=await page.evaluate(()=>JSON.stringify(window.__foldStudio.project));assert.equal(JSON.parse(saved).version,3);assert.ok(saved.includes('hidden'));
   const pending=page.waitForEvent('download');await page.locator('#save-project').click();mkdirSync('artifacts/svg-main',{recursive:true});await(await pending).saveAs(resolve('artifacts/svg-main/'+(http?'http':'offline')+'.fold'));
   await page.reload();await page.waitForSelector('html[data-ready="true"]');await page.waitForSelector('#editor-host[data-svg-ready="true"]');assert.equal(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project)),saved);
-  const exportEvent=page.waitForEvent('download');await page.locator('#export-toggle').click();await page.locator('#export-svg').click();const svgFile=resolve('artifacts/svg-main/'+(http?'http':'offline')+'.svg');await(await exportEvent).saveAs(svgFile);const svg=readFileSync(svgFile,'utf8');assert.ok(svg.includes('Offline main canvas'));assert.equal((svg.match(/<image\b/g)??[]).length,0);
+  const exportEvent=page.waitForEvent('download');await page.locator('#export-toggle').click();await chooseExport(page,'flat','svg',true);const svgFile=resolve('artifacts/svg-main/'+(http?'http':'offline')+'.svg');await(await exportEvent).saveAs(svgFile);const svg=readFileSync(svgFile,'utf8');assert.ok(svg.includes('Offline main canvas'));assert.equal((svg.match(/<image\b/g)??[]).length,0);
   assert.deepEqual(errors,[]);assert.deepEqual(requests,[]);writeFileSync('artifacts/svg-main/'+(http?'http':'offline')+'-report.json',JSON.stringify({mainCanvas:true,legacyMigration:true,svgEditing:true,hiddenGroups:true,version3Save:true,recovery:true,vectorExport:true,errors,requests},null,2));console.log((http?'HTTP/CSP':'Offline file://')+' main SVG editor: native text, groups, engineering save/recovery and editable SVG export passed without external requests/errors.');
 }catch(error){console.log({errors,requests,toast:await page?.locator('#toast').textContent().catch(()=>null)});throw error;}
 finally{await browser.close();server?.kill();}

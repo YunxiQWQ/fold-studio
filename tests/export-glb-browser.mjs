@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -54,18 +55,18 @@ try {
   await page.waitForSelector('html[data-ready="true"]');
   await page.waitForFunction(() => window.__foldStudio?.stats?.triangles > 0);
 
-  // 1. Open export dropdown
+  // 1. Open the unified export dialog
   await page.locator('#export-toggle').click();
-  assert.equal(await page.locator('#export-menu').isVisible(), true);
+  assert.equal(await page.locator('#export-dialog').isVisible(), true);
 
-  // 2. Click export-glb
-  await page.locator('#export-glb').click();
-  assert.equal(await page.locator('#export-glb-dialog').isVisible(), true);
+  // 2. Choose the model/GLB output
+  await chooseExport(page,'model','glb');
+  assert.equal(await page.locator('#export-dialog').isVisible(), true);
 
   // 3. Test closed state export
-  await page.locator('input[name="glb-fold"][value="closed"]').check();
+  await page.locator('#export-fold').selectOption('closed');
   const downloadPromise1 = page.waitForEvent('download');
-  await page.locator('#confirm-export-glb').click();
+  await page.locator('#confirm-export').click();
   const downloadItem1 = await downloadPromise1;
   const glbPath1 = resolve(artifacts, 'exported-closed.glb');
   await downloadItem1.saveAs(glbPath1);
@@ -75,10 +76,10 @@ try {
 
   // 4. Test flat state export
   await page.locator('#export-toggle').click();
-  await page.locator('#export-glb').click();
-  await page.locator('input[name="glb-fold"][value="flat"]').check();
+  await chooseExport(page,'model','glb');
+  await page.locator('#export-fold').selectOption('flat');
   const downloadPromise2 = page.waitForEvent('download');
-  await page.locator('#confirm-export-glb').click();
+  await page.locator('#confirm-export').click();
   const downloadItem2 = await downloadPromise2;
   const glbPath2 = resolve(artifacts, 'exported-flat.glb');
   await downloadItem2.saveAs(glbPath2);
@@ -94,11 +95,11 @@ try {
   await offlinePage.waitForFunction(() => window.__foldStudio?.stats?.triangles > 0);
 
   await offlinePage.locator('#export-toggle').click();
-  await offlinePage.locator('#export-glb').click();
-  assert.equal(await offlinePage.locator('#export-glb-dialog').isVisible(), true);
+  await chooseExport(offlinePage,'model','glb');
+  assert.equal(await offlinePage.locator('#export-dialog').isVisible(), true);
 
   const downloadPromise3 = offlinePage.waitForEvent('download');
-  await offlinePage.locator('#confirm-export-glb').click();
+  await offlinePage.locator('#confirm-export').click();
   const downloadItem3 = await downloadPromise3;
   const glbPath3 = resolve(artifacts, 'offline-exported.glb');
   await downloadItem3.saveAs(glbPath3);
@@ -119,10 +120,10 @@ try {
     await page.waitForFunction(() => window.__foldStudio?.stats?.triangles > 0);
 
     await page.locator('#export-toggle').click();
-    await page.locator('#export-glb').click();
-    await page.locator('input[name="glb-fold"][value="closed"]').check();
+    await chooseExport(page,'model','glb');
+    await page.locator('#export-fold').selectOption('closed');
     const dlPromise = page.waitForEvent('download');
-    await page.locator('#confirm-export-glb').click();
+    await page.locator('#confirm-export').click();
     const dl = await dlPromise;
     const glbPath = resolve(artifacts, `${containerType}-exported.glb`);
     await dl.saveAs(glbPath);

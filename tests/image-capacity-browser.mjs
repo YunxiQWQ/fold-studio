@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -23,7 +24,7 @@ const data=()=>page.evaluate(async()=>{
   const api=window.__foldStudio.nativeEditor,rows=[];for(const n of api.wrapper.querySelectorAll('image')){const href=n.getAttribute('href')??n.getAttribute('xlink:href'),hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(href)))].map(n=>n.toString(16).padStart(2,'0')).join('');const img=new Image();img.src=href;await img.decode();rows.push({id:n.id,hash,chars:href.length,w:img.naturalWidth,h:img.naturalHeight});}return rows;
 });
 const source=()=>page.evaluate(()=>window.foldSvgSource());
-async function download(id,file){const pending=page.waitForEvent('download');await page.locator(id).click();const path=resolve(dir,file);await(await pending).saveAs(path);return path;}
+async function download(id,file){const pending=page.waitForEvent('download');if(id==='#export-svg')await chooseExport(page,'flat','svg',true);else await page.locator(id).click();const path=resolve(dir,file);await(await pending).saveAs(path);return path;}
 async function undo(){await page.locator('#undo').click();await ready();}
 try{
   await page.goto(url);await ready();const original=process.env.FOLD_TEST_PROJECT?JSON.parse(readFileSync(process.env.FOLD_TEST_PROJECT,'utf8')):newProject('book-box');
@@ -45,7 +46,7 @@ try{
   const svgImage='<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><image width="100" height="100" href="'+big+'"/></svg>';
   await page.locator('#image-input').setInputFiles({name:'large-embedded.svg',mimeType:'image/svg+xml',buffer:Buffer.from(svgImage)});await count(2);await undo();await count(1);checks.push('ordinary SVG files containing more than 8 MB of embedded photograph data import without consuming the vector-only budget');
   if(!process.env.FOLD_TEST_SKIP_PNG){
-    await page.locator('#export-toggle').click();await page.locator('#export-flat').click();const pngFile=await download('#confirm-export-flat','large-flat.png');assert.equal(readFileSync(pngFile).subarray(1,4).toString(),'PNG');
+    await page.locator('#export-toggle').click();await chooseExport(page,'flat','png');const pngFile=await download('#confirm-export','large-flat.png');assert.equal(readFileSync(pngFile).subarray(1,4).toString(),'PNG');
     const pixels=await page.evaluate(async base64=>{const img=new Image();img.src='data:image/png;base64,'+base64;await img.decode();const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);const d=ctx.getImageData(0,0,c.width,c.height).data;let colorful=0;for(let i=0;i<d.length;i+=4)if(d[i+3]>200&&Math.max(d[i],d[i+1],d[i+2])-Math.min(d[i],d[i+1],d[i+2])>60)colorful++;return{w:c.width,h:c.height,colorful};},readFileSync(pngFile).toString('base64'));assert.ok(pixels.colorful>10000,JSON.stringify(pixels));checks.push('flat PNG uses the shared artwork renderer and contains the large photograph pixels rather than an empty paper surface');
   }
   // Decode completion must not attach an image to a different active project.

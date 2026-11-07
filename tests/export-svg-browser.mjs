@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
@@ -78,7 +79,7 @@ try{
   await page.goto(url);await page.waitForSelector('html[data-ready="true"]');
   await page.locator('#project-input').setInputFiles({name:'editable.fold',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(result.project))});
   await page.waitForFunction(()=>window.__foldStudio.project.name.startsWith('Editable SVG'));
-  const event=page.waitForEvent('download');await page.locator('#export-toggle').click();await page.locator('#export-svg').click();const download=await event;await download.saveAs(resolve(artifacts,'ui-export.svg'));
+  const event=page.waitForEvent('download');await page.locator('#export-toggle').click();await chooseExport(page,'flat','svg',true);const download=await event;await download.saveAs(resolve(artifacts,'ui-export.svg'));
   const beforeImport=await page.evaluate(async()=>{const {listDocuments}=await import('/src/project-library-storage.js');return (await listDocuments()).length;});
   await page.locator('#project-input').setInputFiles(resolve(artifacts,'ui-export.svg'));
   await page.waitForFunction(async count=>{const {listDocuments}=await import('/src/project-library-storage.js');return (await listDocuments()).length===count+1;},beforeImport);

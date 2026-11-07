@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -47,14 +48,14 @@ try{
   await page.locator('#dim-depth').fill('80');await page.locator('#dim-depth').dispatchEvent('input');await page.locator('#dim-depth').dispatchEvent('change');
   await page.waitForFunction(()=>window.__foldStudio.project.dimensions.length===80);
   checks.push('square side dimensions stay linked in both directions');
-  await page.locator('#export-toggle').click();const svgDownload=page.waitForEvent('download');await page.locator('#export-svg').click();
+  await page.locator('#export-toggle').click();const svgDownload=page.waitForEvent('download');await chooseExport(page,'flat','svg',true);
   const svgPath=resolve(artifacts,'curved-carton-export.svg');await(await svgDownload).saveAs(svgPath);
   const svg=readFileSync(svgPath,'utf8');assert.equal((svg.match(/data-crease="arc-/g)??[]).length,8);
   assert.equal((svg.match(/data-crease="arc-[^"]+" d="[^"]*Q/g)??[]).length,8);
   checks.push('SVG preserves eight quadratic vector scores and round-trips project metadata');
-  await page.locator('#export-toggle').click();await page.locator('#export-glb').click();
-  await page.locator('input[name="glb-fold"][value="closed"]').check();
-  const glbDownload=page.waitForEvent('download');await page.locator('#confirm-export-glb').click();
+  await page.locator('#export-toggle').click();await chooseExport(page,'model','glb');
+  await page.locator('#export-fold').selectOption('closed');
+  const glbDownload=page.waitForEvent('download');await page.locator('#confirm-export').click();
   const glbPath=resolve(artifacts,'curved-carton-closed.glb');await(await glbDownload).saveAs(glbPath);
   const buf=readFileSync(glbPath);assert.equal(buf.readUInt32LE(0),0x46546c67);
   const json=JSON.parse(buf.subarray(20,20+buf.readUInt32LE(12)).toString('utf8'));
@@ -63,9 +64,9 @@ try{
   const frontNode=json.nodes.find(n=>n.name?.endsWith('_front'));
   const frontPosition=json.accessors[json.meshes[frontNode.mesh].primitives[0].attributes.POSITION];
   assert.ok(frontPosition.max[2]-frontPosition.min[2]>10,'GLB must contain the deformed body, not a flat sheet');
-  await page.locator('#export-toggle').click();await page.locator('#export-glb').click();
-  await page.locator('input[name="glb-fold"][value="flat"]').check();
-  const flatDownload=page.waitForEvent('download');await page.locator('#confirm-export-glb').click();
+  await page.locator('#export-toggle').click();await chooseExport(page,'model','glb');
+  await page.locator('#export-fold').selectOption('flat');
+  const flatDownload=page.waitForEvent('download');await page.locator('#confirm-export').click();
   const flatPath=resolve(artifacts,'curved-carton-flat.glb');await(await flatDownload).saveAs(flatPath);
   const flatBuf=readFileSync(flatPath),flatJSON=JSON.parse(flatBuf.subarray(20,20+flatBuf.readUInt32LE(12)).toString('utf8'));
   const flatNode=flatJSON.nodes.find(n=>n.name?.endsWith('_front'));

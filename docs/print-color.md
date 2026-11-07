@@ -6,7 +6,18 @@
 
 ## 各导出格式
 
-导出菜单按用途排列：**设计图片**提供 PNG／JPG／TIFF，**完整刀版**提供 SVG／PDF，**当前面图文**提供 SVG；三维组的**当前视角**提供 PNG／JPG，**三维模型**提供 GLB。同一行的格式按钮并排选择。
+点击顶部 **导出** 打开统一窗口。左侧预览待导出内容，右侧先选内容，再选格式和色彩模式；按一次底部导出按钮生成文件，不再进入第二层设置弹窗。
+
+- **平面刀版**：当前内面或外面的完整展开图，可选 PNG／JPG／SVG／PDF／TIFF。PNG、JPG、SVG、PDF 可选择是否含刀线与折线；TIFF 固定不含结构线。
+- **图文图层**：当前印刷面的可编辑 SVG，不含纸张背景和结构线。
+- **三维预览**：当前相机视角的 PNG／JPG。
+- **三维模型**：GLB，可选折叠形态、贴图分辨率和是否包含内面图案。
+
+仅显示所选格式适用的选项：JPG 质量、TIFF DPI、PDF 字体与兼容性、GLB 模型设置。TIFF 固定为真实 CMYK；PNG／SVG 的 CMYK 选项明确标注为 RGB 打样显示。导出覆盖色彩模式不会修改工程。切换范围／格式、关闭窗口或预览其他折叠形态也不改动原稿。
+
+左侧预览用于检查内容、结构线和色域；JPG 压缩质量、最终分辨率与 PDF 替代字体不在缩略图中模拟。PDF 字体说明默认折叠，可展开加载字体。小屏幕内容区可滚动，底部文件名、尺寸和操作保持可见。
+
+流程参考成熟工具的内容选择、格式与设置分离：[Illustrator Export for Screens](https://helpx.adobe.com/illustrator/desktop/save-and-export/export-files-to-different-formats/export-artboards-and-assets-for-screens.html)、[Figma 格式设置](https://help.figma.com/hc/en-us/articles/13402894554519-Export-formats-and-settings-for-static-designs)、[Affinity 统一导出与预览](https://affinity.help/designer2/en-US.lproj/pages/ShareSavePrint/export.html)。折间据此采用一个带预览的窗口，避免并列重复入口。
 
 | 格式 | RGB 模式 | CMYK 模式 | 编辑能力 |
 | --- | --- | --- | --- |

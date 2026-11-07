@@ -1,3 +1,4 @@
+import {chooseExport} from './helpers/export-ui.mjs';
 import {BOX_TYPES} from '../src/geometry.js';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
@@ -31,7 +32,7 @@ try{
    const rise=page.locator('input[type="number"][data-extra-dim="roofDepth"]');await rise.fill('67');await rise.dispatchEvent('change');await page.waitForFunction(()=>window.__foldStudio.project.dimensions.roofDepth===67);await page.locator('#undo').click();assert.equal((await page.evaluate(()=>window.__foldStudio.project.dimensions)).roofDepth,61);
   }
   await page.locator('#add-text').click();await page.locator('#node-text').fill('结构新增实测');await page.locator('#node-text').blur();
-  await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await page.locator('#export-svg').click();const file=resolve('artifacts',type+'-export.svg');await(await download).saveAs(file);await page.locator('#project-input').setInputFiles(file);await page.waitForFunction(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('结构新增实测'));
+  await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await chooseExport(page,'flat','svg',true);const file=resolve('artifacts',type+'-export.svg');await(await download).saveAs(file);await page.locator('#project-input').setInputFiles(file);await page.waitForFunction(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('结构新增实测'));
   await page.locator('#panel-selector').selectOption('front');await page.locator('#fit-3d').click();await page.waitForTimeout(3200);await page.screenshot({path:resolve('artifacts',type+'-workspace.png')});
  }
  checks.push('current library entries; both existing reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking; custom dimensions, prism orientation and valid sides; undo/redo and SVG project round trips');
