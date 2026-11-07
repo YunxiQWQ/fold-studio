@@ -1,7 +1,7 @@
 // SVGCanvas's drag coordinates assume one untransformed layer. Imported SVGs
 // have independent parent coordinate systems, so apply screen gestures through
 // each object's actual DOM matrices without flattening its editable geometry.
-export function installSvgPointerGestures(canvas,container,{root,panActive,changed}){
+export function installSvgPointerGestures(canvas,container,{root,panActive,changed,interaction}){
   let gesture=null,priorTransforms;
   const domMatrix=value=>value?new DOMMatrix([value.a,value.b,value.c,value.d,value.e,value.f]):null;
   const finite=matrix=>matrix&&['a','b','c','d','e','f'].every(key=>Number.isFinite(matrix[key]));
@@ -37,6 +37,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
     if(!items.length||items.some(item=>!item))return false;
     gesture={mode,dir,items,x:event.clientX,y:event.clientY,moved:false,box:mode==='resize'?nodes[0].getBBox():null};
     canvas.setStarted(true);canvas.setCurrentMode(mode);
+    interaction?.(mode==='select');
     return true;
   }
   function refresh(){
@@ -100,7 +101,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
   },true);
   function finish(event,cancel=false){
     if(!gesture)return;
-    const current=gesture;gesture=null;
+    const current=gesture;gesture=null;interaction?.(false);
     if(!current.moved&&current.mode==='select')return; // Preserve ordinary clicks and path/node editing.
     event?.preventDefault();event?.stopImmediatePropagation();
     canvas.setStarted(false);canvas.setCurrentMode('select');canvas.setStartTransform(null);canvas.setJustSelected(null);

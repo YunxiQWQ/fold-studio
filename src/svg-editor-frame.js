@@ -1,6 +1,6 @@
 import {mountSvgLayerPanel,svgLayerName} from './svg-layer-panel.js';
 import {installSvgPointerGestures} from './svg-pointer-gestures.js';
-import {captureSvgPlacement,restoreSvgPlacement,ungroupSvgLayers} from './svg-layer-operations.js';
+import {captureSvgPlacement,restoreSvgPlacement,ungroupSvgLayers,sortableTextPart,preserveTextOrder} from './svg-layer-operations.js';
 import {readSvgText,writeSvgText} from './svg-typography.js';
 import {canonicalizeImageElement} from './svg-capacity.js';
 import {installSvgInlineText} from './svg-inline-text.js';
@@ -32,10 +32,19 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
       if(!(Number(style.stroke_width)>0))style.stroke_width=1;
     }
     options.mode?.(mode);
+    refreshCursor();
   };
   let sourceRoot, wrapperId, wrapper, viewport, loading=true, selected=null, clipboard=null;
   let originalStyle = new Map(),changedTimer,layersPanel,propertyNode;
-  let pan={x:0,y:0},panDrag=null,inlineText,laidOutZoom,copying=false;
+  let pan={x:0,y:0},panDrag=null,inlineText,laidOutZoom,copying=false,movingObject=false;
+  function refreshCursor(){
+    const mode=canvas.getMode(),pan=options.panActive?.()||mode==='pan';
+    const cursor=panDrag?'grabbing':pan?'grab':movingObject?'move':mode==='text'?'text':['path','fhpath','rect','ellipse','line'].includes(mode)?'crosshair':'default';
+    container.style.setProperty('--fold-canvas-cursor',cursor);
+    container.style.setProperty('--fold-object-cursor',mode==='select'&&!pan&&!panDrag?'move':cursor);
+  }
+  const setCurrentMode=canvas.setCurrentMode.bind(canvas);
+  canvas.setCurrentMode=mode=>{setCurrentMode(mode);refreshCursor();};
   const tagName = element => element.localName;
   const title = element => [...element.children].find(child=>tagName(child)==='title');
   const label=svgLayerName;
@@ -115,7 +124,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     }
     alignViewportSelector(selector);return selector;
   };
-  installSvgPointerGestures(canvas,container,{root:sourceElement,panActive:options.panActive,changed:()=>contentChanged(true)});
+  installSvgPointerGestures(canvas,container,{root:sourceElement,panActive:options.panActive,changed:()=>contentChanged(true),interaction:active=>{movingObject=active;refreshCursor();}});
   function snapshot() {
     const holder=sourceElement();
     if(!holder)throw Error('SVG 原稿容器已移除，请撤销后重试');
@@ -216,9 +225,10 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     event.preventDefault();event.stopImmediatePropagation();
     panDrag={pointer:event.pointerId,x:event.clientX,y:event.clientY,pan:{...pan}};
     container.setPointerCapture(event.pointerId);canvas.getSvgRoot().style.cursor='grabbing';
+    refreshCursor();
   },true);
   container.addEventListener('pointermove',event=>{if(!panDrag)return;event.preventDefault();event.stopImmediatePropagation();pan={x:panDrag.pan.x+event.clientX-panDrag.x,y:panDrag.pan.y+event.clientY-panDrag.y};layout();},true);
-  function stopPan(){const prior=panDrag;panDrag=null;if(prior&&container.hasPointerCapture(prior.pointer))container.releasePointerCapture(prior.pointer);canvas.getSvgRoot().style.removeProperty('cursor');}
+  function stopPan(){const prior=panDrag;panDrag=null;if(prior&&container.hasPointerCapture(prior.pointer))container.releasePointerCapture(prior.pointer);canvas.getSvgRoot().style.removeProperty('cursor');refreshCursor();}
   for(const type of ['pointerup','pointercancel','lostpointercapture'])container.addEventListener(type,event=>{if(!panDrag||panDrag.pointer!==event.pointerId)return;event.preventDefault();event.stopImmediatePropagation();stopPan();},true);
   function cancelCanvasGesture(){
     stopPan();const mode=canvas.getMode();
@@ -327,6 +337,15 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     selected=toggle?(next.at(-1)??null):element;refreshTree();refreshProperties();options.selected?.(selected);
   }
   function moveLayers(nodes,target,position){
+    if(position!=='inside'&&sortableTextPart(target)&&nodes.every(node=>sortableTextPart(node)&&node.parentElement===target.parentElement)){
+      transaction('调整文字分段顺序',batch=>{
+        const parent=target.parentElement,ordered=[...nodes].sort((a,b)=>a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING?-1:1);
+        let reference=position==='before'?target.nextSibling:target;while(reference&&nodes.includes(reference))reference=reference.nextSibling;
+        preserveTextOrder(canvas,parent,batch,()=>{for(const node of ordered){const next=node.nextSibling;parent.insertBefore(node,reference);if(node.nextSibling!==next)batch.addSubCommand(new canvas.history.MoveElementCommand(node,next,parent));}});
+        return {selection:[target.closest('text')],active:nodes.at(-1)};
+      });
+      return;
+    }
     const visual=node=>['tspan','textPath'].includes(node.localName)?node.closest('text'):node;
     nodes=[...new Set(nodes.map(visual).filter(Boolean))];target=visual(target);
     const parent=position==='inside'?target:target.parentElement;
@@ -461,11 +480,12 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
         return;
       }
       if(['up','down','front','back'].includes(action)){
-        const nodes=canvas.getSelectedElements().filter(Boolean),batch=new canvas.history.BatchCommand('调整图层顺序');
+        const chosen=canvas.getSelectedElements().filter(Boolean),part=chosen.length===1&&sortableTextPart(selected)&&selected.closest('text')===chosen[0];
+        const nodes=part?[selected]:chosen,batch=new canvas.history.BatchCommand('调整图层顺序');
         const graphical=node=>!['title','desc'].includes(node.localName)&&!definitions.has(node.localName);
         const order=[...nodes].sort((a,b)=>a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING?-1:1);
         if(action==='up')order.reverse();
-        for(const node of order){
+        const apply=()=>{for(const node of order){
           const parent=node.parentNode,next=node.nextSibling;
           if(action==='front')parent.append(node);
           else if(action==='back'){const first=[...parent.children].find(child=>graphical(child)&&!nodes.includes(child));if(first)parent.insertBefore(node,first);}
@@ -475,7 +495,8 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
             if(neighbor)action==='up'?neighbor.after(node):neighbor.before(node);
           }
           if(node.nextSibling!==next)batch.addSubCommand(new canvas.history.MoveElementCommand(node,next,parent));
-        }
+        }};
+        if(part)preserveTextOrder(canvas,selected.parentElement,batch,apply);else apply();
         if(!batch.isEmpty()){canvas.undoMgr.addCommandToHistory(batch);contentChanged(true);}return;
       }
       if(['bold','italic','underline'].includes(action)){
@@ -595,7 +616,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   }
   if(!options.message)window.addEventListener('message',event=>{if(event.source===parent&&event.data?.channel==='fold-svg-editor')receive(event.data);});
   send('ready');
-  return {canvas,receive,source:snapshot,run,layout,zoom,endText,select:selectElement,refreshTree,refreshProperties,transaction,
+  return {canvas,receive,source:snapshot,run,layout,zoom,endText,select:selectElement,refreshTree,refreshProperties,refreshCursor,transaction,
     sourceStyles(action){return options.sourceStyles?options.sourceStyles(action):action();},
     endRename(){layersPanel.finishRename(true);},get layerDirty(){return layersPanel.dirty;},
     get hasClipboard(){return !!clipboard;},

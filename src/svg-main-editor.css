@@ -18,12 +18,14 @@
 .native-text-input,.native-text-input.is-inline{position:fixed;width:1px;min-width:0;height:1px;opacity:0!important;pointer-events:none;resize:none;overflow:hidden;margin:0;padding:0;border:0;outline:0;background:transparent;color:transparent;caret-color:transparent;white-space:pre}
 .native-text-overlay{position:absolute;inset:0;width:100%;height:100%;z-index:10;pointer-events:none!important;overflow:hidden}
 .native-text-editing #selectorParentGroup{visibility:hidden!important}
+.native-text-boundary{fill:none;stroke:var(--green,#4b6a43);stroke-width:1;stroke-dasharray:4 3;pointer-events:none}
 .native-text-selection{fill:#638aff;fill-opacity:.3}
 .native-text-caret,.native-text-composition{fill:none;stroke:#4263eb;stroke-width:1.4;pointer-events:none}
 .native-text-caret{animation:native-caret-blink 1.1s step-end infinite}
 .native-text-caret.composing{animation:none}
 @keyframes native-caret-blink{0%,55%,100%{opacity:1}56%,99%{opacity:0}}
-.native-main-canvas #svgcontent text,.native-main-canvas #svgcontent text *{cursor:move!important}
+.native-main-canvas #svgroot{cursor:var(--fold-canvas-cursor,default)!important}
+.native-main-canvas [data-fold-svg-wrapper],.native-main-canvas [data-fold-svg-wrapper] *{cursor:var(--fold-object-cursor,move)!important}
 .native-main-canvas #svgcontent text[data-fold-inline-editing],.native-main-canvas #svgcontent text[data-fold-inline-editing] *{cursor:text!important}
 .native-main-properties #native-code-status{font-size:11px;color:var(--muted,#627759)}
 #layer-list:has(>.native-main-tree){display:flex;flex:1;min-height:0;overflow:hidden;padding:0 6px}

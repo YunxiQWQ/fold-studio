@@ -15,6 +15,28 @@ const attributeChange=(canvas,node,old)=>{
   return Object.keys(changed).length?new canvas.history.ChangeElementCommand(node,changed):null;
 };
 
+// Text spans paint in DOM order too. Keep their original insertion positions
+// when changing stacking, including spans positioned by relative dx/dy.
+export const sortableTextPart=node=>node?.localName==='tspan'&&!node.closest('textPath')&&['text','tspan'].includes(node.parentElement?.localName)&&[...node.parentElement.children].filter(child=>child.localName==='tspan').length>1&&![...node.parentElement.childNodes].some(child=>child.nodeType===3&&child.textContent.trim());
+export function preserveTextOrder(canvas,parent,batch,apply){
+  const entries=[...parent.children].filter(node=>node.localName==='tspan'&&node.getNumberOfChars()).map(node=>({node,point:node.getStartPositionOfChar(0),old:attrSnapshot(node)}));
+  apply();
+  if(!entries.some(({node,point})=>{const current=node.getStartPositionOfChar(0);return Math.hypot(point.x-current.x,point.y-current.y)>.00001;}))return;
+  // Establish every chunk boundary before measuring: adding a later anchor
+  // changes an earlier chunk's width when text-anchor is middle/end.
+  for(const entry of entries){
+    const {node}=entry;
+    const lists={};
+    for(const key of ['x','y']){const list=node[key].baseVal;lists[key]=Array.from({length:list.numberOfItems},(_,i)=>list.getItem(i).value);if(!lists[key].length)lists[key]=[0];node.setAttribute(key,lists[key].join(' '));}
+    entry.lists=lists;
+  }
+  for(const {node,point,lists}of entries){
+    const current=node.getStartPositionOfChar(0);
+    for(const key of ['x','y']){lists[key][0]+=point[key]-current[key];node.setAttribute(key,lists[key].join(' '));}
+  }
+  for(const {node,old}of entries){const command=attributeChange(canvas,node,old);if(command)batch.addSubCommand(command);}
+}
+
 // Capture before changing the DOM: inherited fonts/paint and percentages can
 // otherwise resolve against a different viewport after SVG ungroup/reparent.
 export function captureSvgPlacement(node,{percentages=false}={}){

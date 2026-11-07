@@ -7,8 +7,8 @@ const segmenter=typeof Intl.Segmenter==='function'?new Intl.Segmenter(undefined,
 // SVG remains the visible text renderer. The tiny, transparent textarea only
 // supplies native editing, clipboard, undo and IME; no second font layout.
 export function installSvgInlineText(canvas,container,{input,root,context,changed,editing}){
-  const overlay=svg('svg',{'class':'native-text-overlay','aria-hidden':'true'}),selection=svg('g',{'class':'native-text-selection'}),composition=svg('g',{'class':'native-text-composition'}),caret=svg('path',{'class':'native-text-caret'});
-  overlay.append(selection,composition,caret);container.append(overlay);overlay.style.display='none';
+  const overlay=svg('svg',{'class':'native-text-overlay','aria-hidden':'true'}),boundary=svg('path',{'class':'native-text-boundary'}),selection=svg('g',{'class':'native-text-selection'}),composition=svg('g',{'class':'native-text-composition'}),caret=svg('path',{'class':'native-text-caret'});
+  overlay.append(boundary,selection,composition,caret);container.append(overlay);overlay.style.display='none';
   input.spellcheck=false;input.wrap='off';input.maxLength=5000;input.tabIndex=-1;input.setAttribute('autocomplete','off');
   let session=null,drag=null,frame=0,ending=false;
   const resetGesture=()=>{canvas.setStarted(false);canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.getRubberBox()?.setAttribute('display','none');};
@@ -60,7 +60,10 @@ export function installSvgInlineText(canvas,container,{input,root,context,change
   }
   function edgeAt(position,tokens){
     const next=tokens.find(t=>t.start>=position),previous=tokens.findLast(t=>t.end<=position);
-    if(next?.line||position===input.value.length&&input.value.endsWith('\n')||previous?.line&&(!next||next.start>position))return emptyEdge(position);
+    // A virtual newline belongs after the preceding glyph, not at its row's
+    // origin. Empty rows still use their explicit SVG insertion coordinates.
+    if(next?.line)return previous?.b??emptyEdge(position);
+    if(position===input.value.length&&input.value.endsWith('\n')||previous?.line&&(!next||next.start>position))return emptyEdge(position);
     if(next?.a)return next.a;
     if(previous?.b)return previous.b;
     return emptyEdge(position);
@@ -75,6 +78,13 @@ export function installSvgInlineText(canvas,container,{input,root,context,change
     for(const run of runs(tokens,t=>t.end>start&&t.start<selectionEnd)){const a=run[0].a,b=run.at(-1).b;if(a&&b)selection.append(svg('polygon',{points:[a[0],b[0],b[1],a[1]].map(local).join(' ')}));}
     if(session.composing)for(const run of runs(tokens,t=>t.end>session.compositionStart&&t.start<session.compositionStart+session.compositionLength)){const a=run[0].a,b=run.at(-1).b;if(a&&b)composition.append(svg('path',{d:`M${local(a[1])}L${local(b[1])}`}));}
     const edge=edgeAt(input.selectionDirection==='backward'?start:selectionEnd,tokens);
+    const matrix=session.node.getScreenCTM(),box=session.node.getBBox();
+    if(matrix){
+      const inverse=matrix.inverse(),points=edge?.map(p=>p.matrixTransform(inverse))??[],padX=3/Math.max(.001,Math.hypot(matrix.a,matrix.b)),padY=3/Math.max(.001,Math.hypot(matrix.c,matrix.d));
+      if(!session.node.getNumberOfChars()&&points.length){box.x=points[0].x;box.y=points[0].y;box.width=box.height=0;}
+      const x=Math.min(box.x,...points.map(p=>p.x))-padX,y=Math.min(box.y,...points.map(p=>p.y))-padY,right=Math.max(box.x+box.width,...points.map(p=>p.x))+padX,bottom=Math.max(box.y+box.height,...points.map(p=>p.y))+padY;
+      boundary.setAttribute('d',[[x,y],[right,y],[right,bottom],[x,bottom]].map(([x,y],i)=>`${i?'L':'M'}${local(new DOMPoint(x,y).matrixTransform(matrix))}`).join(' ')+'Z');
+    }
     caret.style.display=start===selectionEnd||session.composing?'':'none';
     if(edge){caret.setAttribute('d',`M${local(edge[0])}L${local(edge[1])}`);input.style.left=Math.max(0,Math.min(innerWidth-2,edge[1].x))+'px';input.style.top=Math.max(0,Math.min(innerHeight-2,edge[0].y))+'px';input.style.height=Math.max(2,Math.hypot(edge[1].x-edge[0].x,edge[1].y-edge[0].y))+'px';}
     caret.classList.toggle('composing',!!session.composing);

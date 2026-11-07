@@ -908,7 +908,7 @@ document.addEventListener('keydown',e=>{
     return;
   }
   if(e.altKey)return;
-  if(e.code==='Space'){e.preventDefault();editor.space=true;editor.canvas.style.cursor='grab';}
+  if(e.code==='Space'){e.preventDefault();editor.space=true;editor.canvas.style.cursor='grab';editor.api?.refreshCursor();}
   if(e.key.toLowerCase()==='v')setTool('select');if(e.key.toLowerCase()==='h')setTool('pan');
   if(e.key==='1')setSide('outside');if(e.key==='2')setSide('inside');
   if(e.key.toLowerCase()==='t'&&e.shiftKey){e.preventDefault();cycleTheme();return;}
@@ -923,8 +923,8 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape')selectLayer(null,panelId);
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected){e.preventDefault();const step=e.shiftKey?5:1;editorUI.run('nudge',{x:e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,y:e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0});}
 });
-document.addEventListener('keyup',e=>{if(e.code==='Space'){editor.space=false;editor.canvas.style.cursor=editor.tool==='pan'?'grab':'default';}});
-window.addEventListener('blur',()=>{editor.space=false;editor.canvas.style.cursor=editor.tool==='pan'?'grab':'default';});
+document.addEventListener('keyup',e=>{if(e.code==='Space'){editor.space=false;editor.canvas.style.cursor=editor.tool==='pan'?'grab':'default';editor.api?.refreshCursor();}});
+window.addEventListener('blur',()=>{editor.space=false;editor.canvas.style.cursor=editor.tool==='pan'?'grab':'default';editor.api?.refreshCursor();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){stopAnimation();if(unsaved){clearTimeout(saveTimer);persist();}}});
 window.addEventListener('pagehide',()=>{if(unsaved){clearTimeout(saveTimer);persist();}});
 window.addEventListener('beforeunload',event=>{if(editor?.dirty||closeProtection.shouldWarn(activeProjectId,project)){event.preventDefault();event.returnValue='有未保存的工程修改';}});

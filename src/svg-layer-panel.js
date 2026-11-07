@@ -1,4 +1,5 @@
 import {icon} from './icons.js';
+import {sortableTextPart} from './svg-layer-operations.js';
 
 const resources=new Set('defs linearGradient radialGradient clipPath mask pattern marker symbol filter'.split(' '));
 const descriptive=new Set(['title','desc','metadata']);
@@ -119,6 +120,7 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
     const focused=document.activeElement,focusInside=tree.contains(focused),focusId=focusInside?focused.closest('[data-tree-node]')?.dataset.treeNode:null;
     const focusControl=focused?.matches('.tree-eye')?'.tree-eye':focused?.matches('.tree-lock')?'.tree-lock':'.tree-label';
     const scroll=tree.scrollTop,selected=new Set(selection()),query=search.value.trim().toLocaleLowerCase();
+    if(textPart(active()??{})&&selected.has(movable(active()))){selected.delete(movable(active()));selected.add(active());}
     const matching=new Set();
     if(query)for(const node of root().querySelectorAll('*')){
       if((svgLayerName(node)+' '+node.id+' '+(node.localName==='text'?node.textContent:'')).toLocaleLowerCase().includes(query)){
@@ -161,15 +163,16 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
         menu.style.left=`${Math.max(8,Math.min(event.clientX,innerWidth-232))}px`;menu.style.top=`${Math.max(8,Math.min(event.clientY,innerHeight-410))}px`;menu.style.maxHeight='min(400px,calc(100vh - 16px))';menu.showPopover();
       };
       line.draggable=!isResource&&editable(node);
-      if(textPart(node)){line.dataset.dragOwner=movable(node)?.id;line.title='拖动此分段可调整整段文字的图层顺序';button.title+=' · 拖动时移动整段文字';}
+      if(textPart(node)){line.dataset.dragOwner=movable(node)?.id;line.title=sortableTextPart(node)?'拖动可调整同段文字分段顺序；拖到段外时移动整段文字':'拖动此分段可调整整段文字的图层顺序';button.title+=' · '+line.title;}
       line.ondragstart=event=>{
         if(!editable(node))return event.preventDefault();
-        const owner=movable(node);dragging=[];if(!selection().includes(owner))select(owner);
-        dragging=topNodes([...new Set(selection().map(movable).filter(editable))]);event.dataTransfer.setData('application/x-fold-layer',owner.id);event.dataTransfer.effectAllowed='move';line.classList.add('is-dragging');
+        const owner=movable(node);dragging=[];if(sortableTextPart(node))select(node);else if(!selection().includes(owner))select(owner);
+        dragging=sortableTextPart(node)?[node]:topNodes([...new Set(selection().map(movable).filter(editable))]);event.dataTransfer.setData('application/x-fold-layer',node.id);event.dataTransfer.effectAllowed='move';line.classList.add('is-dragging');
       };
       line.ondragover=event=>{
-        const target=movable(node);
-        if(!dragging?.length||isResource||!target||dragging.some(source=>source===target||source.contains(target)))return;
+        const parts=dragging?.every(source=>sortableTextPart(source)&&source.parentElement===node.parentElement)&&sortableTextPart(node);
+        const target=parts?node:movable(node),sources=parts?dragging:dragging?.map(movable);
+        if(!sources?.length||isResource||!target||sources.some(source=>source===target||source.contains(target)))return;
         const bounds=line.getBoundingClientRect(),ratio=(event.clientY-bounds.top)/bounds.height;
         const position=['g','svg'].includes(target.localName)&&ratio>.3&&ratio<.7?'inside':ratio<.5?'before':'after';
         if(position==='inside'&&locked(target))return;

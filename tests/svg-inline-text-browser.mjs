@@ -20,6 +20,8 @@ const asset={viewBox:[d.minX,d.minY,d.width,d.height],nodes:[node('g',{id:'fixtu
   node('text',{id:'multiline',x:0,y:40,'font-size':7,fill:'#305039'},[node('tspan',{x:0,y:40},['与自然相处的每一天']),node('tspan',{x:0,y:51},['留一点时间，感受季节。'])]),
   node('text',{id:'transformed',x:0,y:0,transform:'translate(15 86) rotate(-19) scale(1.35 .72)','font-size':9,fill:'#305039'},['Stretch 123 中文']),
   node('rect',{id:'shape',x:0,y:105,width:35,height:20,fill:'#b94f73'}),
+  node('path',{id:'path-cursor',d:'M60 105h15v15h-15z',fill:'#305039'}),
+  node('image',{id:'image-cursor',x:80,y:105,width:10,height:10,href:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8p8AAAAASUVORK5CYII='}),
 ]) ]};project.svgArtwork={outside:asset,inside:structuredClone(asset)};
 const ready=()=>page.locator('#editor-host[data-svg-ready="true"]').waitFor();
 const element=id=>page.locator('#svgcontent #'+id);
@@ -35,6 +37,14 @@ async function caretAligned(id,index){
     if(report.error<1.1&&report.visible)return report;await page.waitForTimeout(35);
   }assert.ok(report.error<1.1&&report.visible,JSON.stringify(report));return report;
 }
+async function boundaryAligned(id){
+  await caretAligned(id);
+  const result=await element(id).evaluate(n=>{
+    const frame=document.querySelector('.native-text-boundary'),raw=frame.getAttribute('d'),values=raw.match(/[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi).map(Number),host=document.querySelector('#canvas-container').getBoundingClientRect(),matrix=n.getScreenCTM().inverse(),points=[];
+    for(let i=0;i<values.length;i+=2)points.push(new DOMPoint(values[i]+host.x,values[i+1]+host.y).matrixTransform(matrix));
+    const box=n.getBBox();return{visible:getComputedStyle(frame).stroke!=='none'&&getComputedStyle(frame).fill==='none'&&frame.getBoundingClientRect().width>0,outside:points[0].x<box.x&&points[0].y<box.y&&points[2].x>box.x+box.width&&points[2].y>box.y+box.height,raw};
+  });assert.ok(result.visible&&result.outside,JSON.stringify(result));
+}
 try{
   await page.goto(url);await page.waitForSelector('html[data-ready="true"]');await page.locator('#project-input').setInputFiles({name:'inline.fold',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});await page.waitForFunction(()=>window.__foldStudio.project.name==='SVG inline desktop QA');await ready();
   const before=await element('plain').boundingBox();await edit('plain');const during=await element('plain').boundingBox();for(const key of ['x','y','width','height'])assert.ok(Math.abs(before[key]-during[key])<.1,key+' changed on edit entry');assert.equal(await element('plain').evaluate(n=>getComputedStyle(n).visibility),'visible');assert.equal(await page.locator('#text').evaluate(n=>getComputedStyle(n).opacity),'0');assert.equal(await page.locator('#text').evaluate(n=>getComputedStyle(n).pointerEvents),'none');assert.equal(await page.locator('#selectorParentGroup').evaluate(n=>getComputedStyle(n).visibility),'hidden');assert.ok(await page.locator('.native-text-selection polygon').count()>0);checks.push('double-click edits the original SVG glyphs without a white textbox, layout jump or stale object frame');
@@ -47,6 +57,28 @@ try{
   const host=await page.locator('#editor-host').boundingBox();await page.mouse.move(host.x+host.width*.55,host.y+host.height*.5);await page.mouse.wheel(0,-160);await caretAligned('transformed');await page.screenshot({path:resolve(dir,'live-transformed.png'),animations:'disabled'});await finish();await page.locator('#fit-2d').click();checks.push('rotated/stretched text, emoji cursor navigation and wheel zoom keep the caret attached to the real glyph');
   await page.locator('#side-inside').click();await ready();await edit('transformed');await type('内面编辑 Inside');await caretAligned('transformed');await finish();await page.locator('#side-outside').click();await ready();checks.push('inside-face text editing and caret use the same transform-safe coordinates');
   await edit('multiline');await type('输入：');await page.keyboard.press('End');const cdp=await page.context().newCDPSession(page);await cdp.send('Input.imeSetComposition',{text:'zhongwen',selectionStart:8,selectionEnd:8});assert.ok((await element('multiline').textContent()).includes('zhongwen'));await page.locator('#text').evaluate(n=>n.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',isComposing:true,bubbles:true})));assert.equal(await page.locator('#text.is-inline').count(),1);await cdp.send('Input.imeSetComposition',{text:'中文',selectionStart:2,selectionEnd:2});await cdp.send('Input.insertText',{text:'中文'});assert.equal(await page.locator('#text').inputValue(),'输入：中文');await finish();checks.push('actual browser IME composition updates the original text; composition Escape does not prematurely exit editing');
+  await edit('multiline');await type('第一段文字\n第二段文字\n第三段文字');
+  for(const [position,charIndex]of [[5,3],[10,7]]){
+    await page.locator('#text').evaluate((n,position)=>{n.setSelectionRange(position,position);n.dispatchEvent(new Event('select'));},position);
+    await page.keyboard.press('Backspace');await caretAligned('multiline',charIndex);
+  }
+  checks.push('Backspace at the end of first and middle paragraphs leaves the visible caret at the deletion point');await finish();
+  await edit('multiline');await type('第一段文字\n第二段文字');
+  for(const [position,charIndex]of [[2,1],[7,5]]){
+    await page.locator('#text').evaluate((n,position)=>{n.setSelectionRange(position,position);n.dispatchEvent(new Event('select'));},position);
+    await page.keyboard.press('Delete');await caretAligned('multiline',charIndex);
+  }
+  await type('第一行\n');await page.keyboard.press('End');assert.ok(await page.locator('.native-text-boundary').getAttribute('d'));await type('');
+  const emptyBox=await page.locator('.native-text-boundary').boundingBox();assert.ok(emptyBox.width<15&&emptyBox.height>2,'empty text boundary stays at its insertion point');await page.keyboard.insertText('空行恢复');await finish();checks.push('Delete in first/middle paragraphs, trailing blank rows and empty text keep editing geometry valid');
+  await edit('transformed');await boundaryAligned('transformed');await page.keyboard.insertText('定界框');await boundaryAligned('transformed');
+  const editBox=await page.locator('.native-text-boundary').getAttribute('d'),zoomHost=await page.locator('#editor-host').boundingBox();await page.mouse.move(zoomHost.x+zoomHost.width*.5,zoomHost.y+zoomHost.height*.5);await page.mouse.wheel(0,-120);await boundaryAligned('transformed');assert.notEqual(await page.locator('.native-text-boundary').getAttribute('d'),editBox);await finish();await page.locator('#fit-2d').click();checks.push('editing boundary surrounds the actual rotated/stretched glyphs, grows with typing and tracks zoom');
+  for(const mode of ['select','rect','ellipse','line','path','text','pan']){
+    await page.evaluate(mode=>window.svgCanvas.setMode(mode),mode);
+    const expected=mode==='select'?'move':mode==='pan'?'grab':mode==='text'?'text':'crosshair';
+    for(const id of ['shape','path-cursor','image-cursor','fixtures'])assert.equal(await element(id).evaluate(n=>getComputedStyle(n).cursor),expected,mode+' '+id);
+  }
+  await page.locator('#tool-select').click();await page.keyboard.down('Space');assert.equal(await element('shape').evaluate(n=>getComputedStyle(n).cursor),'grab');await page.keyboard.up('Space');assert.equal(await element('shape').evaluate(n=>getComputedStyle(n).cursor),'move');
+  const cursorPoint=await point('shape');await page.mouse.move(cursorPoint.x,cursorPoint.y);await page.mouse.down();await page.mouse.move(cursorPoint.x+6,cursorPoint.y+3);assert.equal(await page.locator('#svgroot').evaluate(n=>getComputedStyle(n).cursor),'move');await page.mouse.up();assert.equal(await element('shape').evaluate(n=>getComputedStyle(n).cursor),'move');checks.push('shape move, drawing crosshair, text entry, pan and Space cursors follow the current action without altering artwork attributes');
   for(let i=0;i<8;i++){
     await edit('plain');await page.keyboard.press('End');await page.keyboard.insertText(String(i));const p=await point('shape');await page.mouse.click(p.x,p.y);await page.locator('#text.is-inline').waitFor({state:'detached'});assert.equal(await page.evaluate(()=>window.svgCanvas.getSelectedElements().filter(Boolean).at(-1)?.id),'shape');const old=await element('shape').boundingBox();await drag('shape',8,-3);const next=await element('shape').boundingBox();assert.ok(Math.abs(next.x-old.x-8)<1.1);await page.locator('#undo').click();await ready();
   }checks.push('eight edit/click-away/drag/undo cycles keep other elements selectable');

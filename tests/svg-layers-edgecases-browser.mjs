@@ -2,9 +2,11 @@ import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
 
-const server=await createServer({server:{host:'127.0.0.1',port:0,hmr:false,watch:null}});await server.listen();
+const server=process.env.FOLD_TEST_URL?null:await createServer({server:{host:'127.0.0.1',port:0,hmr:false,watch:null}});if(server)await server.listen();
+const url=process.env.FOLD_TEST_URL==='offline'?pathToFileURL(resolve('折间.html')).href:process.env.FOLD_TEST_URL??`http://127.0.0.1:${server.httpServer.address().port}`;
 const executable=process.env.FOLD_BROWSER_PATH??resolve(process.env.LOCALAPPDATA??'','ms-playwright/chromium-1228/chrome-win64/chrome.exe');
 const browser=await chromium.launch({...(existsSync(executable)?{executablePath:executable}:{}),args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
 const directory=process.env.FOLD_TEST_ARTIFACTS??'artifacts/svg-layers-edgecases';
@@ -16,7 +18,7 @@ async function fixture(markup=source){
   const page=await browser.newPage({viewport:{width:1800,height:1100},acceptDownloads:true});
   page.setDefaultTimeout(10000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.httpServer.address().port}`);
+  await page.goto(url);
   const ready=()=>page.locator('#editor-host[data-svg-ready="true"]').waitFor();
   await ready();
   await page.locator('#image-input').setInputFiles({name:'edgecases.svg',mimeType:'image/svg+xml',buffer:Buffer.from(markup)});
@@ -47,7 +49,7 @@ async function fixture(markup=source){
   return {page,ids,errors,ready,label,row,choose,reveal,drag};
 }
 async function check(name,action,markup){
-  if(process.env.FOLD_LAYER_CASE&&process.env.FOLD_LAYER_CASE!==name)return;
+  if(process.env.FOLD_LAYER_CASE&&!process.env.FOLD_LAYER_CASE.split(',').includes(name))return;
   console.log('Starting '+name);
   const test=await fixture(markup);
   let timer;
@@ -175,6 +177,41 @@ try{
     assert.equal(await row('part').getAttribute('data-drag-owner'),ids.words,'text span sorting should explicitly act on the parent text');
     assert.match(await row('part').getAttribute('title'),/整段文字/);
   });
+  await check('text-span-stacking',async({page,ids,choose,drag,ready})=>{
+    const order=()=>page.evaluate(id=>[...document.getElementById(id).children].map(n=>n.id),ids.words);
+    const positions=()=>page.evaluate(ids=>Object.fromEntries(['line1','line2','line3'].map(key=>{const node=document.getElementById(ids[key]),box=node.getBoundingClientRect();return[key,{x:box.x,y:box.y,width:box.width,height:box.height,fill:getComputedStyle(node).fill}];})),ids);
+    const before=await positions(),original=await order();
+    const unchanged=async()=>{const after=await positions();for(const key of Object.keys(before)){for(const axis of ['x','y','width','height'])assert.ok(Math.abs(after[key][axis]-before[key][axis])<.2,`${key} ${axis} changed`);assert.equal(after[key].fill,before[key].fill);}};
+    await choose('line1');await page.locator('.tree-actions [data-layer-command="up"]').click();
+    assert.deepEqual(await order(),[ids.line2,ids.line1,ids.line3]);await unchanged();
+    await page.locator('#undo').click();await ready();assert.deepEqual(await order(),original);await unchanged();
+    await page.locator('#redo').click();await ready();assert.deepEqual(await order(),[ids.line2,ids.line1,ids.line3]);await unchanged();
+    await drag('line2','line3','before');assert.deepEqual(await order(),[ids.line1,ids.line3,ids.line2]);await unchanged();
+    await choose('line2');await page.keyboard.press('Control+[');assert.deepEqual(await order(),[ids.line1,ids.line2,ids.line3]);await unchanged();
+    await choose('line1');await drag('line1','destination');
+    assert.equal(await page.evaluate(id=>document.getElementById(id).parentElement.id,ids.words),ids.destination);await unchanged();
+    await page.locator('#undo').click();await ready();assert.equal(await page.evaluate(id=>document.getElementById(id).parentElement.id,ids.words),ids.ARTWORK);await unchanged();
+  },'<svg xmlns="http://www.w3.org/2000/svg" width="180" height="120"><g id="ARTWORK"><text id="words" x="60" y="40" font-size="8" text-anchor="middle" transform="rotate(-12 60 50)"><tspan id="line1" x="60">第一段文字</tspan><tspan id="line2" x="60" dy="14" fill="#ab3456">第二段文字</tspan><tspan id="line3" x="60" dy="14">第三段文字</tspan></text><g id="destination" transform="translate(100 60) rotate(12) scale(.8)"><rect width="20" height="20"/></g></g></svg>');
+  await check('text-object-stacking',async({page,ids,choose,drag,ready})=>{
+    await choose('b');await page.locator('.tree-actions [data-layer-command="up"]').click();
+    assert.equal(await page.evaluate(id=>document.getElementById(id).parentElement.lastElementChild.id,ids.b),ids.b);
+    await page.locator('#undo').click();await ready();
+    await drag('a','b','before');assert.equal(await page.evaluate(id=>document.getElementById(id).previousElementSibling.id,ids.a),ids.b);
+  },'<svg xmlns="http://www.w3.org/2000/svg" width="180" height="120"><g id="ARTWORK"><text id="a" x="10" y="20">底层文字</text><text id="b" x="10" y="40">中层文字</text><text id="c" x="10" y="60">上层文字</text></g></svg>');
+  await check('text-span-inline-stacking',async({page,ids,choose,drag,ready})=>{
+    const positions=()=>page.evaluate(ids=>Object.fromEntries(['line1','line2','line3'].map(key=>{const n=document.getElementById(ids[key]);return[key,Array.from({length:n.getNumberOfChars()},(_,i)=>{const p=n.getStartPositionOfChar(i);return[p.x,p.y];})];})),ids);
+    const original=await positions();
+    const unchanged=async()=>{const current=await positions();for(const key of Object.keys(original))for(let i=0;i<original[key].length;i++)for(let axis=0;axis<2;axis++)assert.ok(Math.abs(original[key][i][axis]-current[key][i][axis])<.001,`${key} character ${i} axis ${axis} moved`);};
+    await choose('line1');assert.equal(await page.locator(`[data-tree-node="${ids.line1}"] > .tree-row`).getAttribute('aria-selected'),'true');
+    await page.locator('.tree-actions [data-layer-command="up"]').click();await unchanged();
+    await drag('line3','line2','after');await unchanged();
+    await page.locator('#undo').click();await ready();await unchanged();await page.locator('#undo').click();await ready();await unchanged();
+    assert.equal(await page.evaluate(id=>document.getElementById(id).getAttribute('x'),ids.line2),null,'undo restores the original flowing SVG');
+  },'<svg xmlns="http://www.w3.org/2000/svg" width="180" height="120"><g id="ARTWORK"><text id="words" x="130" y="50" font-size="8" text-anchor="end"><tspan id="line1">AA中文</tspan><tspan id="line2" fill="#ab3456" font-size="12">WW宽文字</tspan><tspan id="line3" dx="3" dy="5">末尾文字</tspan></text></g></svg>');
+  await check('single-span-object-stacking',async({page,ids,choose})=>{
+    await choose('part');await page.locator('.tree-actions [data-layer-command="up"]').click();
+    assert.equal(await page.evaluate(id=>document.getElementById(id).previousElementSibling.id,ids.a),ids.b);
+  },'<svg xmlns="http://www.w3.org/2000/svg" width="180" height="120"><g id="ARTWORK"><text id="a" x="10" y="20"><tspan id="part">单个文字分段</tspan></text><text id="b" x="10" y="40">另一个对象</text></g></svg>');
   await check('large-layer-search',async({page,choose})=>{
     assert.equal(await page.locator('.tree-label').filter({hasText:/^对象 /}).count(),1500);
     await page.locator('#layer-search').fill('对象 1499');await choose('node1499');
@@ -194,4 +231,4 @@ try{
   writeFileSync(resolve(directory,'report.json'),JSON.stringify({results},null,2));
   console.log(JSON.stringify({results},null,2));
   if(results.some(result=>!result.passed))process.exitCode=1;
-}finally{await browser.close();await server.close();}
+}finally{await browser.close();await server?.close();}
