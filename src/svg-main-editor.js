@@ -17,6 +17,8 @@ import {barcodeStatus} from './barcode.js';
 import {qrStatus} from './qrcode.js';
 import {proofColor} from './color.js';
 import {arrangeSvgInspector} from './svg-inspector.js';
+import {alignSvgSelection} from './svg-alignment.js';
+import {typographyTargets,toggleTypography,readSvgText,replaceSvgText} from './svg-typography.js';
 
 const ns='http://www.w3.org/2000/svg';
 const path=regions=>regionPath(regions).map(p=>p.join(' ')).join(' ');
@@ -61,6 +63,11 @@ export class SvgMainEditor {
     source.innerHTML='<h3>当前印刷面 SVG 源码</h3><textarea id="source-text" spellcheck="false"></textarea><div class="dialog-actions"><button id="source-cancel">取消</button><button id="source-apply">验证并应用源码</button></div>';document.body.append(source);
     this.api=initializeSvgFrame(SvgCanvas,{
       textSize:6,
+      handleAction:action=>{
+        if(action.startsWith('align-')){alignSvgSelection(this,action.slice(6));return true;}
+        if(['bold','italic','underline'].includes(action)){if(typographyTargets(this).length){toggleTypography(this,action);this.api.refreshProperties(true);}return true;}
+        return false;
+      },
       openWorkspace:true,
       systemClipboard:true,copied:()=>this.copyToSystem(),
       panActive:()=>this.space||this.tool==='pan',
@@ -86,7 +93,7 @@ export class SvgMainEditor {
       treeCount:(objects,selected)=>{document.querySelector('#layer-count').textContent=`${this.side==='inside'?'内面':'外面'} · ${selected?'已选 '+selected+' / ':''}${objects} 项`;},
       properties:(host,node)=>{this.properties(host,node);arrangeSvgInspector(host,node,this);},
     });
-    document.addEventListener('input',event=>{if(event.target.closest('#properties,#source-dialog,#native-image-crop-dialog'))this.pendingInput=true;});
+    document.addEventListener('input',event=>{if(!event.target.matches('[data-editor-preference]')&&event.target.closest('#properties,#source-dialog,#native-image-crop-dialog'))this.pendingInput=true;});
     document.querySelector('#source-cancel').addEventListener('click',()=>{this.pendingInput=false;});
     source.addEventListener('cancel',()=>{this.pendingInput=false;});
     this.observer=new ResizeObserver(()=>this.resize());this.observer.observe(host);
@@ -221,12 +228,11 @@ export class SvgMainEditor {
     if(node?.closest('[data-locked="true"]'))return;
     if(node)appendImageTools(host,node,this);
     const generator=node&&(this.project.svgGenerators?.[node.id]??this.project.layers.find(l=>l.id===node.id&&['barcode','qrcode'].includes(l.type)));
-    if(node?.localName==='text'&&node.querySelector('tspan')&&!node.querySelector('textPath')){
-      const label=document.createElement('label');label.textContent='文字内容';const input=document.createElement('textarea');input.id='node-text';input.value=node.textContent;label.append(input);host.prepend(label);
-      input.onchange=()=>{
-        const first=node.querySelector('tspan'),x=first?.getAttribute('x')??node.getAttribute('x')??'0',y=first?.getAttribute('y')??node.getAttribute('y')??'0',size=parseFloat(getComputedStyle(node).fontSize)||6;
-        node.replaceChildren(...input.value.split('\n').map((text,i)=>element('tspan',{x,y:Number(y)+i*size*1.4},text)));this.store(this.api.source());this.api.refreshTree();
-      };
+    if(node?.localName==='text'){
+      let input=host.querySelector('#node-text');
+      if(!input){const label=document.createElement('label');label.textContent='文字内容';input=document.createElement('textarea');input.id='node-text';label.append(input);host.prepend(label);}
+      input.value=readSvgText(node);
+      input.onchange=()=>{try{replaceSvgText(this,node,input.value);}catch(error){this.callbacks.notify(error.message);}};
     }
     if(generator){
       const barcode=generator.type==='barcode',section=document.createElement('section');

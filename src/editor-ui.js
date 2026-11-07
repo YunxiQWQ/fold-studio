@@ -53,7 +53,7 @@ function mountNativeUI({editor,addShape,notify}){
   const count=document.createElement('span');count.id='editor-selection-count';count.className='toolbar-selection-count';
   trigger.before(count);
   function sync(){
-    const state=svgCommandState(editor.api.canvas,editor.api.selected,editor.api.wrapper),mode=editor.api.canvas.getMode();
+    const state=svgCommandState(editor.api.canvas,editor.api.selected,editor.api.wrapper,editor.alignment),mode=editor.api.canvas.getMode();
     count.textContent=state.nodes.length?`${state.nodes.length} 项`:'';count.title=state.nodes.length?`已选中 ${state.nodes.length} 个对象`:'';
     for(const button of edit.querySelectorAll('[data-action]'))button.disabled=!state.can(button.dataset.action);
     for(const option of edit.querySelectorAll('#arrange option[value]'))if(option.value)option.disabled=!state.can(option.value);

@@ -1,6 +1,7 @@
 import {mountSvgLayerPanel,svgLayerName} from './svg-layer-panel.js';
 import {installSvgPointerGestures} from './svg-pointer-gestures.js';
 import {captureSvgPlacement,restoreSvgPlacement,ungroupSvgLayers} from './svg-layer-operations.js';
+import {readSvgText,writeSvgText} from './svg-typography.js';
 
 // Shared SVGCanvas interface; imported/source-edited SVG is validated before loading.
 export function initializeSvgFrame(SvgCanvas, options={}) {
@@ -342,14 +343,15 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     }
     if(batch.isEmpty())return result;
     canvas.undoMgr.addCommandToHistory(batch);canvas.setContext(sourceElement());
-    canvas.selectOnly((result?.selection??previous).filter(node=>node.isConnected),true);
+    const next=(result?.selection??previous).filter(node=>node.isConnected);canvas.selectOnly(next,true);
+    if(result?.active?.isConnected&&next.some(node=>node===result.active||node.contains(result.active)))selected=result.active;
     contentChanged(true);return result;
   }
-  function refreshProperties() {
+  function refreshProperties(force=false) {
     const host=$('#properties');
     // Layout/selection notifications can repeat while a field is being typed.
     // Keep that draft and its focused DOM control until selection actually changes.
-    if(propertyNode===selected&&host.contains(document.activeElement))return;
+    if(!force&&propertyNode===selected&&host.contains(document.activeElement))return;
     propertyNode=selected;host.replaceChildren();
     const heading=document.createElement('h3');heading.textContent=selected?`${label(selected)} · ${tagName(selected)}`:'选择图层或对象';host.appendChild(heading);
     if(!selected){options.properties?.(host,null,canvas);return;}
@@ -392,6 +394,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   function run(action) {
     try{
       $('#message').textContent='';
+      if(options.handleAction?.(action))return;
       if(action==='apply'){send('apply',{source:snapshot()});return;}
       if(action==='cancel'){send('cancel');return;}
       if(action==='source'){$('#source-text').value=snapshot();$('#source-dialog').showModal();return;}
@@ -530,22 +533,10 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   const textInput=$('#text');
   canvas.textActions.setInputElem(textInput);
   function textValue(node){
-    if(!node.querySelector('tspan'))return node.textContent;
-    let value='',y;
-    for(const child of node.childNodes){
-      if(child.nodeType===3){if(child.textContent.trim())value+=child.textContent;continue;}
-      if(child.nodeType!==1)continue;
-      const next=child.getAttribute('y');if(value&&((y!==undefined&&next!==null&&next!==y)||parseFloat(child.getAttribute('dy'))>0))value+='\n';
-      value+=child.textContent;if(next!==null)y=next;
-    }
-    return value;
+    return readSvgText(node);
   }
   function writeText(node,value){
-    const path=node.querySelector('textPath');if(path){path.textContent=value;return;}
-    const first=node.querySelector('tspan');
-    if(!first&&!value.includes('\n')){node.textContent=value;return;}
-    const x=first?.getAttribute('x')??node.getAttribute('x')??'0',y=parseFloat(first?.getAttribute('y')??node.getAttribute('y')??'0'),size=parseFloat(getComputedStyle(node).fontSize)||6;
-    node.replaceChildren(...value.split('\n').map((line,index)=>{const span=first?.cloneNode(false)??document.createElementNS(ns,'tspan');if(index)span.removeAttribute('id');span.removeAttribute('dy');span.setAttribute('x',x);span.setAttribute('y',String(y+index*size*1.4));span.textContent=line;return span;}));
+    writeSvgText(node,value);
   }
   function beginText(node){
     if(node.closest('[data-locked="true"]'))return;

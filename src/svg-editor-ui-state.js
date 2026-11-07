@@ -1,6 +1,7 @@
 // Availability is shared by menus and the multi-selection inspector. It never
 // changes the document or adds a second selection model.
-export function svgCommandState(canvas, active, root) {
+import {canAlign} from './svg-alignment.js';
+export function svgCommandState(canvas, active, root,alignment={target:'auto'}) {
   const nodes=canvas?.getSelectedElements().filter(Boolean)??[];
   const resource='defs,mask,clipPath,pattern,marker,symbol,filter,linearGradient,radialGradient';
   const editable=nodes.length>0&&nodes.every(node=>!node.closest(`[data-locked="true"],${resource}`));
@@ -13,7 +14,7 @@ export function svgCommandState(canvas, active, root) {
     if(command==='ungroup')return editable&&nodes.some(node=>['g','svg'].includes(node.localName)||node.hasAttribute('data-fold-group'));
     if(command==='nodes')return editable&&nodes.length===1&&nodes[0].localName==='path';
     if(command==='convert')return editable&&nodes.length===1&&['rect','circle','ellipse','line','polyline','polygon','path'].includes(nodes[0].localName);
-    if(command.startsWith('align-'))return editable&&nodes.length>=(['align-dh','align-dv'].includes(command)?3:2);
+    if(command.startsWith('align-'))return editable&&canAlign(nodes.length,command.slice(6),alignment);
     return editable;
   }};
 }

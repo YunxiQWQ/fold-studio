@@ -1,9 +1,10 @@
 import {icon} from './icons.js';
 import {svgCommandState} from './svg-editor-ui-state.js';
+import {appendTypographyPanel,appendAlignmentPanel} from './svg-inspector-panels.js';
 
 const expanded=new Map();
 const geometry=new Set('x y width height cx cy r rx ry x1 y1 x2 y2 points'.split(' '));
-const typography=new Set('font-size font-family font-weight font-style text-decoration text-anchor letter-spacing'.split(' '));
+const typography=new Set('font-size font-family font-weight font-style text-decoration text-anchor letter-spacing word-spacing line-height writing-mode'.split(' '));
 const appearance=new Set(['fill','stroke','stroke-width','opacity']);
 const short=new Set([...geometry,'font-size','font-weight','font-style','text-anchor','letter-spacing','stroke-width','opacity']);
 
@@ -33,15 +34,16 @@ function paintPreview(input){
 }
 
 export function arrangeSvgInspector(host,node,editor){
-  const state=svgCommandState(editor.api?.canvas,node,editor.api?.wrapper);
+  const state=svgCommandState(editor.api?.canvas,node,editor.api?.wrapper,editor.alignment);
   if(state.nodes.length>1){
+    host.classList.remove('is-empty');
     host.replaceChildren();
     const heading=document.createElement('h3');heading.textContent=`已选中 ${state.nodes.length} 个对象`;host.append(heading);
     const note=document.createElement('p');note.textContent='拖动控制框整体变换；按住 Shift 等比例缩放。';host.append(note);
     const actions=section(host,'selection','组合与图层');
     for(const [command,title,glyph]of [['group','组合','group'],['ungroup','解组','ungroup'],['front','置于顶层','up'],['back','置于底层','down'],['duplicate','创建副本','copy'],['delete','删除','trash']])action(actions,command,title,glyph,c=>editor.run(c),!state.can(command));
-    const align=section(host,'align','对齐与分布');
-    for(const [command,title]of [['align-l','左对齐'],['align-c','水平居中'],['align-r','右对齐'],['align-t','上对齐'],['align-m','垂直居中'],['align-b','下对齐'],['align-dh','水平分布'],['align-dv','垂直分布']])action(align,command,title,'shape',c=>editor.run(c),!state.can(command));
+    appendTypographyPanel(host,editor);
+    appendAlignmentPanel(host,editor,state);
     document.querySelector('#selected-type').textContent=`多选 · ${state.nodes.length} 项`;
     return;
   }
@@ -55,12 +57,13 @@ export function arrangeSvgInspector(host,node,editor){
   const name=children.find(child=>child.querySelector('#node-name'));if(name)host.append(name);
   const content=children.filter(child=>child!==heading&&child!==name&&!child.querySelector('[data-attribute]'));
   for(const child of content)take('content',child.querySelector('#native-code')?'编码内容':node.localName==='image'?'图片':'内容').append(child);
+  appendTypographyPanel(host,editor);
   // Keep every original control and its handler, including SVG-specific fields.
   // Only their presentation changes; advanced attributes remain fully editable.
-  for(const [key,title,set]of [['geometry','位置与尺寸',geometry],['type','文字样式',typography],['paint','外观',appearance],['advanced','高级 SVG 属性',null]]){
+  for(const [key,title,set]of [['geometry','位置与尺寸',geometry],['type','文字 SVG 属性',typography],['paint','外观',appearance],['advanced','高级 SVG 属性',null]]){
     const labels=children.filter(child=>{const attribute=child.querySelector('[data-attribute]')?.dataset.attribute;return attribute&&(set?set.has(attribute):!geometry.has(attribute)&&!typography.has(attribute)&&!appearance.has(attribute));});
     if(!labels.length)continue;
-    const body=take(key,title,key==='advanced');
+    const body=take(key,title,key==='advanced'||key==='type');
     for(const label of labels){
       const input=label.querySelector('[data-attribute]'),attribute=input.dataset.attribute;
       if(short.has(attribute))label.classList.add('property-short');
@@ -72,4 +75,5 @@ export function arrangeSvgInspector(host,node,editor){
       body.append(label);
     }
   }
+  appendAlignmentPanel(host,editor,state);
 }

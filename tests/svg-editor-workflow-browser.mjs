@@ -1,4 +1,5 @@
 import {chromium} from 'playwright';
+import {BOX_TYPES} from '../src/geometry.js';
 import {createServer} from 'vite';
 import {resolve} from 'node:path';
 import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -107,7 +108,7 @@ try{
   await ready();await click('.project-library-trigger');await click('.is-current [data-library-action="history"]');await page.locator('[data-library-action="restore"]').first().click();await page.locator('.project-library-dialog').waitFor({state:'hidden'});await ready();
   const save=page.waitForEvent('download');await click('#save-project');const fold=await save;await fold.saveAs(`${dir}/review.fold`);assert.equal(JSON.parse(readFileSync(`${dir}/review.fold`,'utf8')).version,3);
   const png=page.waitForEvent('download');await click('#export-toggle');await click('#export-png');await(await png).saveAs(`${dir}/preview.png`);assert.equal(readFileSync(`${dir}/preview.png`).subarray(1,4).toString(),'PNG');
-  await page.setViewportSize({width:390,height:844});await click('#open-templates');assert.equal(await page.locator('.template-card').count(),33);await page.keyboard.press('Escape');
+  await page.setViewportSize({width:390,height:844});await click('#open-templates');assert.equal(await page.locator('.template-card').count(),Object.keys(BOX_TYPES).length);await page.keyboard.press('Escape');
   const header=await page.locator('.flat-pane > .pane-heading').boundingBox(),canvas=await page.locator('#editor-host').boundingBox();
   assert.ok(canvas.y-header.y-header.height<2&&header.height<=42);
   await click('#edit-menu-toggle');

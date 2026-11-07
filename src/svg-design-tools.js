@@ -10,13 +10,14 @@ const topNodes=nodes=>[...new Set(nodes)].filter(node=>!nodes.some(other=>node!=
 const visible=node=>{for(let p=node;p?.namespaceURI==='http://www.w3.org/2000/svg';p=p.parentElement){const s=getComputedStyle(p);if(s.display==='none'||s.visibility==='hidden'||s.visibility==='collapse'||Number(s.opacity)===0)return false;}return true;};
 const editable=(node,root)=>root.contains(node)&&node!==root&&!node.closest(`[data-locked="true"],${resources}`)&&visible(node);
 
-function selection(editor){
+export function editableSvgSelection(editor){
   const root=editor.api.wrapper,nodes=topNodes(editor.api.canvas.getSelectedElements().filter(Boolean).map(node=>node.closest('tspan,textPath')?.closest('text')??node));
   if(!nodes.length)throw Error('请先选择要排版的图文');
   if(!nodes.every(node=>editable(node,root)))throw Error('请先解锁并显示选中的图文');
   return nodes;
 }
 
+const selection=editableSvgSelection;
 export function svgSelectionBounds(editor,nodes=selection(editor)){
   const inv=inverse(matrix(editor.api.wrapper.getScreenCTM())),points=[];
   for(const node of nodes){
@@ -30,7 +31,7 @@ export function svgSelectionBounds(editor,nodes=selection(editor)){
 }
 
 // Apply a sheet-space change without flattening paths, text, CSS or nested SVGs.
-function transformNode(node,sheet,delta){
+export function transformSvgNode(node,sheet,delta){
   const parent=inverse(matrix(node.parentElement.getScreenCTM())),world=matrix(node.getScreenCTM());
   const old={transform:node.getAttribute('transform'),style:node.getAttribute('style')};
   try{
@@ -42,6 +43,7 @@ function transformNode(node,sheet,delta){
   }catch(error){for(const [key,value]of Object.entries(old))value===null?node.removeAttribute(key):node.setAttribute(key,value);throw error;}
   return old;
 }
+const transformNode=transformSvgNode;
 
 function remapClones(clones,canvas){
   const ids=new Map(),groups=new Map();
