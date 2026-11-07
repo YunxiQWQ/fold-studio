@@ -4,6 +4,7 @@ import {captureSvgPlacement,restoreSvgPlacement,ungroupSvgLayers,sortableTextPar
 import {readSvgText,writeSvgText} from './svg-typography.js';
 import {canonicalizeImageElement} from './svg-capacity.js';
 import {installSvgInlineText} from './svg-inline-text.js';
+import {selectableSvgNode,svgMarqueeNodes,svgArtworkIntersects} from './svg-selection.js';
 
 // Shared SVGCanvas interface; imported/source-edited SVG is validated before loading.
 export function initializeSvgFrame(SvgCanvas, options={}) {
@@ -35,7 +36,8 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     refreshCursor();
   };
   let sourceRoot, wrapperId, wrapper, viewport, loading=true, selected=null, clipboard=null;
-  let originalStyle = new Map(),changedTimer,layersPanel,propertyNode;
+  let changedTimer,layersPanel,propertyNode;
+  let marqueeScope=null,marqueeBase=[];
   let pan={x:0,y:0},panDrag=null,inlineText,laidOutZoom,copying=false,movingObject=false;
   function refreshCursor(){
     const mode=canvas.getMode(),pan=options.panActive?.()||mode==='pan';
@@ -49,27 +51,22 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   const title = element => [...element.children].find(child=>tagName(child)==='title');
   const label=svgLayerName;
 
-  // SVG-edit dims siblings while editing a group. Restore their complete
-  // source style as well as opacity, including CSS transforms/blend modes.
+  // Selecting a nested object needs its parent coordinate system, not the
+  // engine's isolation mode (which disables every other group's pointer hits).
   const leaveContext = canvas.leaveContext.bind(canvas);
-  canvas.leaveContext = () => {
-    leaveContext();
-    for(const [element,style] of originalStyle){
-      if(style === null)element.removeAttribute('style');
-      else element.setAttribute('style',style);
-    }
-    originalStyle.clear();
-  };
-  const setContext = canvas.setContext.bind(canvas);
+  canvas.leaveContext = () => {leaveContext();};
   canvas.setContext = element => {
     canvas.leaveContext();
-    for(const node of canvas.getSvgContent().querySelectorAll('*'))originalStyle.set(node,node.getAttribute('style'));
-    setContext(element);
-    for(const [node,style]of originalStyle)if(node.getAttribute('style')===style)originalStyle.delete(node);
+    if(typeof element==='string')element=document.getElementById(element);
+    const root=sourceElement();if(element!==root&&!root?.contains(element))element=root;
+    canvas.setCurrentGroup(element);canvas.call('contextset',element);
   };
   // Fold's format validator handles scripts, URLs, references and styles.
   // Retain attributes/effects that SVG-edit's older sanitizer would remove.
   canvas.prepareSvg = () => {};
+  // The select tool must stay a select tool after repeated path clicks.
+  // Node editing has explicit menu and double-click entry points below.
+  canvas.pathActions.select=()=>{};
 
   function showError(error) {
     $('#message').textContent = error?.message ?? String(error);
@@ -86,17 +83,37 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     return root;
   }
   if(options.openWorkspace){
-    const editable=node=>{const root=sourceElement();return node&&root&&node!==root&&root.contains(node)&&!node.closest('defs,[display="none"],[data-locked="true"]')&&!['title','desc'].includes(tagName(node));};
+    const editable=node=>selectableSvgNode(node,sourceElement());
     for(const method of ['selectOnly','addToSelection']){
       const original=canvas[method].bind(canvas);
       canvas[method]=(nodes,...args)=>{
         const chosen=(nodes??[]).filter(editable);
         const groups=new Set(copying?[]:chosen.map(node=>node.getAttribute('data-fold-group')).filter(Boolean));
         const peers=groups.size?[...sourceElement().querySelectorAll('[data-fold-group]')].filter(node=>editable(node)&&groups.has(node.getAttribute('data-fold-group'))):[];
-        return original([...new Set([...chosen,...peers])],...args);
+        const next=[...new Set([...chosen,...peers])];
+        // The core emits no selection event for selectOnly([]). Keep the
+        // active layer/properties in sync when filtering removes every node.
+        if(method==='selectOnly'&&!next.length)return canvas.clearSelection();
+        return original(next,...args);
       };
     }
   }
+  canvas.getMouseTarget=event=>{
+    const root=sourceElement(),target=event?.target,manager=canvas.selectorManager;
+    if(target?.closest?.('#selectorParentGroup'))return manager.selectorParentGroup;
+    if(!root?.contains(target)||target===root)return canvas.getSvgRoot();
+    if(Number.isFinite(event.clientX)&&!svgArtworkIntersects(target,{left:event.clientX-.5,right:event.clientX+.5,top:event.clientY-.5,bottom:event.clientY+.5},root))return canvas.getSvgRoot();
+    const current=canvas.getCurrentGroup(),parent=current?.contains(target)?current:root;
+    let node=target;while(node.parentElement!==parent&&node.parentElement&&root.contains(node.parentElement))node=node.parentElement;
+    return selectableSvgNode(node,root)?node:canvas.getSvgRoot();
+  };
+  container.addEventListener('mousedown',event=>{
+    if(event.button!==0||options.panActive?.()||canvas.getMode()!=='select')return;
+    const hit=canvas.getMouseTarget(event),root=sourceElement();
+    if(root?.contains(hit)&&!canvas.getCurrentGroup()?.contains(hit))canvas.setContext(graphicContext(hit.parentElement));
+    marqueeScope=canvas.getCurrentGroup()??sourceElement();
+    marqueeBase=event.shiftKey||event.ctrlKey||event.metaKey?canvas.getSelectedElements().filter(Boolean):[];
+  },true);
   // Use the same actual DOM matrices for handles and mouse gestures, including
   // nested viewports, CSS transforms, nonuniform scales and mirrored groups.
   const selectorRequest=canvas.selectorManager.requestSelector.bind(canvas.selectorManager),patchedSelectors=new WeakSet();
@@ -149,15 +166,11 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   canvas.getIntersectionList=rect=>{
     if(rect)return intersections(rect);
     const rubber=canvas.getRubberBox();if(!rubber)return [];
-    const bounds=rubber.getBoundingClientRect(),root=sourceElement(),context=canvas.getCurrentGroup(),parent=context?.isConnected&&root?.contains(context)?context:root;
-    if(!parent)return [];
+    const bounds=rubber.getBoundingClientRect(),root=sourceElement();if(!root)return [];
     // Native bboxes are local to each imported viewport/group; comparing them
     // to a document-space marquee stops working after nested SVG editing.
-    return [...parent.children].filter(node=>{
-      if(!node.getBBox||node.closest('defs,mask,clipPath,pattern,marker,symbol,filter,[data-locked="true"]')||['title','desc','metadata','style'].includes(node.localName))return false;
-      const style=getComputedStyle(node);if(style.display==='none'||style.visibility==='hidden')return false;
-      const box=node.getBoundingClientRect();return box.left<=bounds.right&&box.right>=bounds.left&&box.top<=bounds.bottom&&box.bottom>=bounds.top;
-    });
+    const hits=svgMarqueeNodes(root,marqueeScope??canvas.getCurrentGroup(),bounds),nodes=[...new Set([...marqueeBase.filter(node=>selectableSvgNode(node,root)),...hits])];
+    return nodes.filter(node=>!nodes.some(parent=>node!==parent&&parent.contains(node)));
   };
   function snapshot() {
     const holder=sourceElement();
@@ -170,7 +183,6 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
         const originals=[child,...child.querySelectorAll('*')],copies=[copy,...copy.querySelectorAll('*')],storage=canvas.getDataStorage();
         for(let index=0;index<originals.length;index++){
           const original=originals[index],clone=copies[index];
-          if(originalStyle.has(original)){const style=originalStyle.get(original);if(style===null)clone.removeAttribute('style');else clone.setAttribute('style',style);}
           if(storage.has(original,'orig_opac')){const opacity=storage.get(original,'orig_opac');if(opacity===null||opacity===undefined)clone.removeAttribute('opacity');else clone.setAttribute('opacity',opacity);}
         }
       }
@@ -198,9 +210,12 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   const finishGesture=canvas.mouseUpEvent;
   function finishMarquee(event){
     event.preventDefault();event.stopImmediatePropagation();
-    const elements=canvas.getSelectedElements().filter(Boolean),single=elements.length===1?elements[0]:null;
+    const rubber=canvas.getRubberBox()?.getBoundingClientRect(),elements=(rubber&&rubber.width<2&&rubber.height<2?marqueeBase:canvas.getSelectedElements()).filter(Boolean),single=elements.length===1?elements[0]:null;
     canvas.setStarted(false);canvas.getRubberBox()?.setAttribute('display','none');canvas.setCurBBoxes([]);
     canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.setMode('select');
+    const root=sourceElement();let parent=elements[0]?.parentElement??root;
+    while(parent!==root&&parent&&!elements.every(node=>parent.contains(node)))parent=parent.parentElement;
+    canvas.setContext(graphicContext(parent));canvas.selectOnly(elements,true);marqueeScope=null;marqueeBase=[];
     if(single){
       if(single.localName==='text'){canvas.setCurText('font_size',single.getAttribute('font-size'));canvas.setCurText('font_family',single.getAttribute('font-family'));}
       for(const key of ['fill','fill_opacity','stroke','stroke_opacity','stroke_width','stroke_dasharray','stroke_linejoin','stroke_linecap'])canvas.setCurProperties(key,single.getAttribute(key.replaceAll('_','-')));
@@ -282,6 +297,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     if(!['select','resize','multiselect','rotate'].includes(mode))return;
     if(mode==='rotate'&&canvas.getStarted())canvas.undoMgr.finishUndoableChange().unapply();
     canvas.setStarted(false);canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.setCurBBoxes([]);canvas.getRubberBox()?.setAttribute('display','none');
+    marqueeScope=null;marqueeBase=[];
     if(mode!=='select')canvas.setMode('select');
     for(const node of canvas.getSelectedElements().filter(Boolean))canvas.selectorManager.requestSelector(node)?.resize();
   }
@@ -369,7 +385,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   layersPanel=mountSvgLayerPanel({host:$('#layers'),canvas,root:sourceElement,select:selectElement,change:changeAttribute,run,move:moveLayers,count:options.treeCount,active:()=>selected});
   function refreshTree(){layersPanel?.render();}
   function selectElement(element,add=false,range=null) {
-    if(!element?.isConnected)return;
+    if(!element?.isConnected||element===sourceElement()||!sourceElement()?.contains(element))return;
     selected=element;
     const visual=['tspan','textPath'].includes(tagName(element))?element.closest('text'):element;
     const previous=add?canvas.getSelectedElements().filter(Boolean):[],toggle=add&&previous.includes(visual);
@@ -517,7 +533,15 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
       }
       if(action==='nodes'){
         if(tagName(selected??{})!=='path'||selected.closest('[data-locked="true"],[display="none"]'))throw Error('请先选中可编辑路径，或使用“转路径”');
-        canvas.pathActions.toEditMode(selected);return;
+        // Imported paths retain relative/compact commands until the user
+        // explicitly edits nodes. The engine's node grips need absolute data.
+        const node=selected,old=node.getAttribute('d'),normalized=canvas.pathActions.convertPath(node,false);
+        if(normalized!==old){
+          node.setAttribute('d',normalized);
+          try{options.validate?.(snapshot());}catch(error){node.setAttribute('d',old);throw error;}
+          canvas.undoMgr.addCommandToHistory(new canvas.history.ChangeElementCommand(node,{d:old},'准备路径节点'));contentChanged(true);
+        }
+        canvas.pathActions.toEditMode(node);return;
       }
       if(action==='lock'){
         if(!selected)return;
@@ -638,6 +662,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   const endText=()=>inlineText.end();
   container.addEventListener('dblclick',event=>{
     const node=canvas.getMouseTarget(event);
+    if(node?.localName==='path'&&selectableSvgNode(node,sourceElement())){event.preventDefault();event.stopImmediatePropagation();canvas.selectOnly([node],true);run('nodes');return;}
     if(node&&['g','svg'].includes(tagName(node))&&sourceElement()?.contains(node)&&node!==wrapper){event.preventDefault();event.stopImmediatePropagation();canvas.setContext(graphicContext(node));}
   },true);
   canvas.bind('selected',(_window,elements)=>{syncSelectors();selected=elements?.filter(Boolean).at(-1)??null;layersPanel?.reveal(elements?.filter(Boolean)??[]);refreshProperties();options.selected?.(selected);});

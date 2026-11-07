@@ -76,3 +76,4 @@
 .svg-context-menu>[role="separator"]{height:1px;background:var(--border);margin:4px 5px}
 .svg-context-menu .svg-context-back{font-weight:600;border-bottom:1px solid var(--border);border-radius:0;margin-bottom:4px;padding-bottom:8px}
 .svg-context-menu .svg-context-danger{color:var(--danger,#b4443c)}
+[data-fold-guide],[data-fold-guide] *{pointer-events:none!important;user-select:none}

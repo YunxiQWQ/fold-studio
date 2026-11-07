@@ -2,7 +2,7 @@
 // have independent parent coordinate systems, so apply screen gestures through
 // each object's actual DOM matrices without flattening its editable geometry.
 export function installSvgPointerGestures(canvas,container,{root,panActive,changed,interaction,validate,error}){
-  let gesture=null,priorTransforms;
+  let gesture=null,priorTransforms,priorSelection=[];
   const domMatrix=value=>value?new DOMMatrix([value.a,value.b,value.c,value.d,value.e,value.f]):null;
   const finite=matrix=>matrix&&['a','b','c','d','e','f'].every(key=>Number.isFinite(matrix[key]));
   const inverse=matrix=>{if(!finite(matrix)||Math.abs(matrix.a*matrix.d-matrix.b*matrix.c)<1e-12)return null;return matrix.inverse();};
@@ -13,11 +13,13 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
   const selection=()=>canvas.getSelectedElements().filter(Boolean).filter((node,_,nodes)=>root()?.contains(node)&&!nodes.some(other=>other!==node&&other.contains(node)));
   const mouseTarget=canvas.getMouseTarget.bind(canvas);
   canvas.getMouseTarget=event=>{
+    const target=mouseTarget(event);
+    if(target===canvas.getSvgRoot()||target===canvas.selectorManager.selectorParentGroup)return target;
     if(canvas.getMode()==='select'){
       const hit=selection().find(node=>node===event.target||node.contains(event.target));
       if(hit)return hit;
     }
-    return mouseTarget(event);
+    return target;
   };
   function capture(node){
     const old={transform:node.getAttribute('transform'),style:node.getAttribute('style')};
@@ -38,7 +40,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
     const nodes=selection(),items=nodes.map(capture);
     if(!items.length||items.some(item=>!item))return false;
     const box=nodes[0].getBBox(),center=new DOMPoint(box.x+box.width/2,box.y+box.height/2).matrixTransform(items[0].world);
-    gesture={mode,dir,items,x:event.clientX,y:event.clientY,moved:false,box,center,angle:0,previousAngle:Math.atan2(event.clientY-center.y,event.clientX-center.x),initialAngle:degrees(Math.atan2(items[0].world.b,items[0].world.a)),exclusive:mode!=='select'||event.altKey,copyRequested:mode==='select'&&event.altKey};
+    gesture={mode,dir,items,x:event.clientX,y:event.clientY,moved:false,box,center,angle:0,previousAngle:Math.atan2(event.clientY-center.y,event.clientX-center.x),initialAngle:degrees(Math.atan2(items[0].world.b,items[0].world.a)),exclusive:mode!=='select'||event.altKey,copyRequested:mode==='select'&&event.altKey,clicked:mode==='select'?canvas.getMouseTarget(event):null,modified:event.shiftKey||event.ctrlKey||event.metaKey,before:priorSelection};
     canvas.setStarted(true);canvas.setCurrentMode(mode);
     interaction?.(mode==='select');
     return true;
@@ -87,6 +89,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
     if(gesture)finish(null,true);
     priorTransforms=null;
     if(event.button!==0||panActive?.()||canvas.getMode()==='pan')return;
+    priorSelection=selection();
     const grip=event.target.closest('[id^="selectorGrip_resize_"]');
     if(grip&&selection().length===1&&start(event,'resize',grip.id.replace('selectorGrip_resize_',''))){
       event.preventDefault();event.stopImmediatePropagation();return;
@@ -114,7 +117,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
     if(!(event.buttons&1)){finish(null,true);return;}
     event.preventDefault();event.stopImmediatePropagation();
     let dx=event.clientX-gesture.x,dy=event.clientY-gesture.y;
-    if(!gesture.moved&&Math.max(Math.abs(dx),Math.abs(dy))<(gesture.mode==='rotate'?0.25:3))return;
+    if(!gesture.moved&&Math.max(Math.abs(dx),Math.abs(dy))<(gesture.mode==='rotate'?0.25:3)){event.preventDefault();event.stopImmediatePropagation();return;}
     gesture.moved=true;
     let worldDelta;
     if(gesture.mode==='select'){
@@ -145,7 +148,25 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
   function finish(event,cancel=false){
     if(!gesture)return;
     const current=gesture;gesture=null;interaction?.(false);
-    if(!current.moved&&current.mode==='select'&&!current.exclusive)return; // Preserve ordinary clicks and path/node editing.
+    if(!cancel&&!current.moved&&current.mode==='select'&&!current.exclusive){
+      // Defer collapsing an existing multi-selection until release: a drag
+      // still moves every selected object, while a plain click selects one.
+      event?.preventDefault();event?.stopImmediatePropagation();
+      canvas.setStarted(false);canvas.setCurrentMode('select');canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.setCurBBoxes([]);
+      const clicked=current.clicked;
+      if(clicked?.isConnected){
+        let nodes=[clicked];
+        if(current.modified){
+          const group=clicked.getAttribute('data-fold-group'),remove=current.before.includes(clicked);
+          nodes=remove?current.before.filter(node=>node!==clicked&&(!group||node.getAttribute('data-fold-group')!==group)):[...current.before,clicked];
+        }
+        canvas.selectOnly(nodes.filter(node=>node.isConnected),true);
+        const single=selection();if(single.length===1){
+          const node=single[0];if(!['g','svg','use','image'].includes(node.localName))for(const key of ['fill','fill_opacity','stroke','stroke_opacity','stroke_width','stroke_dasharray','stroke_linejoin','stroke_linecap'])canvas.setCurProperties(key,node.getAttribute(key.replaceAll('_','-')));
+          if(node.localName==='text'){canvas.setCurText('font_size',node.getAttribute('font-size'));canvas.setCurText('font_family',node.getAttribute('font-family'));}
+        }
+      }return;
+    }
     event?.preventDefault();event?.stopImmediatePropagation();
     canvas.setStarted(false);canvas.setCurrentMode('select');canvas.setStartTransform(null);canvas.setJustSelected(null);
     canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;

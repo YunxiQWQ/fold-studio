@@ -7,7 +7,7 @@ import {drawLayer} from './artwork.js';
 import {svgSceneLayers} from './svg-scene.js';
 import {svgAttributes,cssOnlyProperties,normalizeSvgValue} from './svg-format.js';
 import {sideOf,validateProject} from './project.js';
-import {cutSegments,creasePaths,panelAt} from './geometry.js';
+import {cutSegments,creasePaths} from './geometry.js';
 import {printRegions,regionPath} from './artwork-space.js';
 import {selectSvgArtwork} from './svg-document.js';
 import {download} from './storage.js';
@@ -109,7 +109,6 @@ export class SvgMainEditor {
     host.addEventListener('wheel',event=>{event.preventDefault();const box=host.getBoundingClientRect();this.api.zoom(Math.exp(-event.deltaY*.001),event.clientX-box.left,event.clientY-box.top);},{passive:false});
     host.addEventListener('mousedown',event=>{if(event.button===2&&!event.target.closest('input,textarea,[contenteditable="true"]')){event.preventDefault();event.stopImmediatePropagation();}},true);
     host.addEventListener('contextmenu',event=>callbacks.context?.(event));
-    host.addEventListener('mousedown',event=>{if(!this.api.selected&&this.dieline){const m=this.api.wrapper?.getScreenCTM();if(m){const p=new DOMPoint(event.clientX,event.clientY).matrixTransform(m.inverse());const x=this.side==='inside'?this.dieline.minX+this.dieline.maxX-p.x:p.x;const panel=panelAt(this.dieline,x,p.y);if(panel)callbacks.select(null,panel.id,[]);}}});
   }
   get hasSelection(){return this.api?.canvas.getSelectedElements().some(Boolean)??false;}
   get isEditing(){return ['textedit','pathedit'].includes(this.api?.canvas.getMode());}
@@ -215,6 +214,7 @@ export class SvgMainEditor {
     const transform=(holder.getAttribute('transform')??'')+(this.side==='inside'?` translate(${d.minX+d.maxX} 0) scale(-1 1)`:'');
     const paper=root.querySelector('#fold-paper-guide')??element('g',{id:'fold-paper-guide','pointer-events':'none'});
     const lines=root.querySelector('#fold-line-guide')??element('g',{id:'fold-line-guide','pointer-events':'none'});
+    for(const guide of [paper,lines]){guide.setAttribute('data-fold-guide','true');guide.setAttribute('aria-hidden','true');}
     if(paper.getAttribute('transform')!==transform)paper.setAttribute('transform',transform);
     if(lines.getAttribute('transform')!==transform)lines.setAttribute('transform',transform);
     const colors=this.side==='inside'?this.project.insidePanelColors:this.project.panelColors,fill=this.side==='inside'?this.project.insidePaper:this.project.paper;
