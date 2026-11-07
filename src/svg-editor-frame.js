@@ -156,6 +156,22 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   container.removeEventListener('mouseup',finishGesture);
   container.addEventListener('mouseup',event=>{
     const mode=canvas.getMode();
+    if(mode==='multiselect'){
+      // SVGCanvas's stock mouseup falls through from marquee to object-move
+      // finalization. It then bakes existing transforms into path coordinates,
+      // although nothing was dragged. Keep marquee strictly selection-only.
+      event.preventDefault();event.stopImmediatePropagation();
+      const elements=canvas.getSelectedElements().filter(Boolean),single=elements.length===1?elements[0]:null;
+      canvas.setStarted(false);canvas.getRubberBox()?.setAttribute('display','none');canvas.setCurBBoxes([]);
+      canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.setMode('select');
+      if(single){
+        if(single.localName==='text'){canvas.setCurText('font_size',single.getAttribute('font-size'));canvas.setCurText('font_family',single.getAttribute('font-family'));}
+        for(const key of ['fill','fill_opacity','stroke','stroke_opacity','stroke_width','stroke_dasharray','stroke_linejoin','stroke_linecap'])canvas.setCurProperties(key,single.getAttribute(key.replaceAll('_','-')));
+      }
+      for(const element of elements){const selector=canvas.selectorManager.requestSelector(element);selector?.resize();selector?.showGrips(elements.length===1);}
+      if(!single)canvas.selectorManager.selectorGripsGroup.setAttribute('display','none');
+      canvas.call('selected',elements);return;
+    }
     if(!canvas.getStarted()||!['select','resize','multiselect'].includes(mode))return finishGesture(event);
     const styles=new Map();
     const selectedNode=canvas.getSelectedElements().find(Boolean);
@@ -208,7 +224,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     stopPan();const mode=canvas.getMode();
     if(!['select','resize','multiselect','rotate'].includes(mode))return;
     if(mode==='rotate'&&canvas.getStarted())canvas.undoMgr.finishUndoableChange().unapply();
-    canvas.setStarted(false);canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.getRubberBox()?.setAttribute('display','none');
+    canvas.setStarted(false);canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.setCurBBoxes([]);canvas.getRubberBox()?.setAttribute('display','none');
     if(mode!=='select')canvas.setMode('select');
     for(const node of canvas.getSelectedElements().filter(Boolean))canvas.selectorManager.requestSelector(node)?.resize();
   }
@@ -540,7 +556,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     else if(command&&event.key.toLowerCase()==='a'){event.preventDefault();const context=canvas.getCurrentGroup()??wrapper;canvas.selectOnly([...context.children].filter(node=>!['defs','title','desc'].includes(tagName(node))),true);}
     else if(command&&['c','x','v'].includes(event.key.toLowerCase())){event.preventDefault();run({c:'copy',x:'cut',v:'paste'}[event.key.toLowerCase()]);}
     else if(event.key==='Delete'||event.key==='Backspace'){event.preventDefault();run(canvas.getMode()==='pathedit'?'node-delete':'delete');}
-    else if(event.key==='Escape'){canvas.setMode('select');canvas.setContext(wrapper);canvas.clearSelection();}
+    else if(event.key==='Escape'){cancelCanvasGesture();canvas.setMode('select');canvas.setContext(wrapper);canvas.clearSelection();}
     else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){
       event.preventDefault();const distance=event.shiftKey?10:1;
       canvas.moveSelectedElements(event.key==='ArrowLeft'?-distance:event.key==='ArrowRight'?distance:0,event.key==='ArrowUp'?-distance:event.key==='ArrowDown'?distance:0,true);contentChanged();

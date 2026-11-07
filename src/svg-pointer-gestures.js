@@ -105,6 +105,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
     event?.preventDefault();event?.stopImmediatePropagation();
     canvas.setStarted(false);canvas.setCurrentMode('select');canvas.setStartTransform(null);canvas.setJustSelected(null);
     canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;
+    canvas.setCurBBoxes([]);
     const batch=new canvas.history.BatchCommand(current.mode==='resize'?'缩放图文':'移动图文');
     for(const {node,old}of current.items){
       if(cancel){for(const [key,value]of Object.entries(old))setAttribute(node,key,value);}
