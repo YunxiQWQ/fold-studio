@@ -32,7 +32,8 @@
     "test:transforms": "node --test tests/text-transform.test.js && node tests/svg-main-browser.mjs && node tests/svg-gestures-browser.mjs",
     "test:close-protection": "node --test tests/close-protection.test.js && node tests/close-protection-browser.mjs",
     "test:color": "node --test tests/cmyk-color.test.js && node tests/color-management-browser.mjs",
-    "test:export-color": "node --test tests/export-color-modes.test.js && node tests/export-color-modes-browser.mjs"
+    "test:export-color": "node --test tests/export-color-modes.test.js && node tests/export-color-modes-browser.mjs",
+    "test:export-menu": "node tests/export-menu-browser.mjs"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",

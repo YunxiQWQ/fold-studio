@@ -11,6 +11,7 @@ const paths = {
   redo: '<path d="M21 5H11a7 7 0 0 0 0 14"/><path d="m17 1 4 4-4 4"/>',
   text: '<path d="M4 5h16M12 5v15M8 20h8M4 5v3m16-3v3"/>',
   image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>',
+  file:'<path d="M14 2H5v20h14V7Z"/><path d="M14 2v5h5M8 12h8m-8 4h6"/>',
   shape:'<rect x="3" y="3" width="12" height="12" rx="2"/><circle cx="16" cy="16" r="6"/>',
   cursor:'<path d="m5 3 14 10-7 1-3 7Z"/>', hand:'<path d="M8 13V5a2 2 0 0 1 4 0v7-8a2 2 0 0 1 4 0v8-6a2 2 0 0 1 4 0v10c0 4-3 6-7 6h-1c-3 0-4-2-6-4L2 12a2 2 0 0 1 3-2l3 3Z"/>',
   plus:'<path d="M12 5v14M5 12h14"/>', minus:'<path d="M5 12h14"/>',

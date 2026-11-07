@@ -14,7 +14,6 @@ export function mountPrintUI(api){
   output.innerHTML=`<button data-close class="dialog-close" aria-label="关闭 CMYK 导出">×</button><span class="dialog-kicker">CMYK TIFF EXPORT</span><h2>导出 CMYK 印刷图</h2><p id="cmyk-output-profile"></p><div class="print-fields"><label>分辨率<select id="cmyk-dpi"><option value="150">150 DPI</option><option value="300" selected>300 DPI</option><option value="600">600 DPI</option></select></label><p id="cmyk-output-size"></p><p class="field-note">8 位 CMYK 四通道 TIFF，嵌入所选 ICC，按实际毫米尺寸输出。透明区域铺白，不包含刀线或折线。可编辑原稿另存 .fold / SVG。</p><p id="cmyk-output-error" class="print-error" role="alert"></p></div><div class="dialog-actions"><button data-close class="button subtle">取消</button><button id="confirm-export-cmyk" class="button primary">导出 TIFF</button></div>`;
   document.body.append(settings,output);
   $('#color-mode-toggle').insertAdjacentHTML('afterend','<button id="print-settings" class="button ghost" title="ICC 配置、转换意图与印刷软打样">印刷设置</button>');
-  $('#export-menu').insertAdjacentHTML('beforeend','<button id="export-cmyk" role="menuitem"><span><strong>CMYK 印刷 TIFF</strong><small>真实四色像素 · 嵌入 ICC · 按 DPI 输出</small></span></button>');
   for(const dialog of [settings,output])for(const button of dialog.querySelectorAll('[data-close]'))button.onclick=()=>{if(!busy)dialog.close();};
   output.addEventListener('cancel',e=>{if(busy)e.preventDefault();});
   settings.addEventListener('close',()=>{readToken++;$('#apply-print-settings').disabled=false;});

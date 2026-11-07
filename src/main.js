@@ -37,6 +37,7 @@ import {colorStatus,configureColorManagement} from './color.js';
 import {renderPrintSurface} from './print-surface.js';
 import {mountPrintUI} from './print-ui.js';
 import {mountExportColorUI} from './export-color-ui.js';
+import {exportMenuMarkup,mountExportMenu} from './export-menu.js';
 
 const $=selector=>document.querySelector(selector);
 const $$=selector=>document.querySelectorAll(selector);
@@ -60,7 +61,6 @@ const THEMES = [
   { id: 'dark', name: '极夜深色', desc: '沉浸高对比 · 纯净深黑', icon: 'moon', swatch: ['#15171b', '#4ade80'] }
 ];
 const toolButton=(id,glyph,label,shortcut='',extra='')=>`<button id="${id}" class="tool-button ${extra}" title="${label}${shortcut?` · ${shortcut}`:''}" aria-label="${label}">${icon(glyph)}<span class="tool-label">${label}</span></button>`;
-const exportItem=(id,glyph,title,detail)=>`<button id="${id}" role="menuitem">${icon(glyph)}<span><strong>${title}</strong><small>${detail}</small></span></button>`;
 
 $('#app').innerHTML=`
 <header class="app-bar">
@@ -84,7 +84,7 @@ $('#app').innerHTML=`
       <button id="shortcut-help" class="icon-button" title="快捷键 · ?" aria-label="快捷键">${icon('keyboard')}</button>
       <button id="help" class="icon-button" title="使用指南" aria-label="使用指南">${icon('help')}</button>
     </div>
-    <div class="export-wrap"><button id="export-toggle" class="button primary" aria-haspopup="true">${icon('download')}<span>导出</span>${icon('down')}</button><div id="export-menu" class="dropdown export-menu" role="menu" hidden><span class="dropdown-label">三维</span>${exportItem('export-glb','box','三维模型 GLB','网格、材质与双面贴图')}${exportItem('export-png','image','三维预览 PNG','当前视角截图')}<span class="dropdown-label">平面</span>${exportItem('export-svg','grid','平面刀版 SVG','刀线、压痕与工程数据')}${exportItem('export-flat','image','平面设计 PNG','可选是否带刀线')}${exportItem('export-artwork-svg','layers','当前面图文 SVG','仅当前印刷面的可编辑图文')}</div></div>
+    <div class="export-wrap"><button id="export-toggle" class="button primary" aria-haspopup="menu" aria-controls="export-menu" aria-expanded="false">${icon('download')}<span>导出</span>${icon('down')}</button><div id="export-menu" class="dropdown export-menu" role="menu" aria-label="导出文件" hidden>${exportMenuMarkup()}</div></div>
   </div>
 </header>
 <main class="workspace" id="workspace-main">
@@ -821,6 +821,7 @@ $('#project-input').onchange=async e=>{
 };
 function safeName(){return project.name.replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').slice(0,80)||'折间工程';}
 $('#export-toggle').onclick=()=>$('#export-menu').hidden=!$('#export-menu').hidden;
+mountExportMenu();
 $('#export-artwork-svg').onclick=()=>{editor.flushInput();$('#export-menu').hidden=true;editor.run('download');};
 document.addEventListener('click',e=>{if(!e.target.closest('.export-wrap'))$('#export-menu').hidden=true;});
 async function flatCanvas(max=3072,side=activeSide,{includeLines=false}={}){
