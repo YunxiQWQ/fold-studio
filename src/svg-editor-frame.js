@@ -19,7 +19,17 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     show_outside_canvas:!!options.openWorkspace,selectNew:true,
   });
   window.svgCanvas = canvas;
-  const applyLocks=()=>{for(const node of canvas.getSvgContent().querySelectorAll('[data-locked]')){if(node.getAttribute('data-locked')==='true')node.style.pointerEvents='none';else node.style.removeProperty('pointer-events');}};
+  const applyLocks=()=>{
+    // Lock hit testing follows the attribute in CSS, including ancestor locks
+    // and undo/redo. Remove editor-owned inline overrides left by older builds:
+    // an unlocked node no longer has data-locked, so an attribute-only query
+    // would miss its stale pointer-events:none forever.
+    const root=sourceElement();
+    for(const node of root?[root,...root.querySelectorAll('[style]')]:[]){
+      node.style.removeProperty('pointer-events');
+      if(node.getAttribute('style')==='')node.removeAttribute('style');
+    }
+  };
   container.addEventListener('mousedown',event=>{if(event.target.closest('[data-locked="true"]')){event.preventDefault();event.stopImmediatePropagation();}},true);
   const setMode=canvas.setMode.bind(canvas);
   canvas.setMode=mode=>{
@@ -442,8 +452,8 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     if(!element)return;
     canvas.changeSelectedAttribute(name,value,[element]);
     if(name==='display'||name==='data-locked'){
-      canvas.selectOnly(canvas.getSelectedElements().filter(Boolean),true);
       applyLocks();
+      canvas.selectOnly(canvas.getSelectedElements().filter(Boolean),true);
     }
     canvas.call('changed',[element]);refreshTree();refreshProperties();
   }
