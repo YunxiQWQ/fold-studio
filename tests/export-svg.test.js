@@ -4,6 +4,12 @@ import {SvgDrawingContext} from '../src/export-svg.js';
 import {drawBarcode} from '../src/barcode.js';
 import {drawQRCode} from '../src/qrcode.js';
 
+test('photo export embeds one href payload while retaining editable image and crop geometry',()=>{
+  const source='data:image/png;base64,QUJDRA==',defs=[],ctx=new SvgDrawingContext(defs);
+  ctx.drawImage({src:source,naturalWidth:200,naturalHeight:100},20,10,100,50,0,0,40,20);
+  const svg=ctx.toSVG();assert.equal(svg.split(source).length-1,1);assert.match(svg,/<image/);assert.doesNotMatch(svg,/xlink:href/);assert.match(defs.join(''),/<clipPath/);assert.match(svg,/width="80" height="40"/);
+});
+
 test('SVG recording preserves path geometry, transforms, fill/stroke and saved drawing state',()=>{
   const ctx=new SvgDrawingContext();ctx.fillStyle='#123456';ctx.translate(10,20);
   ctx.save();ctx.scale(-1,2);ctx.globalAlpha=.4;ctx.beginPath();ctx.moveTo(0,0);ctx.bezierCurveTo(1,2,3,4,5,6);ctx.closePath();ctx.fill();ctx.restore();

@@ -114,7 +114,7 @@ export class SvgDrawingContext {
     const id=`${this.prefix}-image-crop-${this.serial++}`;
     this.defs.push(`<clipPath id="${id}" clipPathUnits="userSpaceOnUse"><rect x="${number(dx)}" y="${number(dy)}" width="${number(dw)}" height="${number(dh)}"/></clipPath>`);
     const src=xml(image.src),width=image.naturalWidth*dw/sw,height=image.naturalHeight*dh/sh;
-    this._emit(`<g transform="${matrix(this.transformMatrix)}" opacity="${number(this.globalAlpha)}"><g clip-path="url(#${id})"><image x="${number(dx-sx*dw/sw)}" y="${number(dy-sy*dh/sh)}" width="${number(width)}" height="${number(height)}" preserveAspectRatio="none" href="${src}" xlink:href="${src}"/></g></g>`);
+    this._emit(`<g transform="${matrix(this.transformMatrix)}" opacity="${number(this.globalAlpha)}"><g clip-path="url(#${id})"><image x="${number(dx-sx*dw/sw)}" y="${number(dy-sy*dh/sh)}" width="${number(width)}" height="${number(height)}" preserveAspectRatio="none" href="${src}"/></g></g>`);
   }
   toSVG(){return this.nodes.join('');}
 }

@@ -1,10 +1,11 @@
 import {proofColor} from './color.js';
+import {canonicalImageAttributes,assertSvgCapacity} from './svg-capacity.js';
 import {svgTags as tags,svgAttributes as attributes,cssOnlyProperties,definitionTags,normalizeSvgValue,svgReference} from './svg-format.js';
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 
 export function validateSvgAsset(asset){
   if(!asset||!Array.isArray(asset.viewBox)||asset.viewBox.length!==4||asset.viewBox.some(n=>!Number.isFinite(n)||Math.abs(n)>1e8)||asset.viewBox[2]<=0||asset.viewBox[3]<=0||!Array.isArray(asset.nodes))throw Error('SVG 图形范围无效');
-  let count=0,chars=0;const ids=new Map(),refs=new Map();
+  let count=0,chars=0,imageChars=0;const ids=new Map(),refs=new Map();
   function visit(node,depth=0){
     if(typeof node==='string'){chars+=node.length;return;}
     if(!node||!tags.has(node.tag)||!node.attrs||typeof node.attrs!=='object'||Array.isArray(node.attrs)||!Array.isArray(node.children)||++count>24000||depth>64)throw Error('SVG 图形结构无效或过于复杂');
@@ -13,7 +14,8 @@ export function validateSvgAsset(asset){
     const links=[];
     for(const [key,value]of Object.entries(node.attrs)){
       if(!attributes.has(key)||normalizeSvgValue(node.tag,key,value)===null)throw Error(`SVG 图形属性无效：${key}`);
-      chars+=value.length;
+      if(node.tag==='image'&&['href','xlink:href'].includes(key)){if(key==='href'||!Object.hasOwn(node.attrs,'href'))imageChars+=value.length;}
+      else chars+=value.length;
       if(key==='id'){if(ids.has(value))throw Error('SVG 图形编号重复');ids.set(value,node);}
       const ref=svgReference(key,value);if(ref)links.push(ref);
     }
@@ -30,7 +32,8 @@ export function validateSvgAsset(asset){
     for(const child of node.children)visit(child,depth+1);
   }
   asset.nodes.forEach(n=>visit(n));
-  if(!count||chars>8e6)throw Error('SVG 图形过大或没有内容');
+  if(!count)throw Error('SVG 图形没有内容');
+  assertSvgCapacity(chars,imageChars);
   const pending=new Set(),sizes=new Map();
   function expandedSize(node){
     if(typeof node==='string')return 0;
@@ -77,7 +80,7 @@ export function copySvgNodes(asset,{prefix='asset-',color=null}={}){
   }
   function write(n,inDefs=false){
     if(typeof n==='string')return n;
-    const defs=inDefs||definitionTags.has(n.tag),attrs={...n.attrs};
+    const defs=inDefs||definitionTags.has(n.tag),attrs={...canonicalImageAttributes(n.tag,n.attrs)};
     if(attrs.id)attrs.id=prefix+attrs.id;
     if(attrs['data-fold-group'])attrs['data-fold-group']=prefix+attrs['data-fold-group'];
     if(color&&!defs){for(const key of ['fill','stroke'])if(attrs[key]&&attrs[key]!=='none'&&attrs[key]!=='transparent')attrs[key]=color;}

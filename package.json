@@ -22,6 +22,7 @@
     "test:design-tools": "node tests/design-tools-browser.mjs",
     "test:typography-alignment": "node tests/typography-alignment-browser.mjs",
     "test:font-picker": "node tests/font-picker-browser.mjs",
+    "test:image-capacity": "node --test tests/svg-capacity.test.js && node tests/image-capacity-browser.mjs",
     "prebuild": "node scripts/render-template-previews.mjs",
     "build:previews": "node scripts/render-template-previews.mjs",
     "test:flat": "node tests/export-flat-browser.mjs",

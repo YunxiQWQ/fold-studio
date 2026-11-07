@@ -28,6 +28,7 @@ import { exportSVG } from './export-svg.js';
 import {resizeTextDimension} from './text-transform.js';
 import {CloseProtection} from './close-protection.js';
 import {importSvgDocument} from './import-svg.js';
+import {MAX_SVG_FILE_BYTES,MAX_PROJECT_FILE_BYTES} from './svg-capacity.js';
 import { icon, escapeHtml as esc } from './icons.js';
 import { PACKAGING_SYMBOLS } from './symbols.js';
 import { rgbToCmyk, formatCmyk, proofColor } from './color.js';
@@ -756,7 +757,7 @@ $('#quality').onchange=e=>{project.quality=e.target.value;preview?.setQuality(pr
 $('#image-input').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(file)await importImage(file);};
 
 async function importSvgArtwork(file){
-  if(file.size>8e6){notify('SVG 请小于 8 MB');return;}
+  if(file.size>MAX_SVG_FILE_BYTES){notify('SVG 文件请小于 32 MB（含内嵌图片）');return;}
   editor.up();const target=project,side=activeSide,panel=dieline.panels.find(p=>p.id===panelId),geometry=JSON.stringify(project.dimensions);
   if(!panel)return;
   try{
@@ -777,13 +778,16 @@ async function importImage(file){
   if(!['image/png','image/jpeg','image/webp'].includes(file.type)){notify('请选择 PNG、JPG 或 WebP 图片');return;}
   if(file.size>15*1024*1024){notify('图片请小于 15 MB');return;}
   let bitmap;
+  editor.up();const target=project,side=activeSide,targetPanel=panelId;
   try{
     bitmap=await createImageBitmap(file);const scale=Math.min(1,1536/Math.max(bitmap.width,bitmap.height));
     const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();bitmap=null;
     editor.up();
+    if(project!==target||activeSide!==side||panelId!==targetPanel)throw Error('导入期间工程、印刷面或面板已改变，请重新导入图片');
     if(project.layers.length>=120)throw new Error('当前工程最多支持 120 个图层');
     const panel=dieline.panels.find(p=>p.id===panelId),w=.7,h=Math.min(.8,w*panel.w*canvas.height/canvas.width/panel.h);
     const layer={id:uid(),type:'image',name:file.name.slice(0,60),panel:panelId,side:activeSide,x:.5,y:.5,w:h*panel.h*canvas.width/canvas.height/panel.w,h,rotation:0,opacity:1,visible:true,src:canvas.toDataURL('image/png')};
+    if(editor.native){await editor.importRaster(layer);textureDirty=true;schedule();notify('图片已添加，可以拖动与缩放');return;}
     project.layers.push(layer);selected=layer.id;images.get(layer.src);textureDirty=true;schedule();commit();renderInspector();notify('图片已添加，可以拖动与缩放');
   }catch(error){bitmap?.close();notify(error.message??'图片导入失败');}
 }
@@ -795,7 +799,7 @@ $('#save-project').onclick=()=>{editor.flushInput?.();editor.up();const copy=clo
 $('#import-project').onclick=()=>$('#project-input').click();
 $('#project-input').onchange=async e=>{
   const file=e.target.files[0];e.target.value='';if(!file)return;
-  if(file.size>45*1024*1024){notify('工程文件请小于 45 MB');return;}
+  if(file.size>MAX_PROJECT_FILE_BYTES){notify('工程文件请小于 128 MB');return;}
   try{
     const content=await file.text();let input,importSide='outside';
     if(file.name.toLowerCase().endsWith('.svg')){

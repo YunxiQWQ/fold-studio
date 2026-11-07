@@ -19,6 +19,7 @@ import {proofColor} from './color.js';
 import {arrangeSvgInspector} from './svg-inspector.js';
 import {alignSvgSelection} from './svg-alignment.js';
 import {typographyTargets,toggleTypography,readSvgText,replaceSvgText} from './svg-typography.js';
+import {validSvgHref} from './svg-format.js';
 
 const ns='http://www.w3.org/2000/svg';
 const path=regions=>regionPath(regions).map(p=>p.join(' ')).join(' ');
@@ -124,7 +125,7 @@ export class SvgMainEditor {
     const previous=this.project;Object.assign(this,{project,dieline,panelId,side});
     const key=JSON.stringify([side,project.svgArtwork?.[side],project.layers.filter(l=>sideOf(l)===side),dieline.type,project.dimensions]);
     if(key===this.key&&previous===project){this.structure();return this.pending;}
-    this.key=key;const sequence=++this.sequence;hostReady(this.host,false);
+    const sequence=++this.sequence;hostReady(this.host,false);
     this.pending=(async()=>{
       const legacy=project.layers.filter(l=>sideOf(l)===side);
       let source=project.svgArtwork?.[side]?svgDocumentSource(project.svgArtwork[side]):await this.legacySource(project,dieline,side);
@@ -150,11 +151,12 @@ export class SvgMainEditor {
       const normalized=svgDocumentSource(parseSvgDocument(serialize(root)));
       this.guard=true;this.api.receive({type:'load',source:normalized,dimensions:[dieline.width,dieline.height],preserveView});this.guard=false;
       this.loadedSide=side;this.loadedProject=project;this.loadedLegacyIds=new Set(legacy.map(layer=>layer.id));
+      this.key=key;
       if(project.svgArtwork?.[side]&&legacy.length)this.store(this.api.source(),true);
       const object=selected&&this.api.wrapper?.querySelector(`#${CSS.escape(selected)}`);
       if(object)this.api.select(object);
       this.structure();hostReady(this.host,true);
-    })().catch(error=>{this.callbacks.notify(error.message);hostReady(this.host,true);});return this.pending;
+    })().catch(error=>{this.guard=false;this.key=null;this.callbacks.notify(error.message);hostReady(this.host,true);});return this.pending;
   }
   async message(data){
     try{
@@ -278,6 +280,18 @@ export class SvgMainEditor {
     combined.documentElement.append(combined.importNode(placement,true));
     svgSceneAsset(serialize(combined.documentElement));
     this.api.append(serialize(container));this.up();
+  }
+  async importRaster(layer){
+    const project=this.project,side=this.side,panelId=this.panelId;await this.pending;
+    if(project!==this.project||side!==this.side||panelId!==this.panelId)throw Error('工程或印刷面已改变，请重新导入图片');
+    if(!validSvgHref('image',layer.src))throw Error('图片格式无效或单张内嵌数据超过 16 MB');
+    const panel=this.dieline.panels.find(p=>p.id===panelId);if(!panel)throw Error('请选择包装面板');
+    const width=layer.w*panel.w,height=layer.h*panel.h,cx=side==='inside'?this.dieline.minX+this.dieline.maxX-panel.x-layer.x*panel.w:panel.x+layer.x*panel.w;
+    const node=element('image',{id:layer.id,'data-name':layer.name,x:cx-width/2,y:panel.y+layer.y*panel.h-height/2,width,height,preserveAspectRatio:'none',href:layer.src});
+    return this.api.transaction('导入图片',batch=>{
+      this.api.wrapper.append(node);batch.addSubCommand(new this.api.canvas.history.InsertElementCommand(node));
+      return {selection:[node],active:node};
+    });
   }
   copyToSystem(){
     try{

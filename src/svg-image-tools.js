@@ -13,10 +13,14 @@ export function appendImageTools(host,node,editor){
     const input=document.createElement('input');input.type='file';input.accept='image/png,image/jpeg,image/webp';
     input.onchange=async()=>{
       const file=input.files[0];if(!file)return;
+      const targetProject=editor.project,targetSide=editor.side;
       try{
         if(file.size>15*1024*1024)throw Error('图片请小于 15 MB');
         const bitmap=await createImageBitmap(file),scale=Math.min(1,1536/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
-        if(!node.isConnected)throw Error('目标图片已改变');node.setAttribute('href',canvas.toDataURL('image/png'));node.removeAttributeNS('http://www.w3.org/1999/xlink','href');editor.store(editor.api.source());editor.api.refreshProperties();
+        const src=canvas.toDataURL('image/png');editor.up();if(!node.isConnected||targetProject!==editor.project||targetSide!==editor.side)throw Error('目标图片或工程已改变，请重新替换');
+        editor.api.transaction('替换图片',batch=>{
+          const old={href:node.getAttribute('href'),'xlink:href':node.getAttribute('xlink:href')};node.setAttribute('href',src);node.removeAttributeNS('http://www.w3.org/1999/xlink','href');node.removeAttribute('xlink:href');batch.addSubCommand(new editor.api.canvas.history.ChangeElementCommand(node,old));return {selection:[node],active:node};
+        });editor.api.refreshProperties(true);
       }catch(error){editor.callbacks.notify(error.message);}
     };input.click();
   };

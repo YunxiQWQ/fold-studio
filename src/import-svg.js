@@ -5,9 +5,10 @@ import {compactSvgLayers} from './svg-merge.js';
 
 import {normalizeSvgDocument,svgViewport,svgArtworkParts,selectSvgArtwork} from './svg-document.js';
 import {svgNamespace} from './svg-format.js';
+import {MAX_SVG_SOURCE_CHARS} from './svg-capacity.js';
 
 function prepare(source,{complete=false}={}){
-  if(source.length>8e6)throw Error('SVG 请小于 8 MB');
+  if(typeof source!=='string'||source.length>MAX_SVG_SOURCE_CHARS)throw Error('SVG 源数据超过 64 MB，请减少内嵌图片');
   if(/<!ENTITY/i.test(source))throw Error('SVG 不支持实体声明');
   // Remove an external DTD declaration without resolving it.
   source=source.replace(/<!DOCTYPE\s+svg(?:\s+(?:PUBLIC|SYSTEM)\s+(?:"[^"]*"|'[^']*')(?:\s+(?:"[^"]*"|'[^']*'))?)?\s*>/gi,'');

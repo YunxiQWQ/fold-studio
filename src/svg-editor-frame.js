@@ -2,6 +2,7 @@ import {mountSvgLayerPanel,svgLayerName} from './svg-layer-panel.js';
 import {installSvgPointerGestures} from './svg-pointer-gestures.js';
 import {captureSvgPlacement,restoreSvgPlacement,ungroupSvgLayers} from './svg-layer-operations.js';
 import {readSvgText,writeSvgText} from './svg-typography.js';
+import {canonicalizeImageElement} from './svg-capacity.js';
 
 // Shared SVGCanvas interface; imported/source-edited SVG is validated before loading.
 export function initializeSvgFrame(SvgCanvas, options={}) {
@@ -132,6 +133,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
       root.appendChild(copy);
     }
     for(const element of [root,...root.querySelectorAll('*')]){
+      canonicalizeImageElement(element);
       element.style?.removeProperty('pointer-events');
       element.style?.removeProperty('cursor');
       if(element.getAttribute('style')==='')element.removeAttribute('style');

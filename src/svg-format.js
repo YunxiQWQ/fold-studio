@@ -1,3 +1,4 @@
+import {MAX_IMAGE_DATA_CHARS,MAX_SVG_VECTOR_CHARS} from './svg-capacity.js';
 export const svgNamespace = 'http://www.w3.org/2000/svg';
 export const definitionTags = new Set('defs linearGradient radialGradient clipPath mask pattern marker symbol filter'.split(' '));
 export const filterTags = new Set('feGaussianBlur feDropShadow feOffset feFlood feComposite feBlend feColorMatrix feMerge feMergeNode feComponentTransfer feFuncR feFuncG feFuncB feFuncA feMorphology feTurbulence feDisplacementMap feTile'.split(' '));
@@ -47,10 +48,10 @@ export function normalizeSvgValue(tag, key, value) {
   if (key === 'href' || key === 'xlink:href') return validSvgHref(tag, value) ? value : null;
   // Names are plain metadata, escaped by the SVG serializer and rendered as text.
   if(key==='data-name'){
-    if(typeof value!=='string'||value.length>8e6||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value))return null;
+    if(typeof value!=='string'||value.length>MAX_SVG_VECTOR_CHARS||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value))return null;
     return value.trim();
   }
-  if (typeof value !== 'string' || value.length > 8e6 ||
+  if (typeof value !== 'string' || value.length > MAX_SVG_VECTOR_CHARS ||
       /[\\<>{};\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value)) return null;
   value = value.trim();
   if (key === 'id') return svgId.test(value) ? value : null;
@@ -71,7 +72,7 @@ export function normalizeSvgValue(tag, key, value) {
 }
 
 export function validSvgHref(tag, value) {
-  if (typeof value !== 'string' || value.length > 8e6) return false;
+  if (typeof value !== 'string' || value.length > (tag==='image'?MAX_IMAGE_DATA_CHARS:MAX_SVG_VECTOR_CHARS)) return false;
   if (tag === 'image') return inlineImage.test(value);
   return hrefTags.has(tag) && value.startsWith('#') && svgId.test(value.slice(1));
 }

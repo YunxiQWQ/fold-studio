@@ -1,5 +1,6 @@
 import {svgNamespace,svgTags,svgAttributes,definitionTags,presentationProperties,cssOnlyProperties,normalizeSvgValue,svgReference} from './svg-format.js';
 import {validateSvgAsset} from './svg-asset.js';
+import {canonicalImageAttributes} from './svg-capacity.js';
 
 const metadata = /^(?:xmlns(?::.*)?|data-.*|aria-.*|class|role|version|baseProfile|focusable)$/;
 const nativeTags = new Set('mask pattern marker symbol use filter textPath image clipPath'.split(' '));
@@ -109,7 +110,7 @@ function readNode(element, css) {
   });
   const style = css.get(element);
   const label=element.getAttribute('inkscape:label')||element.getAttribute('data-name');
-  return {tag:element.localName, attrs, children, ...(label ? {name:label.slice(0,300)} : {}), ...(style ? {css:style} : {})};
+  return {tag:element.localName, attrs:canonicalImageAttributes(element.localName,attrs), children, ...(label ? {name:label.slice(0,300)} : {}), ...(style ? {css:style} : {})};
 }
 
 function normalizeFixedStrokes(root, elements, css) {

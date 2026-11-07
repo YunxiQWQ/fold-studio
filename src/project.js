@@ -1,5 +1,6 @@
 import { BOX_TYPES, makeDieline } from './geometry.js';
 import {validateSvgAsset} from './svg-asset.js';
+import {MAX_IMAGE_DATA_CHARS} from './svg-capacity.js';
 
 export const uid = () => crypto.randomUUID();
 export const clone = value => structuredClone(value);
@@ -93,7 +94,7 @@ export function validateProject(input) {
     for(const [key,min,max]of [['strokeWidth',0,20],['radius',0,300],['lineHeight',.7,4],['charSpacing',-100,1000]])if(layer[key]!==undefined&&(!Number.isFinite(layer[key])||layer[key]<min||layer[key]>max))throw new Error('工程样式数值无效');
     if(layer.textAlign!==undefined&&!['left','center','right','justify'].includes(layer.textAlign))throw new Error('工程文字对齐无效');
     if(layer.crop!==undefined){const c=layer.crop;if(layer.type!=='image'||!c||['x','y','w','h'].some(k=>!Number.isFinite(c[k]))||c.x<0||c.y<0||c.w<=0||c.h<=0||c.x+c.w>1.000001||c.y+c.h>1.000001)throw new Error('图片裁剪区域无效');}
-    if (layer.type === 'image' && (typeof layer.src !== 'string' || layer.src.length > 8e6 || !/^data:image\/(png|jpeg|webp);base64,/.test(layer.src))) throw new Error('工程图片格式无效');
+    if (layer.type === 'image' && (typeof layer.src !== 'string' || layer.src.length > MAX_IMAGE_DATA_CHARS || !/^data:image\/(png|jpeg|webp);base64,/.test(layer.src))) throw new Error('工程图片格式无效或单张图片内嵌数据超过 16 MB');
     if (layer.type === 'barcode') {
       if (typeof layer.code !== 'string' || layer.code.length > 120) throw new Error('工程条码数据无效');
       if (layer.format !== undefined && !['ean13', 'code128'].includes(layer.format)) throw new Error('工程条码格式无效');
