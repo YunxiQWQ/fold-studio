@@ -375,6 +375,23 @@ body.resizing-row,body.resizing-row *{cursor:row-resize!important;user-select:no
 #inspector #properties .svg-font-preview{padding:10px;border-radius:var(--radius-sm);background:var(--soft);font-size:18px;color:var(--text)}
 #inspector #properties .svg-field-note{font-size:11px;color:var(--muted)}
 #inspector #properties .svg-wide-control{grid-column:1/-1}
+#inspector #properties .svg-font-field{grid-column:1/-1;display:grid;gap:4px;min-width:0}
+.svg-font-control{display:flex;min-width:0}
+#inspector #properties .svg-font-control>input{width:0;min-width:0;flex:1;margin:0;border-radius:var(--radius-sm) 0 0 var(--radius-sm)}
+#font-picker-toggle{flex:0 0 32px;border:1px solid var(--border);border-left:0;border-radius:0 var(--radius-sm) var(--radius-sm) 0;background:var(--surface);color:var(--text);font-size:14px}
+#font-picker-toggle:hover,#font-picker-toggle[aria-expanded="true"]{background:var(--selected);color:var(--green)}
+#font-picker-popup{position:fixed;inset:auto;margin:0;padding:8px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text);box-shadow:0 10px 30px #20262038;overflow:auto}
+#font-picker-popup:popover-open{display:flex;flex-direction:column;gap:8px}
+#font-picker-popup #font-picker-search{flex:none;width:100%;height:32px;margin:0;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--input-bg,var(--surface));color:var(--text);font-size:12px}
+.svg-font-access{flex:none}
+.svg-font-access button{width:100%;min-height:30px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text);background:var(--surface)}
+#font-picker-popup .svg-field-note{margin:0;font-size:11px;line-height:1.5;color:var(--muted)}
+.svg-font-list{min-height:40px;max-height:320px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.svg-font-group{padding:8px 6px 4px;font:10px/1.5 var(--font-ui);color:var(--muted)}
+.svg-font-option{display:block;width:100%;min-height:34px;padding:6px 8px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);text-align:left;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.svg-font-option[aria-selected="true"]{box-shadow:inset 3px 0 var(--green);background:var(--selected)}
+.svg-font-option.is-active,.svg-font-option:hover{background:var(--hover)}
+.svg-font-empty{padding:16px 8px;font-size:12px;color:var(--muted)}
 #inspector #properties [aria-invalid="true"]{border-color:#b85749}
 .toolbar-selection-count{font:10px var(--font-mono);color:var(--muted);white-space:nowrap}
 .toolbar-selection-count:empty{display:none}

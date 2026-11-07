@@ -50,9 +50,10 @@ try{
   await choose('part');await page.locator('[data-typography-action="bold"]').click();assert.equal(await page.locator('#svgcontent [id$="-part"]').evaluate(n=>getComputedStyle(n).fontWeight),'400');await choose('one');
   const locked=await page.locator('#svgcontent [id$="-locked"]').getAttribute('font-size');assert.equal(locked,'7');
   await page.screenshot({path:resolve(dir,'font-panel.png')});checks.push('mixed selection shows mixed values; batch typography compensates nested nonuniform scales; keyboard styling shares the panel behavior and locked text remains unchanged');
-  if(await page.locator('#read-local-fonts').count()){
-    const before=await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork));await page.evaluate(()=>Object.defineProperty(window,'queryLocalFonts',{configurable:true,value:async()=>[{family:'QA Local Font'},{family:'QA Local Font'}]}));await page.locator('#read-local-fonts').click();await page.waitForFunction(()=>[...document.querySelectorAll('#typography-families option')].some(o=>o.value==='"QA Local Font"'));assert.equal(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork)),before);
+  if(await page.evaluate(()=>typeof window.queryLocalFonts==='function')){
+    const before=await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork));await page.evaluate(()=>Object.defineProperty(window,'queryLocalFonts',{configurable:true,value:async()=>[{family:'QA Local Font'},{family:'QA Local Font'}]}));await page.locator('#font-picker-toggle').click();await page.locator('#read-local-fonts').click();await page.waitForFunction(()=>[...document.querySelectorAll('#font-picker-list [role="option"]')].some(o=>o.dataset.fontFamily==='"QA Local Font"'));assert.equal(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork)),before);
     await page.evaluate(()=>Object.defineProperty(window,'queryLocalFonts',{configurable:true,value:async()=>{throw new DOMException('Denied','NotAllowedError');}}));await page.locator('#read-local-fonts').click();assert.equal(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork)),before);
+    await page.keyboard.press('Escape');
     checks.push('simulated font-list success deduplicates families without changing artwork; denied permission keeps manual font editing available');
   }
   for(const side of ['outside','inside']){

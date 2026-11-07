@@ -1,7 +1,7 @@
-import {FONT_FAMILIES,MM_PER_PT,typographyTargets,typographyLeaves,sharedTextValue,computedValue,physicalTextValue,lineHeight,applyTypography,toggleTypography} from './svg-typography.js';
+import {MM_PER_PT,typographyTargets,typographyLeaves,sharedTextValue,computedValue,physicalTextValue,lineHeight,applyTypography,toggleTypography} from './svg-typography.js';
 import {ALIGNMENTS,alignmentOptions,canAlign} from './svg-alignment.js';
+import {appendFontPicker} from './svg-font-picker.js';
 
-let localFamilies=[];
 const safePhysical=(editor,node,key)=>{try{return physicalTextValue(editor,node,key);}catch{return NaN;}};
 const create=(tag,props={},text)=>{const el=document.createElement(tag);Object.assign(el,props);if(text!==undefined)el.textContent=text;return el;};
 function section(host,key,title){const s=create('section',{className:'svg-property-section'});s.dataset.propertySection=key;s.append(create('h4',{},title));const body=create('div',{className:'svg-property-fields'});s.append(body);host.append(s);return body;}
@@ -13,14 +13,8 @@ export function appendTypographyPanel(host,editor){
   const targets=typographyTargets(editor);if(!targets.length)return;
   const leaves=typographyLeaves(targets),nodes=leaves.length?leaves:targets,body=section(host,'typography','字体与文字排版');
   if(targets.length>1)body.append(create('p',{className:'svg-field-note'},`应用于 ${targets.length} 段文字；其他图形保持原样。`));
-  const family=field(body,'字体（可输入或选择）',create('input',{id:'typography-family',value:sharedTextValue(nodes,'font-family'),placeholder:'混合字体或输入字体名称',autocomplete:'off',maxLength:500}));family.setAttribute('list','typography-families');family.dataset.typography='font-family';
-  const list=create('datalist',{id:'typography-families'});for(const [label,value]of [...FONT_FAMILIES,...localFamilies.map(name=>[name,`"${name}"`])])list.append(create('option',{value,label}));body.append(list);
-  family.onchange=()=>report(editor,()=>applyTypography(editor,'font-family',family.value),family);
+  const family=appendFontPicker(body,{value:sharedTextValue(nodes,'font-family'),onChange:(value,input)=>report(editor,()=>applyTypography(editor,'font-family',value),input)});
   const preview=create('p',{className:'svg-font-preview'},'Aa 字体预览');preview.style.fontFamily=family.value||'sans-serif';body.append(preview);
-  if(typeof window.queryLocalFonts==='function'){
-    const button=create('button',{id:'read-local-fonts',type:'button',className:'svg-wide-control'},localFamilies.length?`已读取 ${localFamilies.length} 种本机字体`:'读取本机字体');body.append(button);
-    button.onclick=async()=>{button.disabled=true;try{const fonts=await window.queryLocalFonts();localFamilies=[...new Set(fonts.map(f=>f.family))].filter(s=>s.length<250&&!/["\\;{}<>]/.test(s)).sort((a,b)=>a.localeCompare(b));editor.api.refreshProperties(true);}catch(error){editor.callbacks.notify(error.name==='NotAllowedError'?'未授予字体访问权限，仍可输入字体名称或使用常用列表':'此浏览器暂时无法读取本机字体');}finally{button.disabled=false;}};
-  }
   const unit=editor.typographyUnit??'pt',factor=unit==='pt'?MM_PER_PT:1,sizes=nodes.map(n=>safePhysical(editor,n,'font-size')),mm=sizes.every(v=>Math.abs(v-sizes[0])<1e-6)?sizes[0]:NaN;
   const size=field(body,'字号',create('input',{id:'typography-size',type:'number',min:String(.1/factor),max:String(600/factor),step:'any',value:Number.isFinite(mm)?String(+((mm/factor).toFixed(3))):'',placeholder:'混合字号'}),true);size.dataset.typography='font-size';
   size.onchange=()=>report(editor,()=>{if(!size.value.trim())throw Error('请输入字号');applyTypography(editor,'font-size',Number(size.value)*factor);},size);
