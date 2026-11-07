@@ -1,3 +1,4 @@
+import {BOX_TYPES} from '../src/geometry.js';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
@@ -14,7 +15,7 @@ async function fold(page,n){await page.locator('#fold-slider').fill(String(n));a
 try{
  browser=await chromium.launch({headless:true,...(existsSync(installed)?{executablePath:installed}:{}),args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
  const page=await browser.newPage({viewport:{width:1600,height:1050},acceptDownloads:true});page.on('pageerror',e=>errors.push(e.message));await page.goto(url);await page.waitForSelector('html[data-ready="true"]');
- await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),33);await page.keyboard.press('Escape');
+ await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),Object.keys(BOX_TYPES).length);await page.keyboard.press('Escape');
  for(const type of types){
   await choose(page,type);const before=await page.evaluate(()=>window.__foldStudio.stats);
   for(const value of [0,45,78,100])await fold(page,value);
@@ -33,7 +34,7 @@ try{
   await page.locator('#export-toggle').click();const download=page.waitForEvent('download');await page.locator('#export-svg').click();const file=resolve('artifacts',type+'-export.svg');await(await download).saveAs(file);await page.locator('#project-input').setInputFiles(file);await page.waitForFunction(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('结构新增实测'));
   await page.locator('#panel-selector').selectOption('front');await page.locator('#fit-3d').click();await page.waitForTimeout(3200);await page.screenshot({path:resolve('artifacts',type+'-workspace.png')});
  }
- checks.push('33 library entries; both existing reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking; custom dimensions, prism orientation and valid sides; undo/redo and SVG project round trips');
+ checks.push('current library entries; both existing reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking; custom dimensions, prism orientation and valid sides; undo/redo and SVG project round trips');
  const harness=await browser.newPage({viewport:{width:1800,height:900}});harness.on('pageerror',e=>errors.push(e.message));await harness.route('**/reference-harness',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));await harness.goto(url+'/reference-harness');
  await installBrowserModuleMap(harness);
  const results=await harness.evaluate(async()=>{

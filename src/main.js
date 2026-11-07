@@ -9,7 +9,8 @@ import {initWorkspaceShell} from './workspace-shell.js';
 import {TEMPLATE_PREVIEWS} from './template-previews.generated.js';
 import {expandGroups,layerRect} from './editor-commands.js';
 import { BOX_TYPES, makeDieline, cutSegments, creasePaths } from './geometry.js';
-import {PAPER_BAG_PRESETS,paperBagSettings} from './paper-bag.js';
+import {PAPER_BAG_PRESETS} from './paper-bag.js';
+import {renderAddedDielineControls} from './dieline-controls.js';
 import {triangleSettings,ropeGableSettings} from './reference-cartons.js';
 import {slottedHandleSettings} from './slotted-handle-carton.js';
 import {candyTwistSettings,triangleSliceSettings} from './rigid-reference-cartons.js';
@@ -208,7 +209,7 @@ $('#app').innerHTML=`
   </div>
   <p id="template-empty" class="template-empty" role="status" hidden>没有匹配的结构，换个关键词或分类试试。</p>
   <div id="box-templates" class="box-templates dialog-template-grid">
-    ${Object.entries(BOX_TYPES).map(([id,t])=>`<button class="template-card ${id===project.type?'active':''}" data-template="${id}" data-category="${t.category}" data-search="${esc([t.name,t.english,t.description,categoryLabel(t.category)].join(' ').toLowerCase())}" aria-pressed="${id===project.type}"><span class="template-card-badge">${categoryLabel(t.category)}</span><span class="template-art ${id}">${boxIllustration(id)}</span><div class="template-card-info"><strong>${t.name}</strong><span class="template-eng">${t.english}</span><small>${t.description}</small><span class="template-dim">${t.defaults.length} × ${t.defaults.depth} × ${t.defaults.height} mm</span></div><span class="template-check">${icon('check')}</span></button>`).join('')}
+    ${Object.entries(BOX_TYPES).map(([id,t])=>`<button class="template-card ${id===project.type?'active':''}" data-template="${id}" data-category="${t.category}" data-search="${esc([t.name,t.english,t.description,...(t.aliases??[]),categoryLabel(t.category)].join(' ').toLowerCase())}" aria-pressed="${id===project.type}"><span class="template-card-badge">${categoryLabel(t.category)}</span><span class="template-art ${id}">${boxIllustration(id)}</span><div class="template-card-info"><strong>${t.name}</strong><span class="template-eng">${t.english}</span><small>${t.description}</small><span class="template-dim">${t.defaults.length} × ${t.defaults.depth} × ${t.defaults.height} mm</span></div><span class="template-check">${icon('check')}</span></button>`).join('')}
   </div>
 </dialog>`;
 
@@ -356,6 +357,7 @@ function refresh({fit=false,build=true}={}){
 function renderExtraDimensions(){
   const container=$('#extra-dimensions');
   if(!container)return;
+  if(renderAddedDielineControls(container,project,dieline))return;
   if(['triangular-prism-carton','rope-gable-carton','slotted-handle-carton','candy-twist-carton','triangle-slice-box'].includes(project.type)){
     container.hidden=false;
     const row=(key,label,value,min,max,unit='mm')=>`<div class="extra-dim-row"><div class="extra-dim-label"><span>${label}</span><strong id="val-${key}" data-unit="${unit}">${Number(value.toFixed(1))} ${unit}</strong></div><div class="extra-dim-control"><input type="range" class="extra-dim-slider" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}"/><input type="number" class="extra-dim-num" data-extra-dim="${key}" min="${Math.ceil(min)}" max="${Math.floor(max)}" step="1" value="${value}" aria-label="${label}数值"/></div></div>`;
@@ -385,11 +387,11 @@ function renderExtraDimensions(){
       for(const select of container.querySelectorAll('[data-reference-option]'))select.value=template.content.querySelector('#'+select.id).value;
       container.querySelector('.reference-note').textContent=template.content.querySelector('.reference-note').textContent;
     }
-  }else if(project.type==='paper-shopping-bag'){
+  }else if(project.type==='paper-shopping-bag'||project.type==='paper-bag-basic'){
     container.hidden=false;
-    const b=paperBagSettings(project.dimensions);
-    const row=(key,label,value,min,max)=>`<div class="extra-dim-row"><div class="extra-dim-label"><span>${label}</span><strong id="val-${key}">${value} mm</strong></div><div class="extra-dim-control"><input type="range" class="extra-dim-slider" data-extra-dim="${key}" min="${min}" max="${max}" step="1" value="${value}" aria-label="${label}"/><input type="number" class="extra-dim-num" data-extra-dim="${key}" min="${min}" max="${max}" step="1" value="${value}" aria-label="${label}数值"/></div></div>`;
-    const markup=`<div class="extra-dim-heading"><span>纸袋尺寸预设</span><span class="extra-dim-sub">一个模型 · 三种比例</span></div><div class="bag-size-presets">${Object.entries(PAPER_BAG_PRESETS).map(([id,p])=>`<button type="button" data-bag-preset="${id}" aria-pressed="${['length','depth','height'].every(k=>p[k]===project.dimensions[k])}">${p.name}<small>${p.length}×${p.depth}<br>×${p.height} mm</small></button>`).join('')}</div><p class="field-note">尺寸为袋身长 × 侧宽 × 高，不含提手。可继续输入任意尺寸。</p><label class="select-label">提手材质<select id="bag-handle-style" data-bag-option="handleStyle"><option value="rope" ${b.handleStyle==='rope'?'selected':''}>圆绳 · 穿孔</option><option value="ribbon" ${b.handleStyle==='ribbon'?'selected':''}>缎带 · 粘贴</option></select></label><label class="select-label">提手姿态<select id="bag-handle-pose" data-bag-option="handlePose"><option value="raised" ${b.handlePose==='raised'?'selected':''}>提起</option><option value="dropped" ${b.handlePose==='dropped'?'selected':''}>垂落</option></select></label>${row('topFold','袋口内折',b.topFold,2,Math.min(100,b.H*.45))}${row('bottomFold','底部折边',b.bottomFold,Math.ceil(b.D/2+Math.min(2,b.D*.1)),Math.floor(b.D*.95))}${row('glueWidth','侧粘口宽度',b.glueWidth,2,Math.min(50,b.L*.3,b.D*.6))}${row('handleRise','提手弧高',b.handleRise,5,Math.min(250,b.H*.8))}${row('handleSpan','提手间距',b.handleSpan,4,b.L*.85)}`;
+    const b=dieline.paperBag;
+    const row=(key,label,value,min,max)=>`<div class="extra-dim-row"><div class="extra-dim-label"><span>${label}</span><strong id="val-${key}">${value} mm</strong></div><div class="extra-dim-control"><input type="range" class="extra-dim-slider" data-extra-dim="${key}" min="${min}" max="${max}" step="any" value="${value}" aria-label="${label}"/><input type="number" class="extra-dim-num" data-extra-dim="${key}" min="${min}" max="${max}" step="any" value="${value}" aria-label="${label}数值"/></div></div>`;
+    const markup=`<div class="extra-dim-heading"><span>纸袋尺寸预设</span><span class="extra-dim-sub">一个模型 · 三种比例</span></div><div class="bag-size-presets">${Object.entries(PAPER_BAG_PRESETS).map(([id,p])=>`<button type="button" data-bag-preset="${id}" aria-pressed="${['length','depth','height'].every(k=>p[k]===project.dimensions[k])}">${p.name}<small>${p.length}×${p.depth}<br>×${p.height} mm</small></button>`).join('')}</div><p class="field-note">尺寸为袋身长 × 侧宽 × 高，不含提手。可继续输入任意尺寸。</p><label class="select-label">提手材质<select id="bag-handle-style" data-bag-option="handleStyle"><option value="none" ${b.handleStyle==='none'?'selected':''}>不添加提手</option><option value="rope" ${b.handleStyle==='rope'?'selected':''}>圆绳 · 穿孔</option><option value="ribbon" ${b.handleStyle==='ribbon'?'selected':''}>缎带 · 粘贴</option></select></label><label class="select-label">提手姿态<select id="bag-handle-pose" data-bag-option="handlePose"><option value="raised" ${b.handlePose==='raised'?'selected':''}>提起</option><option value="dropped" ${b.handlePose==='dropped'?'selected':''}>垂落</option></select></label>${row('topFold','袋口内折',b.topFold,b.handleStyle==='rope'?2:0,Math.min(100,b.H*.45))}${row('bottomFold','底部折边',b.bottomFold,Math.ceil(b.D/2+Math.min(2,b.D*.1)),Math.floor(b.D*.95))}${row('glueWidth','侧粘口宽度',b.glueWidth,2,Math.min(50,b.L*.3,b.D*.6))}${row('handleRise','提手弧高',b.handleRise,5,Math.min(250,b.H*.8))}${row('handleSpan','提手间距',b.handleSpan,4,b.L*.85)}`;
       if(!container.querySelector('[data-bag-preset]'))container.innerHTML=markup;
     else{
       // Refresh constraints without replacing an input the user is editing.
@@ -403,6 +405,8 @@ function renderExtraDimensions(){
       for(const label of container.querySelectorAll('[id^="val-"]'))label.textContent=template.content.querySelector('#'+label.id).textContent;
       for(const select of container.querySelectorAll('[data-bag-option]'))select.value=template.content.querySelector('#'+select.id).value;
     }
+    $('#bag-handle-pose').closest('label').hidden=b.handleStyle==='none';
+    for(const key of ['handleRise','handleSpan'])container.querySelector(`[data-extra-dim="${key}"]`).closest('.extra-dim-row').hidden=b.handleStyle==='none';
   }else if(project.type==='arch-handle-tote'){
     container.hidden=false;
     const archH=project.dimensions.archH??87;
@@ -744,7 +748,7 @@ $('#extra-dimensions').addEventListener('change',e=>{
 });
 $('#extra-dimensions').addEventListener('click',e=>{
   const id=e.target.closest('[data-bag-preset]')?.dataset.bagPreset;
-  if(!id||project.type!=='paper-shopping-bag')return;
+  if(!id||!['paper-shopping-bag','paper-bag-basic'].includes(project.type))return;
   stopAnimation();clearTimeout(geometryTimer);editor.up();
   const {name,...dimensions}=PAPER_BAG_PRESETS[id];project.dimensions={...dimensions};refresh({fit:true});commit();notify(`已应用${name}纸袋尺寸`);
 });

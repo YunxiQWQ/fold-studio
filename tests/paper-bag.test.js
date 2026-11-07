@@ -9,7 +9,7 @@ import {newProject,validateProject} from '../src/project.js';
 import {printRegions,inPrintRegions} from '../src/artwork-space.js';
 
 test('one paper-bag construction retains all three reference blanks and continuous crease-only interior',()=>{
-  assert.equal(Object.keys(BOX_TYPES).filter(t=>BOX_TYPES[t].family==='bag').length,1);
+  assert.equal(Object.keys(BOX_TYPES).filter(t=>BOX_TYPES[t].family==='bag').length,2);
   for(const [id,expected]of Object.entries({landscape:[1133,436],square:[885,350],portrait:[625,427]})){
     const d=makeDieline('paper-shopping-bag',PAPER_BAG_PRESETS[id]);assert.deepEqual([d.width,d.height],expected);
     const holes=d.panels.flatMap(p=>p.holes??[]),edgeInHole=(a,b)=>holes.some(h=>h.some((v,i)=>Math.hypot(v[0]-a[0],v[1]-a[1])<1e-7&&Math.hypot(h[(i+1)%h.length][0]-b[0],h[(i+1)%h.length][1]-b[1])<1e-7));

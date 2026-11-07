@@ -1,3 +1,4 @@
+import {BOX_TYPES} from '../src/geometry.js';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
@@ -17,7 +18,7 @@ try{
   browser=await chromium.launch({headless:true,...(existsSync(installed)?{executablePath:installed}:{}),args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
   const page=await browser.newPage({viewport:{width:1600,height:1050},acceptDownloads:true});page.on('pageerror',e=>errors.push(e.message));
   await page.goto(url);await page.waitForSelector('html[data-ready="true"]');
-  await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),33);assert.equal(await page.locator('[data-template="petal-pyramid-carton"]').count(),0);await page.keyboard.press('Escape');
+  await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),Object.keys(BOX_TYPES).length);assert.equal(await page.locator('[data-template="petal-pyramid-carton"]').count(),0);await page.keyboard.press('Escape');
   for(const type of types){
     await choose(page,type);const before=await page.evaluate(()=>window.__foldStudio.stats);
     for(const progress of [0,45,78,100])await fold(page,progress);
@@ -36,7 +37,7 @@ try{
     await page.locator('#project-input').setInputFiles(file);await page.waitForFunction(t=>window.__foldStudio.project.type===t,type);assert.ok(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork).includes('新增参考结构实测')));
     await page.locator('#fit-3d').click();await page.waitForTimeout(400);await page.screenshot({path:resolve(artifacts,type+'-workspace.png')});
   }
-  checks.push('33 library entries; two new reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking, custom dimensions, undo and SVG project round trips');
+  checks.push('current library entries; two new reference constructions fold without rebuilding geometry or repainting textures; inside/outside picking, custom dimensions, undo and SVG project round trips');
   const harness=await browser.newPage({viewport:{width:1500,height:900}});harness.on('pageerror',e=>errors.push(e.message));
   await harness.route('**/rigid-reference-harness',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><html><body></body></html>'}));await harness.goto(url+'/rigid-reference-harness');
   await installBrowserModuleMap(harness);

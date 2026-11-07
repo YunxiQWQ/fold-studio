@@ -1,6 +1,8 @@
 {
-  "geometryHash": "4ab91dab48d26b3e733e8113eda73a5be46fa7c607a7f3cf08a17251efeb15d7",
+  "geometryHash": "fd46abed8f6ca3ff370d5ee5c1ae7d1b5baa48a9cf196a5dea079b7e12be6710",
   "sources": [
+    "src/retail-cartons.js",
+    "src/wrapped-lidbox.js",
     "src/geometry.js",
     "src/reference-cartons.js",
     "src/rigid-reference-cartons.js",
@@ -380,6 +382,52 @@
       },
       "panels": 15,
       "occupied": 51439
+    },
+    "retail-carton": {
+      "fold": 1,
+      "dimensions": {
+        "length": 60,
+        "depth": 50,
+        "height": 80,
+        "retailStyle": "straight",
+        "tuckLength": 12,
+        "glueWidth": 11,
+        "hangHeight": 50,
+        "hangHoleWidth": 28,
+        "hangHoleHeight": 8
+      },
+      "panels": 13,
+      "occupied": 39747
+    },
+    "paper-bag-basic": {
+      "fold": 1,
+      "dimensions": {
+        "length": 80,
+        "depth": 50,
+        "height": 60,
+        "topFold": 0,
+        "bottomFold": 34,
+        "glueWidth": 12,
+        "handleRise": 30,
+        "handleSpan": 34,
+        "handleStyle": "none",
+        "handlePose": "raised"
+      },
+      "panels": 14,
+      "occupied": 62336
+    },
+    "wrapped-lidbox": {
+      "fold": 1,
+      "dimensions": {
+        "length": 220,
+        "depth": 140,
+        "height": 30,
+        "lidHeight": 30,
+        "turnIn": 20,
+        "lidClearance": 1.5
+      },
+      "panels": 18,
+      "occupied": 32225
     }
   }
 }

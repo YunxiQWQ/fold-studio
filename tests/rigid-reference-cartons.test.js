@@ -14,7 +14,7 @@ function rig(type,progress=1,dimensions=BOX_TYPES[type].defaults){
 const near=(a,b,tolerance=1e-6)=>assert.ok(a.distanceTo(b)<tolerance,`${a.toArray()} != ${b.toArray()}`);
 
 test('two reference constructions are registered and the removed petal model is unavailable',()=>{
-  assert.equal(Object.keys(BOX_TYPES).length,33);
+  for(const id of types)assert.ok(Object.hasOwn(BOX_TYPES,id));
   assert.equal(Object.hasOwn(BOX_TYPES,'petal-pyramid-carton'),false);
   for(const type of types){
     const d=makeDieline(type,BOX_TYPES[type].defaults);

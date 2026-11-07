@@ -7,6 +7,9 @@ export const PAPER_BAG_PRESETS={
   square:{name:'方款',length:330,depth:100,height:250,topFold:35,bottomFold:65,glueWidth:25,handleRise:95,handleSpan:140,handleStyle:'rope',handlePose:'raised'},
   portrait:{name:'竖款',length:220,depth:80,height:311,topFold:45,bottomFold:71,glueWidth:25,handleRise:100,handleSpan:105,handleStyle:'rope',handlePose:'dropped'},
 };
+export const BASIC_PAPER_BAGS={
+  'paper-bag-basic':{name:'手提袋 · 基础刀版',english:'BASIC GUSSET BAG',family:'bag',category:'gift',printPanel:'front',description:'无顶部折口 · 侧风琴折 · 糊底 · 可添加提绳',aliases:['手提袋','绘制手提袋','包装盒型手提袋'],defaults:{length:80,depth:50,height:60,topFold:0,bottomFold:34,glueWidth:12,handleRise:30,handleSpan:34,handleStyle:'none',handlePose:'raised'}},
+};
 export function paperBagSettings(dimensions){
   const {length:L,depth:D,height:H}=dimensions;
   const value=(key,fallback,min,max)=>{
@@ -15,8 +18,8 @@ export function paperBagSettings(dimensions){
     return Math.max(min,Math.min(max,v));
   };
   const handleStyle=dimensions.handleStyle??'rope',handlePose=dimensions.handlePose??'raised';
-  if(!['rope','ribbon'].includes(handleStyle)||!['raised','dropped'].includes(handlePose))throw new Error('不支持的纸袋提手类型');
-  return{L,D,H,topFold:value('topFold',35,2,Math.min(100,H*.45)),bottomFold:value('bottomFold',D/2+15,Math.ceil(D/2+Math.min(2,D*.1)),Math.floor(D*.95)),glueWidth:value('glueWidth',25,2,Math.min(50,L*.3,D*.6)),handleRise:value('handleRise',95,5,Math.min(250,H*.8)),handleSpan:value('handleSpan',L*.42,4,L*.85),handleStyle,handlePose};
+  if(!['rope','ribbon','none'].includes(handleStyle)||!['raised','dropped'].includes(handlePose))throw new Error('不支持的纸袋提手类型');
+  return{L,D,H,topFold:value('topFold',35,handleStyle==='rope'?2:0,Math.min(100,H*.45)),bottomFold:value('bottomFold',D/2+15,Math.ceil(D/2+Math.min(2,D*.1)),Math.floor(D*.95)),glueWidth:value('glueWidth',25,2,Math.min(50,L*.3,D*.6)),handleRise:value('handleRise',95,5,Math.min(250,H*.8)),handleSpan:value('handleSpan',L*.42,4,L*.85),handleStyle,handlePose};
 }
 function circle(x,y,r){return Array.from({length:32},(_,i)=>{const a=i*Math.PI/16;return[x+r*Math.cos(a),y+r*Math.sin(a)];});}
 
@@ -37,19 +40,20 @@ export function makePaperBag(dimensions,add){
   const glue=body('glue','侧粘口',0,G,'front',-90,G);glue.kind='glue';glue.inset=-.65;
   for(const p of pieces){
     const face=p.id==='front'?'前':p.id==='back'?'后':'';
-    const top=add(p.id+'-hem',face?face+'口折':'口折',p.x,0,p.w,T,p.id,{x:p.x,y:T,axis:'x'},-180,'flap');top.foldWindow=[.65,1];top.inset=.6;
+    let top;if(T>0){top=add(p.id+'-hem',face?face+'口折':'口折',p.x,0,p.w,T,p.id,{x:p.x,y:T,axis:'x'},-180,'flap');top.foldWindow=[.65,1];top.inset=.6;}
     const bottom=add(p.id+'-bottom',face?face+'折底':'侧底',p.x,T+H,p.w,B,p.id,{hidden:true},0,'flap');bottom.inset=0;
     const right=p.id.startsWith('right'),left=p.id.startsWith('left')||p.id==='glue';
     bottom.bagBottom={side:right||left,start:right?G+L:p.id==='glue'?G-D:G+2*L+D};
     if((p.id==='front'||p.id==='back')&&b.handleStyle==='rope'){
       const anchors=[p.x+(L-b.handleSpan)/2,p.x+(L+b.handleSpan)/2];
       p.holes=anchors.map(x=>circle(x,T+b.anchorDrop,b.holeRadius));
-      top.holes=anchors.map(x=>circle(x,T-b.anchorDrop,b.holeRadius));
+      if(top)top.holes=anchors.map(x=>circle(x,T-b.anchorDrop,b.holeRadius));
     }
   }
   // This is one rectangular blank: every shared edge is a score, never a slit.
   const edgeMap=new Map(),extraCreases=[];
   for(const p of pieces)for(const [a,z]of [ [[p.x,0],[p.x,T]],[[p.x,T],[p.x,T+H]],[[p.x,T+H],[p.x,T+H+B]],[[p.x,T+H],[p.x+p.w,T+H]] ]){
+    if(a[0]===z[0]&&a[1]===z[1])continue;
     if(a[0]===z[0]&&(a[0]===0||a[0]===G+2*(L+D)))continue;
     const key=JSON.stringify([a,z]);edgeMap.set(key,[a,z]);
   }
@@ -95,6 +99,7 @@ export function bagBottomFrame(panel,dieline,t,cx,cy){
 
 export function buildPaperBagHandles(dieline,cx,cy){
   const b=dieline.paperBag??dieline.ropeHandles,group=new THREE.Group();group.name=dieline.paperBag?'PaperBag_Handles':'RopeGable_Handles';
+  if(b.handleStyle==='none')return group;
   for(const id of b.walls??['front','back']){
     const p=dieline.panels.find(p=>p.id===id),x=p.x+p.w/2-cx,y=cy-p.y-b.anchorDrop,span=b.handleSpan,rise=b.handleRise*(b.handlePose==='dropped'?-1:1),z=2.6;
     const tilt=b.uprightAngle??0,dy=rise*4/3*Math.cos(tilt),dz=rise*4/3*Math.sin(tilt);

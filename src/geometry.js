@@ -1,8 +1,10 @@
 import {makeCurvedCarton} from './curved-carton.js';
 import {SELECTED_BOXES,makeSelectedStructure} from './selected-structures.js';
 import {SELECTED_CONTAINERS} from './selected-containers.js';
-import {makePaperBag,PAPER_BAG_PRESETS} from './paper-bag.js';
+import {makePaperBag,PAPER_BAG_PRESETS,BASIC_PAPER_BAGS} from './paper-bag.js';
 import {REFERENCE_CARTONS,makeReferenceCarton} from './reference-cartons.js';
+import {RETAIL_CARTONS,makeRetailCarton} from './retail-cartons.js';
+import {WRAPPED_LIDBOXES,makeWrappedLidbox} from './wrapped-lidbox.js';
 export const BOARD_THICKNESS=.45;
 const STACK_GAP=BOARD_THICKNESS*1.4;
 export const BOX_TYPES={
@@ -11,7 +13,7 @@ export const BOX_TYPES={
   'reverse-carton':{name:'反插舌纸盒',english:'REVERSE TUCK CARTON',family:'carton',category:'carton',printPanel:'front',description:'上下反向插舌',defaults:{length:85,depth:50,height:140}},
   'lock-bottom':{name:'扣底彩盒',english:'LOCK BOTTOM CARTON',family:'carton',category:'carton',printPanel:'front',description:'插舌顶盖 · 扣锁底盖',defaults:{length:90,depth:60,height:150}},
   mailer:{name:'翻盖飞机盒',english:'HINGED LID MAILER',family:'tray',category:'shipping',printPanel:'lid',description:'连体翻盖 · 插舌侧翼',defaults:{length:220,depth:155,height:55}},
-  lidbox:{name:'天地盖盒',english:'TWO PIECE LID BOX',family:'tray',category:'gift',printPanel:'lid',description:'分体上盖 · 自动合盖',defaults:{length:185,depth:135,height:65}},
+  lidbox:{name:'天地盖盒',english:'TWO PIECE LID BOX',family:'tray',category:'gift',printPanel:'lid',description:'折叠软盒 · 分体上盖 · 角部粘耳',aliases:['天地盖盒子','软盒'],defaults:{length:185,depth:135,height:65}},
   'drawer-box':{name:'抽拉抽屉盒',english:'SLIDING DRAWER BOX',family:'tray',category:'gift',printPanel:'sleeve-top',description:'外封套 · 内抽屉 · 滑合',defaults:{length:150,depth:100,height:45}},
   'book-box':{name:'书型翻盖盒',english:'BOOK STYLE BOX',family:'tray',category:'gift',printPanel:'cover',description:'精装硬壳 · 书本翻盖',defaults:{length:160,depth:110,height:40}},
   shipper:{name:'对口运输箱',english:'REGULAR SLOTTED CARTON',family:'carton',category:'shipping',printPanel:'front',description:'对口摇盖 · 运输包装',defaults:{length:260,depth:180,height:200}},
@@ -27,6 +29,9 @@ export const BOX_TYPES={
   ...SELECTED_BOXES,
   ...SELECTED_CONTAINERS,
   ...REFERENCE_CARTONS,
+  ...RETAIL_CARTONS,
+  ...BASIC_PAPER_BAGS,
+  ...WRAPPED_LIDBOXES,
 };
 function rectangle(id,label,x,y,w,h,parent=null,hinge=null,angle=0,kind='body'){
   return{id,label,x,y,w,h,parent,hinge,angle,kind,points:[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],inset:['dust','tuck','glue','corner'].includes(kind)?-STACK_GAP:0};
@@ -80,7 +85,7 @@ export function makeDieline(type,dimensions){
   if(!Object.hasOwn(BOX_TYPES,type))throw new Error('不支持的盒型');
   const{length:L,depth:D,height:H}=dimensions;
   for(const value of[L,D,H])if(!Number.isFinite(value)||value<15||value>600)throw new Error('尺寸需介于 15–600 mm');
-  const panels=[],add=(...args)=>{const p=rectangle(...args);panels.push(p);return p;};let rootId,curvedBody=null,paperBag=null,triangle=null,ropeGable=null,ropeHandles=null,slottedHandle=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[];
+  const panels=[],add=(...args)=>{const p=rectangle(...args);panels.push(p);return p;};let rootId,curvedBody=null,paperBag=null,retail=null,wrappedLid=null,triangle=null,ropeGable=null,ropeHandles=null,slottedHandle=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[];
   const addTray=(prefix,x,y,w,d,h,parent=null)=>{
     const id=name=>prefix?`${prefix}-${name}`:name,baseId=prefix==='lid'?'lid':id('base');
     const base=add(baseId,prefix?'上盖顶面':'底面',x+h,y+h,w,d,parent);
@@ -96,10 +101,14 @@ export function makeDieline(type,dimensions){
     }
     return base;
   };
-  if(Object.hasOwn(REFERENCE_CARTONS,type)){
+  if(Object.hasOwn(RETAIL_CARTONS,type)){
+    ({rootId,retail}=makeRetailCarton(dimensions,add));
+  }else if(Object.hasOwn(WRAPPED_LIDBOXES,type)){
+    ({rootId,wrappedLid}=makeWrappedLidbox(dimensions,add));
+  }else if(Object.hasOwn(REFERENCE_CARTONS,type)){
     const result=makeReferenceCarton(type,dimensions,add);({rootId,triangle=null,ropeGable=null,ropeHandles=null,slottedHandle=null,rootRotationX=null,rootRotationZ=0,nonCutEdges=[],extraCreases=[]}=result);
-  }else if(type==='paper-shopping-bag'){
-    const result=makePaperBag(dimensions,add);rootId=result.rootId;paperBag=result.paperBag;extraCreases=result.extraCreases;
+  }else if(type==='paper-shopping-bag'||Object.hasOwn(BASIC_PAPER_BAGS,type)){
+    const result=makePaperBag({...BASIC_PAPER_BAGS[type]?.defaults,...dimensions},add);rootId=result.rootId;paperBag=result.paperBag;extraCreases=result.extraCreases;
   }else if(Object.hasOwn(SELECTED_BOXES,type)){
     rootId=makeSelectedStructure(type,dimensions,add).rootId;
   }else if(type==='curved-twist-carton'){
@@ -280,7 +289,7 @@ export function makeDieline(type,dimensions){
   const points=panels.flatMap(p=>p.points),minX=Math.min(...points.map(p=>p[0])),minY=Math.min(...points.map(p=>p[1])),maxX=Math.max(...points.map(p=>p[0])),maxY=Math.max(...points.map(p=>p[1]));
   const isContainer=BOX_TYPES[type].family==='container';
   return{
-    type,panels,rootId,width:maxX-minX,height:maxY-minY,minX,minY,maxX,maxY,curvedBody,paperBag,triangle,ropeGable,ropeHandles,slottedHandle,nonCutEdges,extraCreases,
+    type,panels,rootId,width:maxX-minX,height:maxY-minY,minX,minY,maxX,maxY,curvedBody,paperBag,retail,wrappedLid,triangle,ropeGable,ropeHandles,slottedHandle,nonCutEdges,extraCreases,
     rootRotationX:rootRotationX??(BOX_TYPES[type].family==='tray'?Math.PI/2:0),rootRotationZ,
     cylinder:isContainer?{diameter:L,height:H,labelHeight:panels[0].h,topHeight:panels[1].h,bottomHeight:panels[2].h,sourceType:BOX_TYPES[type].sourceMesh?type:null}:null,
   };

@@ -43,6 +43,7 @@ for(const type of Object.keys(BOX_TYPES)){
       for(const value of [size.x,size.z])assert.ok(value>=dimensions.length*.99&&value<=dimensions.length+.45);
       return;
     }
+    if(d.wrappedLid){const b=d.wrappedLid;size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[b.L+2*b.C,b.D+2*b.C,b.H+b.C][i])<1e-4,`${v} wrapped lid bound`));return;}
     if(d.triangle){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,dimensions.depth,d.triangle.altitude][i])<1e-4,`${v} triangular bound`));return;}
     if(d.ropeGable){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,dimensions.height+d.ropeGable.rise,dimensions.depth][i])<1e-4,`${v} roof bound`));return;}
     if(d.slottedHandle){size.toArray().forEach((v,i)=>assert.ok(Math.abs(v-[dimensions.length,d.slottedHandle.totalHeight,dimensions.depth][i])<1e-4,`${v} handle bound`));return;}

@@ -54,7 +54,7 @@ try{
     assert.equal(selection.panelId,config.printPanel);assert.equal(selection.side,'inside');
     await page.locator('#inspect-panel').click();
   }
-  checks.push('native pointer clicks on all 33 isolated inside panels keep dropdown and active surface synchronized');
+  checks.push(`native pointer clicks on all ${Object.keys(BOX_TYPES).length} isolated inside panels keep dropdown and active surface synchronized`);
   // A real WebGL viewport with diagnostic quadrants checks handedness of both printed sides.
   await page.close();page=await browser.newPage({viewport:{width:520,height:520}});
   page.on('pageerror',e=>errors.push(e.message));
@@ -134,5 +134,5 @@ try{
   writeFileSync(resolve(artifacts,'model-selection-report.json'),JSON.stringify({checks,...result,errors},null,2));
   const diagnostic=await page.evaluate(()=>window.trayDiagnostic);writeFileSync(resolve(artifacts,'tray-outside-orientation.png'),Buffer.from(diagnostic.split(',')[1],'base64'));
   assert.deepEqual(result.failures,[]);assert.deepEqual(errors,[]);
-  console.log(`Passed: ${result.count} real WebGL panel/side/fold quadrant checks, 33 inside picking checks, library selection and responsive modal flows`);
+  console.log(`Passed: ${result.count} real WebGL panel/side/fold quadrant checks, ${Object.keys(BOX_TYPES).length} inside picking checks, library selection and responsive modal flows`);
 }finally{await browser.close();await server.close();}

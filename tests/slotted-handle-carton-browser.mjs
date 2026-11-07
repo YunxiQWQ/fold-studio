@@ -1,3 +1,4 @@
+import {BOX_TYPES} from '../src/geometry.js';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
@@ -18,10 +19,10 @@ try{
   await page.goto(`http://127.0.0.1:${server.httpServer.address().port}`);await ready();await choose(page,type);
   for(const [key,value]of [['length','250'],['depth','200'],['height','120']])assert.equal(await page.locator('#dim-'+key).inputValue(),value);
   assert.equal(await page.locator('#current-template-name').textContent(),'插锁提手盒');assert.equal(await page.locator('#current-template-art img').getAttribute('width'),'384');
-  await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),33);await page.keyboard.press('Escape');
+  await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),Object.keys(BOX_TYPES).length);await page.keyboard.press('Escape');
   assert.match(await page.locator('#dim-height').locator('..').textContent(),/身高/);assert.equal(await page.locator('#extra-dimensions input[type="number"]').count(),7);
   const builds=await page.evaluate(()=>window.__foldStudio.stats.geometryBuilds);for(const value of [0,20,45,70,100,40,0,100])await fold(page,value);assert.equal(await page.evaluate(()=>window.__foldStudio.stats.geometryBuilds),builds);
-  checks.push('33 library entries, actual model thumbnail, seven structural controls and reversible folding without geometry rebuilds');
+  checks.push('current library entries, actual model thumbnail, seven structural controls and reversible folding without geometry rebuilds');
   const angle=page.locator('input[type="number"][data-extra-dim="sideFlapAngle"]');await angle.fill('45');await angle.dispatchEvent('change');await page.waitForFunction(()=>window.__foldStudio.geometry.slottedHandle.angle===45);assert.match(await page.locator('#val-sideFlapAngle').textContent(),/45 °/);
   await page.locator('#undo').click();await ready();assert.equal(await angle.inputValue(),'38');
   const width=page.locator('input[type="number"][data-extra-dim="handleWidth"]');await width.fill('100');await width.dispatchEvent('change');await page.waitForFunction(()=>window.__foldStudio.geometry.slottedHandle.handleWidth===100);await page.locator('#undo').click();await ready();assert.equal(await width.inputValue(),'112');
