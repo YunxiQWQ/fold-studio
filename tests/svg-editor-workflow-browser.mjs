@@ -1,4 +1,5 @@
 import {chromium} from 'playwright';
+import {chooseExport} from './helpers/export-ui.mjs';
 import {BOX_TYPES} from '../src/geometry.js';
 import {createServer} from 'vite';
 import {resolve} from 'node:path';
@@ -99,7 +100,7 @@ try{
 
   await action('source');const markup=await page.locator('#source-text').inputValue();await page.locator('#source-text').fill(markup.replace('</svg>','<script>alert(1)</script></svg>'));await click('#source-apply');assert.ok(await page.locator('#source-dialog').isVisible());assert.match(await page.locator('#message').textContent(),/script/);await page.locator('#source-text').fill(markup.replace('</svg>','<circle id="source-audit" cx="30" cy="30" r="4"/></svg>'));await click('#source-apply');await persisted('source-audit');
   await click('#undo');await ready();assert.equal(await sheet.locator('#source-audit').count(),0);await click('#redo');await ready();assert.equal(await sheet.locator('#source-audit').count(),1);checks.push('SVG source validates before apply and round-trips undo/redo');
-  const sourceDownload=page.waitForEvent('download');await click('#export-toggle');await click('#export-artwork-svg');await(await sourceDownload).saveAs(`${dir}/artwork.svg`);const exported=readFileSync(`${dir}/artwork.svg`,'utf8');assert.ok(exported.includes('source-audit')&&exported.includes('mm'));assert.ok(!exported.includes('fold-paper-guide'));
+  const sourceDownload=page.waitForEvent('download');await chooseExport(page,'artwork','svg',true);await(await sourceDownload).saveAs(`${dir}/artwork.svg`);const exported=readFileSync(`${dir}/artwork.svg`,'utf8');assert.ok(exported.includes('source-audit')&&exported.includes('mm'));assert.ok(!exported.includes('fold-paper-guide'));
 
   await page.locator('#project-name').fill('交付回归工程');await page.locator('#project-name').blur();await click('.project-library-trigger');await click('[data-library-action="snapshot"]');
   await page.waitForFunction(()=>document.querySelector('#toast').textContent.includes('版本'));
@@ -107,16 +108,16 @@ try{
   const prior=page.locator('.project-library-item').filter({hasText:'交付回归工程'}).filter({hasNotText:'副本'}).first();await prior.locator('[data-library-action="open"]').click();await page.waitForFunction(()=>window.__foldStudio.project.name==='交付回归工程');
   await ready();await click('.project-library-trigger');await click('.is-current [data-library-action="history"]');await page.locator('[data-library-action="restore"]').first().click();await page.locator('.project-library-dialog').waitFor({state:'hidden'});await ready();
   const save=page.waitForEvent('download');await click('#save-project');const fold=await save;await fold.saveAs(`${dir}/review.fold`);assert.equal(JSON.parse(readFileSync(`${dir}/review.fold`,'utf8')).version,3);
-  const png=page.waitForEvent('download');await click('#export-toggle');await click('#export-png');await(await png).saveAs(`${dir}/preview.png`);assert.equal(readFileSync(`${dir}/preview.png`).subarray(1,4).toString(),'PNG');
-  await page.setViewportSize({width:390,height:844});await click('#open-templates');assert.equal(await page.locator('.template-card').count(),Object.keys(BOX_TYPES).length);await page.keyboard.press('Escape');
+  const png=page.waitForEvent('download');await chooseExport(page,'3d','png',true);await(await png).saveAs(`${dir}/preview.png`);assert.equal(readFileSync(`${dir}/preview.png`).subarray(1,4).toString(),'PNG');
+  await click('#open-templates');assert.equal(await page.locator('.template-card').count(),Object.keys(BOX_TYPES).length);await page.keyboard.press('Escape');
   const header=await page.locator('.flat-pane > .pane-heading').boundingBox(),canvas=await page.locator('#editor-host').boundingBox();
   assert.ok(canvas.y-header.y-header.height<2&&header.height<=42);
   await click('#edit-menu-toggle');
   const edit=await page.locator('#canvas-edit-menu').boundingBox();
-  assert.ok(edit.x>=0&&edit.x+edit.width<=390&&edit.y>=0&&edit.y+edit.height<=844);
+  const desktop=page.viewportSize();assert.ok(edit.x>=0&&edit.x+edit.width<=desktop.width&&edit.y>=0&&edit.y+edit.height<=desktop.height);
   await page.keyboard.press('Escape');await page.locator('#canvas-edit-menu').waitFor({state:'hidden'});
   await click('#add-shape');await click('#insert-rect');await ready();
-  checks.push('local project snapshot, duplicate, reopen, history, .fold, 3D PNG and narrow-screen structure library');
+  checks.push('local project snapshot, duplicate, reopen, history, .fold, 3D PNG and desktop structure library');
   assert.deepEqual(errors,[]);writeFileSync(`${dir}/report.json`,JSON.stringify({checks,errors},null,2));console.log(checks.join('\n'));
 }catch(error){console.log({checks,errors,toast:await page.locator('#toast').textContent(),message:await page.locator('#message').textContent()});await page.screenshot({path:`${dir}/failure.png`});throw error;}
 finally{await browser.close();await server.close();}

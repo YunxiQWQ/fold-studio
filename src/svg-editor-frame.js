@@ -3,6 +3,7 @@ import {installSvgPointerGestures} from './svg-pointer-gestures.js';
 import {captureSvgPlacement,restoreSvgPlacement,ungroupSvgLayers} from './svg-layer-operations.js';
 import {readSvgText,writeSvgText} from './svg-typography.js';
 import {canonicalizeImageElement} from './svg-capacity.js';
+import {installSvgInlineText} from './svg-inline-text.js';
 
 // Shared SVGCanvas interface; imported/source-edited SVG is validated before loading.
 export function initializeSvgFrame(SvgCanvas, options={}) {
@@ -34,7 +35,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   };
   let sourceRoot, wrapperId, wrapper, viewport, loading=true, selected=null, clipboard=null;
   let originalStyle = new Map(),changedTimer,layersPanel,propertyNode;
-  let pan={x:0,y:0},panDrag=null,textSession=null,laidOutZoom,copying=false;
+  let pan={x:0,y:0},panDrag=null,inlineText,laidOutZoom,copying=false;
   const tagName = element => element.localName;
   const title = element => [...element.children].find(child=>tagName(child)==='title');
   const label=svgLayerName;
@@ -184,7 +185,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
       for(const node of canvas.getSelectedElements().filter(Boolean))canvas.selectorManager.requestSelector(node)?.resize();
       canvas.pathActions.zoomChange();
     }
-    options.zoom?.(canvas.getZoom());options.layout?.(canvas,wrapper);
+    options.zoom?.(canvas.getZoom());options.layout?.(canvas,wrapper);inlineText?.refresh();
     for(const grip of canvas.getSvgRoot().querySelectorAll('[id^="selectorGrip_"]'))grip.style.cursor='crosshair';
   }
   function zoom(factor,cx=container.clientWidth/2,cy=container.clientHeight/2){
@@ -195,12 +196,26 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   }
   container.addEventListener('pointerdown',event=>{
     if(event.button!==1&&!options.panActive?.()&&canvas.getMode()!=='pan')return;
+    inlineText?.end();
     event.preventDefault();event.stopImmediatePropagation();
     panDrag={pointer:event.pointerId,x:event.clientX,y:event.clientY,pan:{...pan}};
     container.setPointerCapture(event.pointerId);canvas.getSvgRoot().style.cursor='grabbing';
   },true);
   container.addEventListener('pointermove',event=>{if(!panDrag)return;event.preventDefault();event.stopImmediatePropagation();pan={x:panDrag.pan.x+event.clientX-panDrag.x,y:panDrag.pan.y+event.clientY-panDrag.y};layout();},true);
-  for(const type of ['pointerup','pointercancel'])container.addEventListener(type,event=>{if(!panDrag)return;event.preventDefault();event.stopImmediatePropagation();if(container.hasPointerCapture(event.pointerId))container.releasePointerCapture(event.pointerId);panDrag=null;canvas.getSvgRoot().style.removeProperty('cursor');},true);
+  function stopPan(){const prior=panDrag;panDrag=null;if(prior&&container.hasPointerCapture(prior.pointer))container.releasePointerCapture(prior.pointer);canvas.getSvgRoot().style.removeProperty('cursor');}
+  for(const type of ['pointerup','pointercancel','lostpointercapture'])container.addEventListener(type,event=>{if(!panDrag||panDrag.pointer!==event.pointerId)return;event.preventDefault();event.stopImmediatePropagation();stopPan();},true);
+  function cancelCanvasGesture(){
+    stopPan();const mode=canvas.getMode();
+    if(!['select','resize','multiselect','rotate'].includes(mode))return;
+    if(mode==='rotate'&&canvas.getStarted())canvas.undoMgr.finishUndoableChange().unapply();
+    canvas.setStarted(false);canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.getRubberBox()?.setAttribute('display','none');
+    if(mode!=='select')canvas.setMode('select');
+    for(const node of canvas.getSelectedElements().filter(Boolean))canvas.selectorManager.requestSelector(node)?.resize();
+  }
+  window.addEventListener('blur',cancelCanvasGesture);
+  container.addEventListener('pointercancel',cancelCanvasGesture,true);
+  container.addEventListener('lostpointercapture',cancelCanvasGesture,true);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelCanvasGesture();});
   function prepareRoot(source, dimensions) {
     sourceRoot=new DOMParser().parseFromString(source,'image/svg+xml').documentElement;
     viewport=dimensions;
@@ -234,6 +249,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     return new XMLSerializer().serializeToString(root);
   }
   function loadDocument(source,dimensions,initial=true,preserveView=false) {
+    inlineText?.end(false);stopPan();
     const previousZoom=canvas.getZoom();
     clearTimeout(changedTimer);changedTimer=null;
     loading=true;
@@ -532,47 +548,14 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   });
   $('#source-apply').onclick=()=>send('source-request',{source:$('#source-text').value});
   $('#source-cancel').onclick=()=>$('#source-dialog').close();
-  const textInput=$('#text');
-  canvas.textActions.setInputElem(textInput);
-  function textValue(node){
-    return readSvgText(node);
-  }
-  function writeText(node,value){
-    writeSvgText(node,value);
-  }
-  function beginText(node){
-    if(node.closest('[data-locked="true"]'))return;
-    if(textSession===node)return;
-    if(textSession)canvas.textActions.toSelectMode(true);
-    canvas.setContext(graphicContext(node.parentElement));canvas.selectOnly([node],true);
-    selected=node;textInput.value=textValue(node);textSession=node;
-    const box=node.getBoundingClientRect(),style=getComputedStyle(node),matrix=node.getScreenCTM(),font=(parseFloat(style.fontSize)||6)*Math.hypot(matrix.a,matrix.b);
-    textInput.classList.add('is-inline');Object.assign(textInput.style,{left:box.left-5+'px',top:box.top-5+'px',width:Math.max(130,box.width+22)+'px',height:Math.max(font*1.7,box.height+12)+'px',fontFamily:style.fontFamily,fontSize:font+'px',fontWeight:style.fontWeight,fontStyle:style.fontStyle,color:style.fill.startsWith('url(')?'#263729':style.fill,lineHeight:'1.4'});
-    node.setAttribute('data-fold-inline-editing','true');canvas.setCurrentMode('textedit');canvas.selectorManager.requestSelector(node).showGrips(false);options.textEditing?.(true);
-    textInput.focus({preventScroll:true});textInput.select();
-  }
-  canvas.textActions.select=beginText;
-  canvas.textActions.start=beginText;
-  canvas.textActions.toSelectMode=(select=true)=>{
-    const node=textSession;if(!node)return;
-    textSession=null;node.removeAttribute('data-fold-inline-editing');textInput.classList.remove('is-inline');textInput.removeAttribute('style');canvas.setCurrentMode('select');
-    if(select&&node.isConnected)canvas.selectOnly([node],true);
-    if(!node.textContent.length){canvas.deleteSelectedElements();contentChanged();}
-    options.textEditing?.(false);textInput.blur();
-  };
-  for(const name of ['init','setCursor','mouseDown','mouseMove','mouseUp'])canvas.textActions[name]=()=>{};
-  const endText=()=>{if(textSession)canvas.textActions.toSelectMode(true);};
-  textInput.addEventListener('input',()=>{
-    if(!textSession)return;writeText(textSession,textInput.value);textInput.style.height=Math.max(38,textInput.scrollHeight+2)+'px';canvas.call('changed',[textSession]);
-  });
-  textInput.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();endText();container.tabIndex=-1;container.focus({preventScroll:true});}});
-  textInput.addEventListener('blur',()=>{if(textSession&&canvas.getMode()==='textedit')endText();});
+  function textValue(node){return readSvgText(node);}
+  function writeText(node,value){writeSvgText(node,value);}
+  inlineText=installSvgInlineText(canvas,container,{input:$('#text'),root:sourceElement,context:graphicContext,changed:()=>canvas.call('changed',[selected]),editing:active=>options.textEditing?.(active)});
+  const endText=()=>inlineText.end();
   container.addEventListener('dblclick',event=>{
-    const node=event.target.closest('text')??canvas.getMouseTarget(event);
-    if(node?.localName==='text'&&sourceElement()?.contains(node)){event.preventDefault();event.stopImmediatePropagation();beginText(node);return;}
+    const node=canvas.getMouseTarget(event);
     if(node&&['g','svg'].includes(tagName(node))&&sourceElement()?.contains(node)&&node!==wrapper){event.preventDefault();event.stopImmediatePropagation();canvas.setContext(graphicContext(node));}
   },true);
-  container.addEventListener('pointerdown',()=>{if(textSession)endText();},true);
   canvas.bind('selected',(_window,elements)=>{selected=elements?.filter(Boolean).at(-1)??null;layersPanel?.reveal(elements?.filter(Boolean)??[]);refreshProperties();options.selected?.(selected);});
   canvas.bind('changed',()=>contentChanged());
   canvas.bind('updateCanvas',()=>layout());

@@ -46,6 +46,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
   // Intercept handles before SVGCanvas adds temporary transforms or derives a
   // local bounding box from its screen-space selection outline.
   container.addEventListener('mousedown',event=>{
+    if(gesture)finish(null,true);
     priorTransforms=null;
     if(event.button!==0||panActive?.()||canvas.getMode()==='pan')return;
     const grip=event.target.closest('[id^="selectorGrip_resize_"]');
@@ -65,6 +66,7 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
   });
   document.addEventListener('mousemove',event=>{
     if(!gesture)return;
+    if(!(event.buttons&1)){finish(null,true);return;}
     event.preventDefault();event.stopImmediatePropagation();
     let dx=event.clientX-gesture.x,dy=event.clientY-gesture.y;
     if(!gesture.moved&&Math.max(Math.abs(dx),Math.abs(dy))<3)return;
@@ -113,7 +115,10 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
     if(!cancel&&!batch.isEmpty()){canvas.undoMgr.addCommandToHistory(batch);changed();}
   }
   document.addEventListener('mouseup',event=>finish(event),true);
+  document.addEventListener('pointercancel',event=>finish(event,true),true);
+  container.addEventListener('lostpointercapture',()=>finish(null,true),true);
   document.addEventListener('keydown',event=>{if(gesture&&event.key==='Escape')finish(event,true);},true);
   container.addEventListener('mouseleave',event=>{if(gesture)event.stopImmediatePropagation();},true);
   window.addEventListener('blur',()=>finish(null,true));
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)finish(null,true);});
 }

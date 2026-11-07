@@ -39,6 +39,23 @@ export function readSvgText(node){
   const visit=n=>{if(n.nodeType===3){value+=n.nodeValue;return;}if(['title','desc'].includes(n.localName))return;if(starts.has(n))value+='\n';for(const c of n.childNodes)visit(c);};visit(node);return value;
 }
 export function writeSvgText(node,value){
+  const previous=readSvgText(node);if(previous===value)return;
+  let start=0,tail=0;
+  while(start<previous.length&&start<value.length&&previous[start]===value[start])start++;
+  while(tail<previous.length-start&&tail<value.length-start&&previous.at(-tail-1)===value.at(-tail-1))tail++;
+  const inserted=value.slice(start,value.length-tail),removed=previous.slice(start,previous.length-tail);
+  // Ordinary typing should preserve every unaffected tspan, paint and font.
+  // Keep edits within a line in the existing DOM instead of rebuilding it.
+  if(!inserted.includes('\n')&&!removed.includes('\n')){
+    const starts=new Set(textLines(node).slice(1)),runs=[];let offset=0;
+    const visit=current=>{if(current.nodeType===3){runs.push({node:current,start:offset,end:offset+current.length});offset+=current.length;return;}if(['title','desc'].includes(current.localName))return;if(starts.has(current))offset++;for(const child of current.childNodes)visit(child);};visit(node);
+    const anchor=runs.find(run=>run.start<=start&&run.end>=start);
+    if(anchor){
+      const stop=previous.length-tail,at=start-anchor.start;
+      for(const run of runs){const a=Math.max(start,run.start)-run.start,b=Math.min(stop,run.end)-run.start;if(b>a)run.node.deleteData(a,b-a);}
+      anchor.node.insertData(at,inserted);return;
+    }
+  }
   const path=node.querySelector('textPath');if(path){path.textContent=value;return;}
   const first=node.querySelector('tspan');if(!first&&!value.includes('\n')){node.textContent=value;return;}
   const x=first?.getAttribute('x')??node.getAttribute('x')??'0',y=parseFloat(first?.getAttribute('y')??node.getAttribute('y')??'0'),size=parseFloat(computedValue(node,'font-size'))||6,leading=lineHeight(node);

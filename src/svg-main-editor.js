@@ -64,7 +64,7 @@ export class SvgMainEditor {
     // Keep native hit testing and selection handles above the proof image.
     // While manipulating artwork show the live source, then refresh the proof.
     host.addEventListener('pointerdown',()=>{this.proofInteracting=true;this.proofStyle.disabled=true;if(this.proofImage)this.proofImage.style.display='none';},true);
-    const finishProofInteraction=()=>{if(!this.proofInteracting)return;this.proofInteracting=false;this.proofStyle.disabled=false;requestAnimationFrame(()=>this.structure());};
+    const finishProofInteraction=()=>{if(!this.proofInteracting||this.textEditing)return;this.proofInteracting=false;this.proofStyle.disabled=false;requestAnimationFrame(()=>this.structure());};
     document.addEventListener('pointerup',finishProofInteraction);document.addEventListener('pointercancel',finishProofInteraction);
     const text=document.createElement('textarea');text.id='text';text.className='native-text-input';text.setAttribute('aria-label','SVG 画布文字输入');document.body.append(text);
     const source=document.createElement('dialog');source.id='source-dialog';source.className='native-source-dialog';
@@ -92,8 +92,8 @@ export class SvgMainEditor {
         this.updateToolbar?.();
       },
       textEditing:active=>{
-        if(active){this.textEditing=true;this.textDirty=false;}
-        else{this.api.flush();this.textEditing=false;if(this.textDirty){this.textDirty=false;this.callbacks.commit();}}
+        if(active){this.textEditing=true;this.textDirty=false;this.proofInteracting=true;this.proofStyle.disabled=true;if(this.proofImage)this.proofImage.style.display='none';}
+        else{this.api.flush();this.textEditing=false;if(this.textDirty){this.textDirty=false;this.callbacks.commit();}finishProofInteraction();}
       },
       message:data=>this.message(data),changed:source=>this.store(source),
       command:command=>callbacks.command?.(command),zoom:scale=>{this.view.scale=scale;callbacks.zoom(scale);},
