@@ -36,6 +36,7 @@ import {colorReady} from './color-runtime.js';
 import {colorStatus,configureColorManagement} from './color.js';
 import {renderPrintSurface} from './print-surface.js';
 import {mountPrintUI} from './print-ui.js';
+import {mountExportColorUI} from './export-color-ui.js';
 
 const $=selector=>document.querySelector(selector);
 const $$=selector=>document.querySelectorAll(selector);
@@ -333,7 +334,7 @@ function renderSurface(){
 }
 function setSide(side){if(!Object.hasOwn(SIDES,side)||side===activeSide)return;editor.up();activeSide=side;selected=null;editor.update(project,dieline,null,panelId,activeSide,[]);renderSurface();renderLayers();renderInspector();schedule();}
 function refresh({fit=false,build=true}={}){
-  if(colorStatus().ready){try{configureColorManagement(project.printSettings);}catch(error){applyColorMode('rgb');notify(`ICC 配置未应用：${error.message}`);}}
+  if(colorStatus().ready){try{configureColorManagement(project.printSettings);}catch(error){applyColorMode('rgb',{save:false});notify(`ICC 配置未应用：${error.message}`);}}
   dieline=makeDieline(project.type,project.dimensions);
   if(!dieline.panels.some(p=>p.id===panelId))panelId=BOX_TYPES[project.type].printPanel;
   if(!project.layers.some(l=>l.id===selected))selected=null;
@@ -359,6 +360,7 @@ function refresh({fit=false,build=true}={}){
   document.querySelectorAll('[data-palette]').forEach(b=>b.classList.toggle('active',PALETTES[+b.dataset.palette].color===project.paper));
   renderExtraDimensions();
   setFoldUI();renderHistory();renderSurface();renderLayers();renderInspector();
+  if(colorMode!==(project.documentColorMode??'rgb'))applyColorMode(project.documentColorMode??'rgb',{save:false});
 }
 function renderExtraDimensions(){
   const container=$('#extra-dimensions');
@@ -871,8 +873,8 @@ $('#confirm-export-flat').onclick=async()=>{
 $('#export-svg').onclick=async()=>{
   try{
     editor.up();
-    const side=activeSide,copy=clone(project),svg=await exportSVG(copy,makeDieline(copy.type,copy.dimensions),images,{side,colorMode});
-    download(new Blob([svg],{type:'image/svg+xml'}),`${safeName()}-${SIDES[side]}-刀版.svg`);$('#export-menu').hidden=true;notify(`已导出${SIDES[side]}可编辑 SVG；工程数据包含内外两面`);
+    const side=activeSide,mode=colorMode,copy=clone(project),svg=await exportSVG(copy,makeDieline(copy.type,copy.dimensions),images,{side,colorMode:mode});
+    download(new Blob([svg],{type:'image/svg+xml'}),`${safeName()}-${SIDES[side]}-刀版-${mode==='cmyk'?'CMYK打样':'RGB'}.svg`);$('#export-menu').hidden=true;notify(mode==='cmyk'?'已导出可编辑 CMYK 色域 SVG；真正四色矢量请用 PDF':`已导出${SIDES[side]}可编辑 RGB SVG；工程数据包含内外两面`);
   }catch(error){notify(`导出失败：${error.message}`);}
 };
 $('#help').onclick=()=>$('#help-dialog').showModal();$('#close-help').onclick=()=>$('#help-dialog').close();$('#dismiss-help').onclick=()=>$('#help-dialog').close();
@@ -1063,7 +1065,8 @@ const getSavedColorMode = () => {
   return 'rgb';
 };
 
-function applyColorMode(mode) {
+function applyColorMode(mode,{save=true}={}) {
+  if(!['rgb','cmyk'].includes(mode))throw Error('请选择 RGB 或 CMYK');
   if(mode==='cmyk'&&!colorStatus().ready){notify('ICC 色彩引擎未就绪，请稍后重试');mode='rgb';}
   if(mode==='cmyk'){try{configureColorManagement(project.printSettings);}catch(error){notify(`ICC 软打样无法启用：${error.message}`);mode='rgb';}}
   colorMode = mode;
@@ -1071,10 +1074,10 @@ function applyColorMode(mode) {
   try { localStorage.setItem('fold-color-mode', mode); } catch {}
   const btn = $('#color-mode-toggle');
   if (btn) {
-    btn.innerHTML = `${icon('cmyk')}<span id="color-mode-text" class="color-mode-text">${mode === 'cmyk' ? 'ICC 软打样' : 'RGB 屏幕'}</span>`;
+    btn.innerHTML = `${icon('cmyk')}<span id="color-mode-text" class="color-mode-text">${mode === 'cmyk' ? 'CMYK 印刷' : 'RGB 屏幕'}</span>`;
     btn.classList.toggle('active', mode === 'cmyk');
-    btn.setAttribute('title', mode === 'cmyk' ? `ICC 软打样：${colorStatus().name}（P 切回 RGB）` : 'RGB 屏幕色彩（P 开启 ICC 软打样）');
-    btn.setAttribute('aria-label',mode==='cmyk'?'ICC 印刷软打样':'RGB 屏幕色彩');
+    btn.setAttribute('title', mode === 'cmyk' ? `CMYK 模式：${colorStatus().name}；JPG/PDF 输出四色，SVG 输出色域显示（P 切回 RGB）` : 'RGB 屏幕色彩（P 切换 CMYK 印刷模式）');
+    btn.setAttribute('aria-label',mode==='cmyk'?'CMYK 印刷模式':'RGB 屏幕模式');
   }
   const tag2d = $('#cmyk-tag-2d'), tag3d = $('#cmyk-tag-3d');
   if (tag2d) tag2d.hidden = mode !== 'cmyk';
@@ -1083,6 +1086,7 @@ function applyColorMode(mode) {
   preview?.setColorMode(mode);
   renderSurface();
   renderInspector();
+  if(save&&project.documentColorMode!==mode){project.documentColorMode=mode;commit();}
 }
 
 $('#color-mode-toggle')?.addEventListener('click', () => {
@@ -1098,6 +1102,11 @@ colorUI=mountColorUI({getState:()=>({project,side:activeSide,ids:getSelectedIds(
 initWorkspaceResizers();
 initWorkspaceShell();
 mountPrintUI({images,getState:()=>({project,dieline,side:activeSide,colorMode}),flush:()=>editor.up(),notify,apply:(settings,mode)=>{project.printSettings=settings;refresh({build:false});applyColorMode(mode);commit();}});
+mountExportColorUI({images,getState:()=>({project,dieline,side:activeSide,colorMode}),flush:()=>editor.up(),notify,captureRgb:async()=>{
+  if(!preview)throw Error('三维预览尚未启动');await images.preload([...svgSceneLayers(project,dieline),...project.layers]);
+  try{preview.setColorMode('rgb');const blob=await preview.capture();if(!blob)throw Error('三维截图失败');const image=await createImageBitmap(blob),canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;canvas.getContext('2d').drawImage(image,0,0);image.close();return canvas;}
+  finally{preview.setColorMode(colorMode);}
+}});
 
 async function init(){
   $('#app').inert=true;
@@ -1125,7 +1134,7 @@ async function init(){
     restore:restoreLibraryRevision,
   });
   refresh({fit:true});await editor.pending;$('#app').inert=false;await document.fonts.ready;textureDirty=true;schedule();
-  applyColorMode(getSavedColorMode());
+  applyColorMode(project.documentColorMode??getSavedColorMode(),{save:false});
   window.__foldStudio={
     get project(){return clone(project);},
     get stats(){return preview?clone(preview.stats):null;},

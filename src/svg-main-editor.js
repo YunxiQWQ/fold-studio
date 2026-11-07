@@ -17,6 +17,7 @@ import {barcodeStatus} from './barcode.js';
 import {qrStatus} from './qrcode.js';
 import {colorStatus} from './color.js';
 import {renderPrintSurface} from './print-surface.js';
+import {proofSvgSource} from './export-svg-color.js';
 import {arrangeSvgInspector} from './svg-inspector.js';
 import {alignSvgSelection} from './svg-alignment.js';
 import {typographyTargets,toggleTypography,readSvgText,replaceSvgText} from './svg-typography.js';
@@ -171,7 +172,7 @@ export class SvgMainEditor {
       if(data.type==='error'){this.callbacks.notify(data.message);return;}
       if(data.type==='source-request'){this.api.receive({type:'source-approved',source:svgDocumentSource(parseSvgDocument(data.source)),dimensions:[this.dieline.width,this.dieline.height]});this.store(this.api.source());}
       if(data.type==='download'){
-        const asset=parseSvgDocument(data.source),doc=new DOMParser().parseFromString(svgDocumentSource(asset),'image/svg+xml');doc.documentElement.setAttribute('width',this.dieline.width+'mm');doc.documentElement.setAttribute('height',this.dieline.height+'mm');download(new Blob([serialize(doc.documentElement)],{type:'image/svg+xml'}),`${this.project.name}-${this.side}.svg`);
+        const asset=parseSvgDocument(data.source),doc=new DOMParser().parseFromString(svgDocumentSource(asset),'image/svg+xml'),mode=this.colorMode??'rgb',name=this.project.name,side=this.side;doc.documentElement.setAttribute('width',this.dieline.width+'mm');doc.documentElement.setAttribute('height',this.dieline.height+'mm');download(new Blob([await proofSvgSource(serialize(doc.documentElement),{mode})],{type:'image/svg+xml'}),`${name}-${side}${mode==='cmyk'?'-CMYK打样':''}.svg`);
       }
       if(data.type==='attribute-request'){
         if((!svgAttributes.has(data.attribute)&&!cssOnlyProperties.has(data.attribute))||['id','style'].includes(data.attribute))throw Error('请通过 SVG 源码编辑此属性');

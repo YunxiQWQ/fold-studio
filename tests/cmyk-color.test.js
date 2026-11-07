@@ -1,7 +1,7 @@
 import {describe,it} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {rgbToCmyk,cmykToRgb,formatCmyk,proofColor,proofImageData,initializeColorManagement,configureColorManagement,colorStatus,capturePrintTransform} from '../src/color.js';
+import {rgbToCmyk,cmykToRgb,formatCmyk,proofColor,proofImageData,initializeColorManagement,configureColorManagement,colorStatus,capturePrintTransform,captureProofTransform} from '../src/color.js';
 import {validateIcc,printSettings,encodeIcc,decodeIcc,DEFAULT_PRINT_SETTINGS} from '../src/color-settings.js';
 import {encodeCmykTiff} from '../src/export-cmyk.js';
 import {validateProject,newProject} from '../src/project.js';
@@ -50,9 +50,9 @@ describe('ICC color management and real CMYK output',()=>{
     assert.equal(colorStatus().revision,old);assert.equal(proofColor('#00ff00','cmyk'),'#6ab43f');
   });
   it('keeps each export transform independent from later settings',()=>{
-    const captured=capturePrintTransform(),input=Uint8Array.from([57,86,60]),expected=[...captured.convert(input)];
-    try{configureColorManagement({...DEFAULT_PRINT_SETTINGS,intent:0});assert.deepEqual([...captured.convert(input)],expected);}
-    finally{captured.dispose();configureColorManagement();}
+    const captured=capturePrintTransform(),proof=captureProofTransform(),input=Uint8Array.from([57,86,60]),expected=[...captured.convert(input)],expectedProof=[...proof.convert(input)];
+    try{configureColorManagement({...DEFAULT_PRINT_SETTINGS,intent:0});assert.deepEqual([...captured.convert(input)],expected);assert.deepEqual([...proof.convert(input)],expectedProof);}
+    finally{captured.dispose();proof.dispose();configureColorManagement();}
   });
   it('saves custom ICC settings in projects and accepts old projects unchanged',()=>{
     const project=newProject();assert.doesNotThrow(()=>validateProject(project));

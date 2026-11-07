@@ -59,6 +59,7 @@ export function sampleLayers(type) {
 
 export function validateProject(input) {
   printSettings(input?.printSettings);
+  if(input?.documentColorMode!==undefined&&!['rgb','cmyk'].includes(input.documentColorMode))throw Error('工程 RGB／CMYK 模式无效');
   if (!input || ![1,2,3].includes(input.version) || !Object.hasOwn(BOX_TYPES,input.type)) throw new Error('这不是受支持的折间工程文件');
   makeDieline(input.type, input.dimensions ?? {});
   const hex = value => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);

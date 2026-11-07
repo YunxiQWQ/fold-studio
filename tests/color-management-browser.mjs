@@ -56,7 +56,7 @@ try{
   assert.equal(await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork)),before);checks.push('proof does not bake colors or proof image into project');
   await page.locator('[data-side="outside"]').click();await proofReady();
   const svg=await download(async()=>{await page.locator('#export-toggle').click();await page.locator('#export-svg').click();},'source.svg');
-  assert.ok(svg.toString().includes('#00ff00'));assert.ok(!svg.toString().includes('#6ab43f'));assert.ok(!svg.toString().includes('blob:'));checks.push('editable SVG keeps source RGB in proof mode');
+  assert.ok(svg.toString().includes('#00ff00'));assert.ok(svg.toString().includes('#6ab43f'));assert.ok(!svg.toString().includes('blob:'));checks.push('editable SVG exports CMYK gamut preview without mutating source');
   await page.evaluate(()=>{const api=window.__foldStudio.nativeEditor;api.select(api.wrapper.querySelector('[id$="solid"]'));});
   const sourceBeforeMove=await page.evaluate(()=>JSON.stringify(window.__foldStudio.project.svgArtwork)),oldHref=await page.locator('#fold-proof-image').getAttribute('href');
   const bounds=await page.locator('#svgcontent [id$="solid"]').boundingBox();await page.mouse.move(bounds.x+bounds.width/2,bounds.y+bounds.height/2);await page.mouse.down();await page.mouse.move(bounds.x+bounds.width/2+8,bounds.y+bounds.height/2+10,{steps:6});await page.mouse.up();
@@ -90,7 +90,7 @@ try{
   const broken={...structuredClone(project),name:'Invalid ICC recovery',printSettings:{profile:'custom',name:'missing-tables.icc',icc:missingTables.toString('base64'),intent:1,blackPointCompensation:true}};
   await page.locator('#project-input').setInputFiles({name:'invalid-profile.fold',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(broken))});await page.waitForFunction(()=>window.__foldStudio.project.name==='Invalid ICC recovery'&&document.querySelector('#toast').textContent.includes('工程已导入'));
   await page.locator('#color-mode-toggle').click();assert.equal(await page.evaluate(()=>window.__foldStudio.colorMode),'rgb');assert.match(await page.locator('#toast').textContent(),/ICC/);
-  await page.locator('#print-settings').click();await page.locator('#print-profile').selectOption('fogra39l');await page.locator('#print-proof').check();await page.locator('#apply-print-settings').click();await proofReady();checks.push('a project with unusable ICC cannot silently proof with a previous profile; valid settings recover it');
+  await page.locator('#print-settings').click();await page.locator('#print-profile').selectOption('fogra39l');await page.locator('#print-document-mode').selectOption('cmyk');await page.locator('#apply-print-settings').click();await proofReady();checks.push('a project with unusable ICC cannot silently proof with a previous profile; valid settings recover it');
   await proofReady();await page.screenshot({path:resolve(dir,'icc-workspace.png')});
   await page.locator('#print-settings').click();await page.screenshot({path:resolve(dir,'icc-settings.png'),animations:'disabled'});await page.locator('#print-settings-dialog [data-close]').first().click();
   await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.__foldStudio.setTheme('slate'));await page.locator('#print-settings').click();

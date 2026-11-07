@@ -15,8 +15,12 @@ export function encodeCmykTiff({width,height,pixels,profile,dpi=300,description=
   entries.sort((a,b)=>a.tag-b.tag).forEach((e,i)=>{const p=10+i*12;view.setUint16(p,e.tag,true);view.setUint16(p+2,e.type,true);view.setUint32(p+4,e.count,true);if(e.type===3&&e.count===1)view.setUint16(p+8,e.value,true);else view.setUint32(p+8,e.value,true);});
   for(const e of extras)out.set(e.data,e.at);out.set(pixels,offset);return out;
 }
-export async function exportCmykTiff(canvas,transform,{dpi=300,onProgress=()=>{}}={}){
+export async function canvasCmykPixels(canvas,transform,{onProgress=()=>{}}={}){
   const {width,height}=canvas,ctx=canvas.getContext('2d'),pixels=new Uint8Array(width*height*4),rows=Math.max(1,Math.floor(65536/width));
   for(let y=0;y<height;y+=rows){const h=Math.min(rows,height-y),data=ctx.getImageData(0,y,width,h).data,rgb=new Uint8Array(width*h*3);for(let i=0;i<width*h;i++){const a=data[i*4+3]/255;for(let c=0;c<3;c++)rgb[i*3+c]=Math.round(data[i*4+c]*a+255*(1-a));}pixels.set(transform.convert(rgb),y*width*4);onProgress((y+h)/height);await new Promise(resolve=>setTimeout(resolve,0));}
-  return new Blob([encodeCmykTiff({width,height,pixels,profile:transform.profile,dpi,description:`Fold Studio; sRGB to ${transform.name}; intent=${transform.settings.intent}; BPC=${transform.settings.blackPointCompensation}`})],{type:'image/tiff'});
+  return pixels;
+}
+export async function exportCmykTiff(canvas,transform,{dpi=300,onProgress=()=>{}}={}){
+  const pixels=await canvasCmykPixels(canvas,transform,{onProgress});
+  return new Blob([encodeCmykTiff({width:canvas.width,height:canvas.height,pixels,profile:transform.profile,dpi,description:`Fold Studio; sRGB to ${transform.name}; intent=${transform.settings.intent}; BPC=${transform.settings.blackPointCompensation}`})],{type:'image/tiff'});
 }

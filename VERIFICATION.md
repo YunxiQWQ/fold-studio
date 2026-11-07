@@ -1,5 +1,16 @@
 # 验证记录
 
+## RGB／CMYK 工程模式、JPG／SVG／矢量 PDF（2026-11-07）
+
+- 根据用户确认调整为可保存、可撤销的工程 RGB／CMYK 模式。JPG 及 PDF 可在导出窗口单独覆盖本次模式，不改变工程。SVG 刀版和当前面图文跟随模式，CMYK 使用 ICC 打样显示色，保留路径、文字、分组和图片独立元素；工程内原始色值不变。SVG 文件仍使用 RGB 表达该色域，真正四色矢量另导出 PDF，不将显示版冒充通用 CMYK SVG。
+- 169 项单测通过，新增四组件 JPEG SOF／SOS、Adobe APP14 transform-0 与反相数据、两段及 1 MB／17 段 ICC 不截断、无效输入、工程模式序列化／撤销及独立打样句柄。CMYK JPEG 使用保留 BSD 授权的 jpeg-js DCT／Huffman 适配，不经过 RGB 或 YCbCr 中间编码。
+- `tests/export-color-modes-browser.mjs` 检查 RGB／CMYK 两种模式，内外面 JPG／SVG／PDF 与三维 JPG、真实下载、工程保存／重载、一次导出模式覆盖、模式撤销重做、字体文件验证和加载、拒绝不支持的实际 SVG 滤镜且不下载残缺 PDF、手机／slate 窗口。正式构建 Edge HTTP 与离线文件亦运行同样流程，离线零 HTTP 请求。
+- 使用 Pillow／libjpeg 独立打开 JPG：RGB 文件为 RGB，CMYK 文件为四通道，绿块实际墨量为 165／0／246／0（8 位），完整嵌入 ICC 与源文件相同。使用 pypdf 严格读取 PDF，核对 CMYK 绘图操作符、ICCBased 四通道图像与独立灰度透明度遮罩、ICC 输出配置和毫米页尺寸；中文内容可正确提取，字体嵌入，路径和文字不变成整页图片。
+- 用 MuPDF／Poppler 渲染核对 PDF。修复透明剪裁组的 RGB 黑色背景被误当成 CMYK 纸白而漏出胶口斜线的问题：实际油墨合成组使用 ICC CMYK，计算透明度的亮度遮罩保持 RGB，输出时延后 Form 序列化使遮罩色彩空间正确确定。照片色彩与透明度分别转换，避免先铺白产生白边。
+- PDF 明确使用所选导出字体，默认 OFL 许可的内置中文替代，缺字停止；当前不自动逐一匹配多种原字体。不支持的 SVG 滤镜、SVG 遮罩、竖排、非缩放描边及混合模式均明确拒绝。本版不声明 PDF/X、专色、叠印或自动出血。格式及边界见 `docs/print-color.md`。
+- 原生 SVG 主编辑、完整编辑工作流、SVG／PNG 导出、旧工程、关闭保护、工作区布局、快速排版共 8 个原有浏览器回归脚本通过；原 ICC／双面／TIFF 专项继续通过。更新旧测试断言以验证 CMYK SVG 按所选色域导出，而工程仍保留原稿。完整 build／离线生成通过，未保留结构缩略图的无关缓存哈希变化。
+- 证据为忽略目录 `artifacts/color-export-modes/`：各浏览器报告、实际下载、独立读取结果、PDF 渲染和截图；用户设计、字体与 ICC 不上传。新依赖、修改的 JPEG 编码器和字体子集的来源、许可、摘要及字体生成脚本均已记录，源码公开内容扫描与差异检查通过。
+
 ## ICC 色彩管理与真实 CMYK TIFF（2026-11-07）
 
 - 确认旧“CMYK 工业仿真”只有 RGB／CMYK 经验公式，没有 ICC；纸张、纯色和 SVG 属性被分别压暗，图片与非 HEX 颜色未统一处理。替换为 LittleCMS 2.16 WebAssembly，默认内联 colord CC0 FOGRA39L Coated。使用文件内 `meta`／版权标签核对许可，并记录来源和 SHA-256；不在源码附带印厂或 ECI 配置。

@@ -36,12 +36,18 @@ export function proofColor(value,mode='rgb'){
   if(!cache.has(value)){if(cache.size>4096)cache.clear();cache.set(value,hex(cms.cmsDoTransform(active.proof,rgb,1))+(value.length===9?value.slice(7):''));}return cache.get(value);
 }
 // Proof the final composite once: photos, CSS paints and gradients share ICC.
-export function proofImageData(image){
-  const s=required(),data=image.data,count=data.length/4,chunk=32768;
-  for(let start=0;start<count;start+=chunk){const n=Math.min(chunk,count-start),input=new Uint8Array(n*3);for(let i=0;i<n;i++)input.set(data.subarray((start+i)*4,(start+i)*4+3),i*3);const output=cms.cmsDoTransform(s.proof,input,n);for(let i=0;i<n;i++)data.set(output.subarray(i*3,i*3+3),(start+i)*4);}
+export function proofImageData(image,snapshot){
+  const s=snapshot?null:required(),data=image.data,count=data.length/4,chunk=32768;
+  for(let start=0;start<count;start+=chunk){const n=Math.min(chunk,count-start),input=new Uint8Array(n*3);for(let i=0;i<n;i++)input.set(data.subarray((start+i)*4,(start+i)*4+3),i*3);const output=snapshot?snapshot.convert(input):cms.cmsDoTransform(s.proof,input,n);for(let i=0;i<n;i++)data.set(output.subarray(i*3,i*3+3),(start+i)*4);}
   return image;
 }
-export function proofCanvas(canvas){const ctx=canvas.getContext('2d'),image=ctx.getImageData(0,0,canvas.width,canvas.height);ctx.putImageData(proofImageData(image),0,0);return canvas;}
+export function proofCanvas(canvas,snapshot){const ctx=canvas.getContext('2d'),image=ctx.getImageData(0,0,canvas.width,canvas.height);ctx.putImageData(proofImageData(image,snapshot),0,0);return canvas;}
+export function captureProofTransform(){
+  const s=required(),handle=cms.cmsOpenProfileFromMem(s.bytes,s.bytes.length);if(!handle)throw Error('无法读取打样 ICC');
+  const fmt=cms.cmsFormatterForColorspaceOfProfile(srgb,1,false),flags=cmsFLAGS_SOFTPROOFING|(s.settings.blackPointCompensation?cmsFLAGS_BLACKPOINTCOMPENSATION:0),transform=cms.cmsCreateProofingTransform(srgb,fmt,srgb,fmt,handle,1,s.settings.intent,flags);
+  if(!transform){cms.cmsCloseProfile(handle);throw Error('无法创建打样转换');}
+  return {convert:input=>cms.cmsDoTransform(transform,input,input.length/3),dispose:()=>{cms.cmsDeleteTransform(transform);cms.cmsCloseProfile(handle);}};
+}
 export function capturePrintTransform(){
   const state=required(),handle=cms.cmsOpenProfileFromMem(state.bytes,state.bytes.length);
   if(!handle)throw Error('无法读取导出 ICC 配置');

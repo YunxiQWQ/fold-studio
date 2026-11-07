@@ -68,7 +68,7 @@ try{
   const rgb=await a.evaluate(n=>getComputedStyle(n).fill);
   await click('#color-mode-toggle');await page.waitForSelector('#editor-host[data-proof-ready="true"]');assert.equal(await a.evaluate(n=>getComputedStyle(n).fill),rgb);assert.ok(await page.locator('#fold-proof-image').getAttribute('href'));
   const proof=await page.evaluate(async()=>{const {exportSVG}=await import('/src/export-svg.js');const p=window.__foldStudio.project,d=window.__foldStudio.geometry;return [await exportSVG(p,d,undefined,{colorMode:'rgb'}),await exportSVG(p,d,undefined,{colorMode:'cmyk'})].map(svg=>new DOMParser().parseFromString(svg,'image/svg+xml').querySelector('rect[id$="testA"]').parentElement.getAttribute('fill'));});
-  assert.equal(proof[0],proof[1]);await click('#color-mode-toggle');assert.equal(await a.evaluate(n=>getComputedStyle(n).fill),rgb);checks.push('ICC soft proof changes the display cache while editable SVG source and vector exports retain RGB paints');
+  assert.notEqual(proof[0],proof[1]);await click('#color-mode-toggle');assert.equal(await a.evaluate(n=>getComputedStyle(n).fill),rgb);checks.push('ICC preview and SVG gamut export change colors while the editable project retains source paints');
   await choose(`[data-node-id="${idA}"]`);const rect=await a.boundingBox(),outline=await page.locator('#selectedBox0').boundingBox();assert.ok(Math.abs(outline.x-rect.x)<5&&Math.abs(outline.y-rect.y)<5);
   await drag(page.locator('#selectorGrip_resize_se'),18,12);assert.ok((await a.boundingBox()).width>rect.width+14);
   assert.equal(await a.evaluate(n=>getComputedStyle(n).opacity),'0.65');

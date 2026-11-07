@@ -8,6 +8,7 @@ import {svgAssetMarkup} from './svg-asset.js';
 import {proofColor} from './color.js';
 import {escapeHtml} from './icons.js';
 import {svgSceneLayers} from './svg-scene.js';
+import {proofSvgSource} from './export-svg-color.js';
 
 const xml=value=>escapeHtml(String(value).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/g,''));
 const number=value=>{
@@ -119,7 +120,10 @@ export class SvgDrawingContext {
   toSVG(){return this.nodes.join('');}
 }
 
-export async function exportSVG(project,dieline,images=new ImageCache(),{side='outside'}={}){
+export async function exportSVG(project,dieline,images,options={}){
+  return proofSvgSource(await exportRGBSVG(project,dieline,images,options),{mode:options.colorMode??'rgb'});
+}
+export async function exportRGBSVG(project,dieline,images=new ImageCache(),{side='outside'}={}){
   const colorMode='rgb'; // Editable SVG always keeps source paints, never proof pixels.
   if(!Object.hasOwn(SIDES,side))throw new Error('无效的印刷面');
   await images.preload(project.layers);await document.fonts.ready;
