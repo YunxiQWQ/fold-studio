@@ -123,6 +123,10 @@ input[type="color"]{width:30px;height:30px;padding:2px;border:1px solid var(--bo
 .brand-mark .icon{width:17px;height:17px}
 .brand-name{display:flex;flex-direction:column;font-size:14px;font-weight:650;line-height:1.05;letter-spacing:.04em}
 .brand-name small{font-size:9.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.repository-link{display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:none;padding:5px 7px;border-radius:var(--radius-sm);font-size:11px;font-weight:500;line-height:1.4;color:var(--muted);text-decoration:none;white-space:nowrap}
+.repository-link .icon{width:15px;height:15px}
+.repository-link:hover{color:var(--green);background:var(--soft)}
+.repository-link:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 .app-bar-divider{width:1px;height:20px;background:var(--border);flex:none}
 .project-heading{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
 #project-name{width:auto;field-sizing:content;min-width:96px;max-width:min(320px,100%);height:30px;padding:0 8px;margin-left:-8px;border:1px solid transparent;background:transparent;font-size:13px;font-weight:600;text-overflow:ellipsis}
@@ -553,6 +557,8 @@ dialog p{font-size:12.5px;line-height:1.75;color:var(--muted)}
 .option-cards label:has(input:focus-visible){outline:2px solid var(--green);outline-offset:2px}
 
 .template-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;flex:none}
+.template-contribute{display:flex;align-items:center;gap:5px;margin:0 0 12px;font-size:12px;color:var(--muted)}
+.template-contribute .repository-link{padding:3px 5px;color:var(--green);font-size:12px}
 .template-search{position:relative;display:flex;align-items:center;width:min(280px,100%)}
 .template-search>.icon{position:absolute;left:9px;width:14px;height:14px;color:var(--muted);pointer-events:none}
 .template-search input{height:30px;padding-left:30px;border-radius:15px}

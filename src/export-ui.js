@@ -11,6 +11,7 @@ import {exportGLB} from './export3d.js';
 import {makeDieline} from './geometry.js';
 import {download} from './storage.js';
 import './export-ui.css';
+import {repositoryLink} from './repository.js';
 
 const formats={
   flat:[['png','PNG · 透明图片'],['jpg','JPG · 设计预览'],['svg','SVG · 可编辑刀版'],['pdf','PDF · 矢量文件'],['tiff','TIFF · CMYK 印刷图']],
@@ -24,7 +25,7 @@ const pngBlob=canvas=>new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?res
 
 export function mountExportUI(api){
   const dialog=document.createElement('dialog');dialog.id='export-dialog';dialog.className='export-workspace';dialog.setAttribute('aria-labelledby','export-title');
-  dialog.innerHTML=`<header class="export-header"><div><h2 id="export-title">导出文件</h2><p id="export-project-name"></p></div><button class="icon-button" data-export-close aria-label="关闭导出">${icon('close')}</button></header>
+  dialog.innerHTML=`<header class="export-header"><div><h2 id="export-title">导出文件</h2><p id="export-project-name"></p></div><div class="export-header-actions">${repositoryLink('export-repository')}<button class="icon-button" data-export-close aria-label="关闭导出">${icon('close')}</button></div></header>
     <div class="export-layout"><section class="export-preview" aria-label="内容预览"><div class="export-preview-label"><span id="export-preview-title"></span><span id="export-preview-mode"></span></div><div class="export-preview-stage" aria-busy="true"><img id="export-preview-image" alt="待导出的内容预览" hidden /><span id="export-preview-status" role="status">正在生成预览…</span></div><p id="export-preview-caption"></p></section>
     <section class="export-controls" aria-label="导出设置"><label class="export-field">导出内容<select id="export-target"><option value="flat">平面刀版 · 当前印刷面</option><option value="artwork">图文图层 · 当前印刷面</option><option value="3d">三维预览 · 当前视角</option><option value="model">三维模型</option></select></label>
     <label class="export-field">文件格式<div class="export-format-select"><span id="export-format-icon" aria-hidden="true"></span><select id="export-format"></select></div></label>

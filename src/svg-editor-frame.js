@@ -115,6 +115,13 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     manager.rotateGrip.setAttribute('cx',rotate.x);manager.rotateGrip.setAttribute('cy',rotate.y);
   }
   canvas.selectorManager.requestSelector=(...args)=>{
+    const element=args[0],manager=canvas.selectorManager;
+    // Imported wrappers may not have an ID until the tree renders. Give them
+    // one before the engine indexes the selector, otherwise its second lookup
+    // creates another live selector under the newly assigned ID.
+    if(element&&!element.id)element.id=canvas.getNextId();
+    const indexed=element&&manager.selectorMap[element.id],existing=element&&(indexed?.selectedElement===element?indexed:manager.selectors.find(selector=>selector.selectedElement===element));
+    if(existing&&indexed!==existing){for(const [id,value]of Object.entries(manager.selectorMap))if(value===existing&&id!==element.id)delete manager.selectorMap[id];manager.selectorMap[element.id]=existing;}
     const selector=selectorRequest(...args);if(!selector)return selector;
     if(!patchedSelectors.has(selector)){
       const resize=selector.resize.bind(selector),showGrips=selector.showGrips.bind(selector);
@@ -124,7 +131,34 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     }
     alignViewportSelector(selector);return selector;
   };
-  installSvgPointerGestures(canvas,container,{root:sourceElement,panActive:options.panActive,changed:()=>contentChanged(true),interaction:active=>{movingObject=active;refreshCursor();}});
+  const pointerGestures=installSvgPointerGestures(canvas,container,{root:sourceElement,panActive:options.panActive,changed:()=>contentChanged(true),interaction:active=>{movingObject=active;refreshCursor();}});
+  function syncSelectors(){
+    const manager=canvas.selectorManager,nodes=new Set(canvas.getSelectedElements().filter(node=>node?.isConnected)),kept=new Map();
+    for(const selector of manager.selectors){
+      const node=selector.selectedElement;
+      if(node&&nodes.has(node)&&!kept.has(node)){kept.set(node,selector);selector.locked=true;continue;}
+      selector.locked=false;selector.selectedElement=null;selector.showGrips(false);selector.selectorGroup.setAttribute('display','none');
+    }
+    manager.selectorMap=Object.create(null);
+    const single=nodes.size===1,objectMode=['select','multiselect','resize','rotate','pan'].includes(canvas.getMode());
+    for(const [node,selector]of kept){manager.selectorMap[node.id]=selector;selector.selectorGroup.setAttribute('display',objectMode?'inline':'none');selector.resize();selector.showGrips(single&&objectMode);}
+  }
+  const clearSelection=canvas.clearSelection.bind(canvas);
+  canvas.clearSelection=(...args)=>{clearSelection(...args);syncSelectors();};
+  const intersections=canvas.getIntersectionList.bind(canvas);
+  canvas.getIntersectionList=rect=>{
+    if(rect)return intersections(rect);
+    const rubber=canvas.getRubberBox();if(!rubber)return [];
+    const bounds=rubber.getBoundingClientRect(),root=sourceElement(),context=canvas.getCurrentGroup(),parent=context?.isConnected&&root?.contains(context)?context:root;
+    if(!parent)return [];
+    // Native bboxes are local to each imported viewport/group; comparing them
+    // to a document-space marquee stops working after nested SVG editing.
+    return [...parent.children].filter(node=>{
+      if(!node.getBBox||node.closest('defs,mask,clipPath,pattern,marker,symbol,filter,[data-locked="true"]')||['title','desc','metadata','style'].includes(node.localName))return false;
+      const style=getComputedStyle(node);if(style.display==='none'||style.visibility==='hidden')return false;
+      const box=node.getBoundingClientRect();return box.left<=bounds.right&&box.right>=bounds.left&&box.top<=bounds.bottom&&box.bottom>=bounds.top;
+    });
+  };
   function snapshot() {
     const holder=sourceElement();
     if(!holder)throw Error('SVG 原稿容器已移除，请撤销后重试');
@@ -162,6 +196,17 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     else changedTimer=setTimeout(persist,30);
   }
   const finishGesture=canvas.mouseUpEvent;
+  function finishMarquee(event){
+    event.preventDefault();event.stopImmediatePropagation();
+    const elements=canvas.getSelectedElements().filter(Boolean),single=elements.length===1?elements[0]:null;
+    canvas.setStarted(false);canvas.getRubberBox()?.setAttribute('display','none');canvas.setCurBBoxes([]);
+    canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.setMode('select');
+    if(single){
+      if(single.localName==='text'){canvas.setCurText('font_size',single.getAttribute('font-size'));canvas.setCurText('font_family',single.getAttribute('font-family'));}
+      for(const key of ['fill','fill_opacity','stroke','stroke_opacity','stroke_width','stroke_dasharray','stroke_linejoin','stroke_linecap'])canvas.setCurProperties(key,single.getAttribute(key.replaceAll('_','-')));
+    }
+    syncSelectors();canvas.call('selected',elements);
+  }
   container.removeEventListener('mouseup',finishGesture);
   container.addEventListener('mouseup',event=>{
     const mode=canvas.getMode();
@@ -169,17 +214,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
       // SVGCanvas's stock mouseup falls through from marquee to object-move
       // finalization. It then bakes existing transforms into path coordinates,
       // although nothing was dragged. Keep marquee strictly selection-only.
-      event.preventDefault();event.stopImmediatePropagation();
-      const elements=canvas.getSelectedElements().filter(Boolean),single=elements.length===1?elements[0]:null;
-      canvas.setStarted(false);canvas.getRubberBox()?.setAttribute('display','none');canvas.setCurBBoxes([]);
-      canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.setMode('select');
-      if(single){
-        if(single.localName==='text'){canvas.setCurText('font_size',single.getAttribute('font-size'));canvas.setCurText('font_family',single.getAttribute('font-family'));}
-        for(const key of ['fill','fill_opacity','stroke','stroke_opacity','stroke_width','stroke_dasharray','stroke_linejoin','stroke_linecap'])canvas.setCurProperties(key,single.getAttribute(key.replaceAll('_','-')));
-      }
-      for(const element of elements){const selector=canvas.selectorManager.requestSelector(element);selector?.resize();selector?.showGrips(elements.length===1);}
-      if(!single)canvas.selectorManager.selectorGripsGroup.setAttribute('display','none');
-      canvas.call('selected',elements);return;
+      finishMarquee(event);return;
     }
     if(!canvas.getStarted()||!['select','resize','multiselect'].includes(mode))return finishGesture(event);
     const styles=new Map();
@@ -195,6 +230,18 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     // SVGCanvas records move/resize in its own history without emitting changed.
     if(canvas.undoMgr.getUndoStackSize()!==undoSize)contentChanged(true);
   });
+  // SVGCanvas's mouseleave dispatches to #svgcanvas, which does not exist in
+  // this embedded workspace. Finish real gestures on the actual release.
+  container.removeEventListener('mouseleave',canvas.mouseOutEvent);
+  container.addEventListener('mouseleave',event=>{
+    if(canvas.getStarted()&&!['select','multiselect','resize','rotate','pan'].includes(canvas.getMode()))container.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,clientX:event.clientX,clientY:event.clientY,button:0}));
+  });
+  document.addEventListener('mousemove',event=>{
+    if(canvas.getMode()!=='multiselect'||!canvas.getStarted())return;
+    if(!(event.buttons&1)){cancelCanvasGesture();return;}
+    if(!container.contains(event.target))canvas.mouseMoveEvent(event);
+  },true);
+  document.addEventListener('mouseup',event=>{if(canvas.getMode()==='multiselect'&&!container.contains(event.target))finishMarquee(event);},true);
   function layout(fit=false) {
     if(!viewport)return;
     const width=Math.max(200,container.clientWidth),height=Math.max(200,container.clientHeight);
@@ -204,16 +251,16 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     content.setAttribute('x',x);content.setAttribute('y',y);
     canvas.selectorManager.selectorParentGroup.setAttribute('transform',`translate(${x},${y})`);
     const background=$('#canvasBackground');background?.setAttribute('x',x);background?.setAttribute('y',y);
-    const zoom=canvas.getZoom();
+    syncSelectors();const zoom=canvas.getZoom();
     if(laidOutZoom!==zoom){
       laidOutZoom=zoom;
-      for(const node of canvas.getSelectedElements().filter(Boolean))canvas.selectorManager.requestSelector(node)?.resize();
       canvas.pathActions.zoomChange();
     }
     options.zoom?.(canvas.getZoom());options.layout?.(canvas,wrapper);inlineText?.refresh();
     for(const grip of canvas.getSvgRoot().querySelectorAll('[id^="selectorGrip_"]'))grip.style.cursor='crosshair';
   }
   function zoom(factor,cx=container.clientWidth/2,cy=container.clientHeight/2){
+    if(canvas.getStarted())cancelCanvasGesture();
     const content=canvas.getSvgContent(),previous=canvas.getZoom();
     const x=(cx+container.scrollLeft-Number(content.getAttribute('x')))/previous,y=(cy+container.scrollTop-Number(content.getAttribute('y')))/previous;
     canvas.setZoom(Math.max(.03,Math.min(20,previous*factor)));layout();
@@ -231,7 +278,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   function stopPan(){const prior=panDrag;panDrag=null;if(prior&&container.hasPointerCapture(prior.pointer))container.releasePointerCapture(prior.pointer);canvas.getSvgRoot().style.removeProperty('cursor');refreshCursor();}
   for(const type of ['pointerup','pointercancel','lostpointercapture'])container.addEventListener(type,event=>{if(!panDrag||panDrag.pointer!==event.pointerId)return;event.preventDefault();event.stopImmediatePropagation();stopPan();},true);
   function cancelCanvasGesture(){
-    stopPan();const mode=canvas.getMode();
+    pointerGestures.cancel();stopPan();const mode=canvas.getMode();
     if(!['select','resize','multiselect','rotate'].includes(mode))return;
     if(mode==='rotate'&&canvas.getStarted())canvas.undoMgr.finishUndoableChange().unapply();
     canvas.setStarted(false);canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.setCurBBoxes([]);canvas.getRubberBox()?.setAttribute('display','none');
@@ -239,7 +286,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     for(const node of canvas.getSelectedElements().filter(Boolean))canvas.selectorManager.requestSelector(node)?.resize();
   }
   window.addEventListener('blur',cancelCanvasGesture);
-  container.addEventListener('pointercancel',cancelCanvasGesture,true);
+  document.addEventListener('pointercancel',cancelCanvasGesture,true);
   container.addEventListener('lostpointercapture',cancelCanvasGesture,true);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelCanvasGesture();});
   function prepareRoot(source, dimensions) {
@@ -587,13 +634,13 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   $('#source-cancel').onclick=()=>$('#source-dialog').close();
   function textValue(node){return readSvgText(node);}
   function writeText(node,value){writeSvgText(node,value);}
-  inlineText=installSvgInlineText(canvas,container,{input:$('#text'),root:sourceElement,context:graphicContext,changed:()=>canvas.call('changed',[selected]),editing:active=>options.textEditing?.(active)});
+  inlineText=installSvgInlineText(canvas,container,{input:$('#text'),root:sourceElement,context:graphicContext,changed:()=>canvas.call('changed',[selected]),editing:active=>options.textEditing?.(active),selectionChanged:()=>refreshProperties(true),validate:()=>options.validate?.(snapshot()),command:run});
   const endText=()=>inlineText.end();
   container.addEventListener('dblclick',event=>{
     const node=canvas.getMouseTarget(event);
     if(node&&['g','svg'].includes(tagName(node))&&sourceElement()?.contains(node)&&node!==wrapper){event.preventDefault();event.stopImmediatePropagation();canvas.setContext(graphicContext(node));}
   },true);
-  canvas.bind('selected',(_window,elements)=>{selected=elements?.filter(Boolean).at(-1)??null;layersPanel?.reveal(elements?.filter(Boolean)??[]);refreshProperties();options.selected?.(selected);});
+  canvas.bind('selected',(_window,elements)=>{syncSelectors();selected=elements?.filter(Boolean).at(-1)??null;layersPanel?.reveal(elements?.filter(Boolean)??[]);refreshProperties();options.selected?.(selected);});
   canvas.bind('changed',()=>contentChanged());
   canvas.bind('updateCanvas',()=>layout());
   new ResizeObserver(()=>layout()).observe(container);
@@ -617,6 +664,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   if(!options.message)window.addEventListener('message',event=>{if(event.source===parent&&event.data?.channel==='fold-svg-editor')receive(event.data);});
   send('ready');
   return {canvas,receive,source:snapshot,run,layout,zoom,endText,select:selectElement,refreshTree,refreshProperties,refreshCursor,transaction,
+    get textRange(){return inlineText.range;},formatTextRange:apply=>inlineText.formatSelection(apply),
     sourceStyles(action){return options.sourceStyles?options.sourceStyles(action):action();},
     endRename(){layersPanel.finishRename(true);},get layerDirty(){return layersPanel.dirty;},
     get hasClipboard(){return !!clipboard;},

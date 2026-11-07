@@ -2,6 +2,7 @@
 .export-workspace[open]{display:flex;flex-direction:column}
 .export-header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:1px solid var(--border);flex:none}
 .export-header h2{font-size:17px;margin:0 0 3px}
+.export-header-actions{display:flex;align-items:center;gap:14px;flex:none}
 .export-header p{font-size:11px;max-width:65vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0}
 .export-layout{display:grid;grid-template-columns:minmax(0,1fr) 306px;min-height:0;overflow:auto}
 .export-preview{display:flex;flex-direction:column;gap:16px;min-width:0;padding:22px 24px;background:var(--soft);border-right:1px solid var(--border)}

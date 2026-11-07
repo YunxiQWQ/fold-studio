@@ -1,4 +1,6 @@
+import {mdiGithub} from '@mdi/js';
 const paths = {
+  github:`<path d="${mdiGithub}" fill="currentColor" stroke="none"/>`,
   cut: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8 8 13 13M8 16l13-13"/>',
   paste: '<path d="M9 4H5v17h14V4h-4"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M8 11h8m-8 4h6"/>',
   box: '<path d="m12 3 9 5v9l-9 5-9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v9M7.5 5.5l9 5"/>',

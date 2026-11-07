@@ -123,4 +123,5 @@ export function installSvgPointerGestures(canvas,container,{root,panActive,chang
   container.addEventListener('mouseleave',event=>{if(gesture)event.stopImmediatePropagation();},true);
   window.addEventListener('blur',()=>finish(null,true));
   document.addEventListener('visibilitychange',()=>{if(document.hidden)finish(null,true);});
+  return {cancel:()=>finish(null,true)};
 }

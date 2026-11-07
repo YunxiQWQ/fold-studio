@@ -35,7 +35,9 @@
     "test:export-color": "node --test tests/export-color-modes.test.js && node tests/export-color-modes-browser.mjs",
     "test:export-menu": "node tests/export-menu-browser.mjs",
     "test:inline-text": "node tests/svg-inline-text-browser.mjs",
-    "test:marquee": "node tests/svg-marquee-after-drag-browser.mjs"
+    "test:marquee": "node tests/svg-marquee-after-drag-browser.mjs",
+    "test:svg-interactions": "node tests/svg-import-interactions-browser.mjs && node tests/svg-rich-text-browser.mjs",
+    "pretest:browser": "npm run test:svg-interactions"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",

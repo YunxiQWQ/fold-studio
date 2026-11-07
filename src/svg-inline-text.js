@@ -6,11 +6,12 @@ const segmenter=typeof Intl.Segmenter==='function'?new Intl.Segmenter(undefined,
 
 // SVG remains the visible text renderer. The tiny, transparent textarea only
 // supplies native editing, clipboard, undo and IME; no second font layout.
-export function installSvgInlineText(canvas,container,{input,root,context,changed,editing}){
+export function installSvgInlineText(canvas,container,{input,root,context,changed,editing,selectionChanged:notifySelection,validate,command}){
   const overlay=svg('svg',{'class':'native-text-overlay','aria-hidden':'true'}),boundary=svg('path',{'class':'native-text-boundary'}),selection=svg('g',{'class':'native-text-selection'}),composition=svg('g',{'class':'native-text-composition'}),caret=svg('path',{'class':'native-text-caret'});
   overlay.append(boundary,selection,composition,caret);container.append(overlay);overlay.style.display='none';
   input.spellcheck=false;input.wrap='off';input.maxLength=5000;input.tabIndex=-1;input.setAttribute('autocomplete','off');
-  let session=null,drag=null,frame=0,ending=false;
+  let session=null,drag=null,frame=0,ending=false,formatPointer=false;
+  const typographyControl=node=>!!node?.closest?.('[data-property-section="typography"]');
   const resetGesture=()=>{canvas.setStarted(false);canvas.setStartTransform(null);canvas.setJustSelected(null);canvas.dragStartTransforms=null;canvas.hasDragStartTransform=false;canvas.getRubberBox()?.setAttribute('display','none');};
   function leaves(node){
     const starts=new Set(textLines(node).slice(1)),result=[];let offset=0;
@@ -88,6 +89,31 @@ export function installSvgInlineText(canvas,container,{input,root,context,change
     caret.style.display=start===selectionEnd||session.composing?'':'none';
     if(edge){caret.setAttribute('d',`M${local(edge[0])}L${local(edge[1])}`);input.style.left=Math.max(0,Math.min(innerWidth-2,edge[1].x))+'px';input.style.top=Math.max(0,Math.min(innerHeight-2,edge[0].y))+'px';input.style.height=Math.max(2,Math.hypot(edge[1].x-edge[0].x,edge[1].y-edge[0].y))+'px';}
     caret.classList.toggle('composing',!!session.composing);
+    const rangeKey=start===selectionEnd?'':`${start}:${selectionEnd}`;
+    if(session.rangeKey!==rangeKey){session.rangeKey=rangeKey;notifySelection?.();}
+  }
+  function characterRange(){
+    if(!session||!session.node.isConnected||input.selectionStart===input.selectionEnd)return null;
+    const start=input.selectionStart,end=input.selectionEnd,tokens=leaves(session.node).filter(t=>!t.line&&t.end>start&&t.start<end);
+    return {node:session.node,start,end,direction:input.selectionDirection,text:input.value.slice(start,end),nodes:[...new Set(tokens.map(t=>t.text.parentElement))]};
+  }
+  function formatSelection(apply){
+    const range=characterRange();if(!range)return false;
+    if(session.composing)throw Error('请先完成输入法输入，再修改所选文字样式');
+    const node=session.node,before=node.cloneNode(true),runs=new Map();
+    for(const token of leaves(node))if(!token.line&&token.end>range.start&&token.start<range.end){
+      const a=token.offset+Math.max(0,range.start-token.start),b=token.offset+Math.min(token.value.length,range.end-token.start),run=runs.get(token.text);
+      if(run)run.end=b;else runs.set(token.text,{start:a,end:b});
+    }
+    try{
+      for(const [text,run]of runs){
+        if(!run.start&&run.end===text.length&&text.parentElement.localName==='tspan'&&text.parentElement.childNodes.length===1){apply(text.parentElement);continue;}
+        let part=text;if(run.end<part.length)part.splitText(run.end);if(run.start)part=part.splitText(run.start);
+        const span=svg('tspan',{id:canvas.getNextId()});part.replaceWith(span);span.append(part);apply(span);
+      }
+      validate?.();
+    }catch(error){node.replaceChildren(...before.childNodes);draw();throw error;}
+    changed();draw();return true;
   }
   function refresh(){if(session&&!frame)frame=requestAnimationFrame(draw);}
   function positionAt(x,y){
@@ -122,7 +148,7 @@ export function installSvgInlineText(canvas,container,{input,root,context,change
     node=node?.closest?.('text')??node;
     if(!node||node.localName!=='text'||!root()?.contains(node)||node.closest('[data-locked="true"]'))return;
     if(session?.node!==node){
-      end(false);resetGesture();canvas.setContext(context(node.parentElement));canvas.selectOnly([node],true);
+      end(false);formatPointer=false;resetGesture();canvas.setContext(context(node.parentElement));canvas.selectOnly([node],true);
       session={node,composing:false};input.value=readSvgText(node);input.dir=getComputedStyle(node).direction;input.classList.add('is-inline');node.setAttribute('data-fold-inline-editing','true');node.style.removeProperty('cursor');canvas.setMode('textedit');canvas.selectorManager.requestSelector(node)?.showGrips(false);overlay.style.display='';container.classList.add('native-text-editing');editing?.(true);
       input.focus({preventScroll:true});input.setSelectionRange(input.value.length,input.value.length);draw();
     }
@@ -131,7 +157,7 @@ export function installSvgInlineText(canvas,container,{input,root,context,change
   function releaseDrag(){const prior=drag;drag=null;if(prior&&container.hasPointerCapture(prior.pointer))container.releasePointerCapture(prior.pointer);}
   function end(keepSelection=true){
     if(ending)return;const current=session;if(!current)return;
-    ending=true;session=null;releaseDrag();if(frame)cancelAnimationFrame(frame);frame=0;overlay.style.display='none';selection.replaceChildren();composition.replaceChildren();caret.removeAttribute('d');input.classList.remove('is-inline');input.removeAttribute('style');container.classList.remove('native-text-editing');
+    ending=true;session=null;formatPointer=false;releaseDrag();if(frame)cancelAnimationFrame(frame);frame=0;overlay.style.display='none';selection.replaceChildren();composition.replaceChildren();caret.removeAttribute('d');input.classList.remove('is-inline');input.removeAttribute('style');container.classList.remove('native-text-editing');
     const node=current.node;node.removeAttribute('data-fold-inline-editing');node.style.removeProperty('cursor');if(!node.getAttribute('style'))node.removeAttribute('style');resetGesture();canvas.setMode('select');
     try{
       if(node.isConnected&&root()?.contains(node)){
@@ -155,9 +181,19 @@ export function installSvgInlineText(canvas,container,{input,root,context,change
   input.addEventListener('compositionend',()=>{if(session){session.composing=false;refresh();}});
   input.addEventListener('keydown',event=>{
     if(!session||event.isComposing||session.composing||event.keyCode===229)return;
+    if((event.ctrlKey||event.metaKey)&&['b','i','u'].includes(event.key.toLowerCase())){event.preventDefault();event.stopPropagation();command?.({b:'bold',i:'italic',u:'underline'}[event.key.toLowerCase()]);return;}
     if(event.key==='Escape'){event.preventDefault();event.stopPropagation();end();container.tabIndex=-1;container.focus({preventScroll:true});}
   });
-  input.addEventListener('blur',()=>end());
+  input.addEventListener('blur',event=>{const retain=typographyControl(event.relatedTarget)||formatPointer;formatPointer=false;if(!retain)end();});
+  document.addEventListener('pointerdown',event=>{
+    if(!session)return;formatPointer=typographyControl(event.target);
+    if(!formatPointer&&event.target!==input&&!container.contains(event.target))end();
+  },true);
+  document.addEventListener('focusin',event=>{if(session&&event.target!==input&&!typographyControl(event.target)&&!container.contains(event.target)&&!(event.target===document.body&&formatPointer))end();});
+  document.addEventListener('keydown',event=>{
+    if(!session||event.isComposing||session.composing||event.key!=='Escape'||!typographyControl(event.target)||document.querySelector('#font-picker-popup:popover-open'))return;
+    event.preventDefault();event.stopImmediatePropagation();end();container.tabIndex=-1;container.focus({preventScroll:true});
+  },true);
   container.addEventListener('pointerdown',event=>{
     if(!session)return;
     const text=event.target.closest?.('text');
@@ -171,9 +207,9 @@ export function installSvgInlineText(canvas,container,{input,root,context,change
   container.addEventListener('dblclick',event=>{
     const node=event.target.closest?.('text');if(!node||!root()?.contains(node))return;event.preventDefault();event.stopImmediatePropagation();begin(node,event);
   },true);
-  window.addEventListener('blur',()=>end());
+  window.addEventListener('blur',()=>{if((typographyControl(document.activeElement)||formatPointer)&&characterRange()){releaseDrag();resetGesture();return;}end();});
   document.addEventListener('visibilitychange',()=>{if(document.hidden)end();});
   canvas.textActions.setInputElem(input);canvas.textActions.select=begin;canvas.textActions.start=begin;canvas.textActions.toSelectMode=end;
   for(const name of ['init','setCursor','mouseDown','mouseMove','mouseUp'])canvas.textActions[name]=()=>{};
-  return {begin,end,refresh,get active(){return !!session;}};
+  return {begin,end,refresh,formatSelection,get range(){return characterRange();},get active(){return !!session;}};
 }

@@ -34,6 +34,7 @@ import {colorReady} from './color-runtime.js';
 import {colorStatus,configureColorManagement} from './color.js';
 import {mountPrintUI} from './print-ui.js';
 import {mountExportUI} from './export-ui.js';
+import {repositoryLink} from './repository.js';
 
 const $=selector=>document.querySelector(selector);
 const $$=selector=>document.querySelectorAll(selector);
@@ -61,6 +62,7 @@ const toolButton=(id,glyph,label,shortcut='',extra='')=>`<button id="${id}" clas
 $('#app').innerHTML=`
 <header class="app-bar">
   <a class="brand" href="#" aria-label="折间 Fold Studio" title="折间 Fold Studio v0.15.0"><span class="brand-mark">${icon('box')}</span><span class="brand-name">折间<small>Fold Studio</small></span></a>
+  ${repositoryLink('header-repository')}
   <span class="app-bar-divider" aria-hidden="true"></span>
   <div class="project-heading">
     <input id="project-name" aria-label="工程名称" maxlength="80" spellcheck="false"/>
@@ -197,6 +199,7 @@ $('#app').innerHTML=`
     <h2>包装结构与盒型库</h2>
     <p>选择工业标准纸盒或瓶罐容器结构，一键生成刀版与拟真三维模型</p>
   </div>
+  <p class="template-contribute">没找到想要的盒型？${repositoryLink('template-contribute-link','在 GitHub 上提交 PR 或者贡献！')}</p>
   <div class="template-toolbar">
   <div class="template-filter-tabs" role="tablist" aria-label="包装结构分类">
     <button class="filter-tab active" data-filter="all">全部 <span>${Object.keys(BOX_TYPES).length}</span></button>
@@ -655,6 +658,7 @@ $('#inspector').addEventListener('input',e=>{
   textureDirty=true;schedule();scheduleSave();
 });
 $('#inspector').addEventListener('change',e=>{
+  if(e.composedPath().some(node=>node.id==='properties'))return;
   const layer=project.layers.find(l=>l.id===selected);
   if(e.target.id==='layer-panel'&&layer){layer.panel=e.target.value;panelId=layer.panel;}
   if(e.target.id==='layer-side'&&layer){dirtySides.add(activeSide);layer.side=e.target.value;activeSide=layer.side;renderSurface();renderLayers();}

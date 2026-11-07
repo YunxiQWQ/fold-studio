@@ -11,7 +11,8 @@ function report(editor,action,input){try{action();input?.removeAttribute('aria-i
 
 export function appendTypographyPanel(host,editor){
   const targets=typographyTargets(editor);if(!targets.length)return;
-  const leaves=typographyLeaves(targets),nodes=leaves.length?leaves:targets,body=section(host,'typography','字体与文字排版');
+  const range=editor.api.textRange,leaves=range?.nodes??typographyLeaves(targets),nodes=leaves.length?leaves:targets,body=section(host,'typography','字体与文字排版');
+  if(range)body.append(create('p',{className:'svg-field-note',id:'typography-selection-note'},`已选中 ${[...range.text].length} 个字符；字体、字号和字形样式应用于选中文字，段落设置应用于整段。`));
   if(targets.length>1)body.append(create('p',{className:'svg-field-note'},`应用于 ${targets.length} 段文字；其他图形保持原样。`));
   const family=appendFontPicker(body,{value:sharedTextValue(nodes,'font-family'),onChange:(value,input)=>report(editor,()=>applyTypography(editor,'font-family',value),input)});
   const preview=create('p',{className:'svg-font-preview'},'Aa 字体预览');preview.style.fontFamily=family.value||'sans-serif';body.append(preview);

@@ -91,6 +91,9 @@ export function applyTypography(editor,key,value){
   if(numeric){value=Number(value);const [min,max]=key==='font-size'?[.1,600]:key==='line-height'?[.1,10]:[-100,300];if(!Number.isFinite(value)||value<min||value>max)throw Error(`数值须为 ${min}–${max}`);value=String(value);}
   if(!value||String(value).length>500||normalizeSvgValue('text',key,String(value))===null)throw Error('请输入有效的文字属性（最多 500 字符）');
   if(!numeric&&!CSS.supports(key,value))throw Error('浏览器不支持此文字属性值');
+  if(editor.api.textRange&&!['text-anchor','writing-mode','line-height'].includes(key)){
+    return editor.api.formatTextRange(node=>inline(node,key,['font-size','letter-spacing','word-spacing'].includes(key)?String(Number(value)/textPhysicalScale(editor,node,key)):value));
+  }
   editor.up();const targets=typographyTargets(editor),selected=editor.api.canvas.getSelectedElements().filter(Boolean),active=editor.api.selected;if(!targets.length)throw Error('请先选中可编辑文字');
   const physical=['font-size','letter-spacing','word-spacing'].includes(key),values=new Map();
   if(physical)for(const root of targets)for(const node of [root,...root.querySelectorAll('tspan,textPath')])values.set(node,String(Number(value)/textPhysicalScale(editor,node,key)));
@@ -110,8 +113,9 @@ export function toggleTypography(editor,command){
   const nodes=typographyTargets(editor);if(!nodes.length)return;
   const key={bold:'font-weight',italic:'font-style',underline:'text-decoration','line-through':'text-decoration'}[command];
   const on=node=>command==='bold'?Number(computedValue(node,key))>=600:command==='italic'?computedValue(node,key)!=='normal':computedValue(node,key).includes(command);
-  const leaves=typographyLeaves(nodes),all=(leaves.length?leaves:nodes).every(on),value=command==='bold'?(all?'400':'700'):command==='italic'?(all?'normal':'italic'):null;
+  const leaves=editor.api.textRange?.nodes??typographyLeaves(nodes),all=(leaves.length?leaves:nodes).every(on),value=command==='bold'?(all?'400':'700'):command==='italic'?(all?'normal':'italic'):null;
   if(value)return applyTypography(editor,key,value);
+  if(editor.api.textRange)return editor.api.formatTextRange(node=>{const flags=new Set(computedValue(node,key).split(/\s+/).filter(v=>['underline','overline','line-through'].includes(v)));all?flags.delete(command):flags.add(command);inline(node,key,[...flags].join(' ')||'none');});
   // Decoration flags are independent; underline does not erase strikethrough.
   editor.up();const selected=editor.api.canvas.getSelectedElements().filter(Boolean),active=editor.api.selected;return editor.api.transaction('文字装饰',batch=>{
     for(const root of nodes)for(const node of [root,...root.querySelectorAll('tspan,textPath')]){
