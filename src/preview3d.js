@@ -5,7 +5,7 @@ import { paintArtwork } from './artwork.js';
 import { surfaceOf } from './project.js';
 import { BOX_TYPES } from './geometry.js';
 import {createPanelGeometry, createCylinderRibbonGeometry, updateCylinderRibbonPositions, buildContainerAccessories, pickPanel, canProportions} from './model3d.js';
-import { proofColor } from './color.js';
+import {proofCanvas} from './color.js';
 import {updateCurvedSkinGeometry} from './curved-carton-mesh.js';
 import {updateBagBottomGeometry,bagBottomFrame,buildPaperBagHandles,updatePaperBagHandles} from './paper-bag.js';
 import {updateRoofGussetGeometry,roofGussetFrame} from './reference-cartons.js';
@@ -208,9 +208,10 @@ export class Preview3D {
         surface.texture.anisotropy=Math.min(4,this.renderer.capabilities.getMaxAnisotropy());
         surface.material.map=surface.texture;surface.material.color.set('#ffffff');surface.material.needsUpdate=true;
       }
-      const ctx=canvas.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=proofColor(surfaceOf(project,side).paper,this.colorMode);ctx.fillRect(0,0,w,h);
+      const ctx=canvas.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle=surfaceOf(project,side).paper;ctx.fillRect(0,0,w,h);
       ctx.setTransform(w/width,0,0,h/height,-minX*w/width,-minY*h/height);
-      paintArtwork(ctx,project,this.dieline,this.images,side,this.colorMode);
+      paintArtwork(ctx,project,this.dieline,this.images,side,'rgb');
+      if(this.colorMode==='cmyk')proofCanvas(canvas);
       surface.texture.needsUpdate=true;surface.material.roughness=project.material==='gloss'?.32:.87;
       this.stats.textureUpdates++;this.stats.sideTextureUpdates[side]++;
     }

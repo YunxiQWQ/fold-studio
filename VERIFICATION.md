@@ -1,5 +1,15 @@
 # 验证记录
 
+## ICC 色彩管理与真实 CMYK TIFF（2026-11-07）
+
+- 确认旧“CMYK 工业仿真”只有 RGB／CMYK 经验公式，没有 ICC；纸张、纯色和 SVG 属性被分别压暗，图片与非 HEX 颜色未统一处理。替换为 LittleCMS 2.16 WebAssembly，默认内联 colord CC0 FOGRA39L Coated。使用文件内 `meta`／版权标签核对许可，并记录来源和 SHA-256；不在源码附带印厂或 ECI 配置。
+- 166 项单元测试通过。用独立运行的 Pillow ImageCms／原生 LittleCMS 2.19 对照十组黑白、原色及包装色，RGB→CMYK 四通道和软打样 RGB 完全一致。测试无效文件头、RGB／DeviceLink、越界标签、缺少转换表、错误配置不替换旧句柄、转换时保留独立导出句柄和旧工程缺省兼容。
+- `tests/color-management-browser.mjs` 验证双面实色、非 HEX 样式色、照片、双色渐变中点、透明混合、缩放共享视口、刀版外图文继续可见，打样不写回工程或 SVG；实际指针拖动和撤销；自定义 ICC、转换意图、黑点补偿随 `.fold` 和本机工程库保存、重开。损坏工程 ICC 不会偷偷沿用上一份配置打样，可从设置恢复。
+- 真正导出双面四通道 TIFF，检查 PhotometricInterpretation=5、SamplesPerPixel=4、InkSet=1、ICCProfile=34675、像素墨量、透明区域铺白、物理毫米／DPI 和超限不导出。Pillow 独立读取七份 TIFF，确认 CMYK 四通道、150 DPI、完整 ICC 和白色背景；另转换回 RGB 作目视核对。300／600 DPI 共用毫米渲染器，600 DPI 超过像素上限时明确禁用导出，不静默降采样。
+- 专项通过 Chromium 开发服务、Edge 正式构建 HTTP 和离线 HTML；离线无 HTTP 请求。另以仅留本机的 2.2 MB 印厂 ICC 验证导入、打样与 TIFF 原样嵌入，配置未进入 Git。二维打样是显示缓存，输出 TIFF 与普通 RGB SVG 的性质及暂不含专色、叠印、出血、PDF/X 的边界见 `docs/print-color.md`。
+- 原有 17 个浏览器回归脚本和旧工程兼容通过，覆盖主 SVG、31 组手势、双面视口、图层与解组、完整编辑流程、桌面／手机布局、快速排版、常见 SVG、SVG／PNG 导出、关闭保护、字体与对齐。将旧测试“打样应改变 SVG 导出色值”改为验证预览变化而原稿导出不变；修复打样隐藏方式误伤“同填色选择”的实际回归。完整 `npm run build` 和离线生成通过，未保留模型缩略图缓存哈希的无关变化。
+- 证据在忽略目录 `artifacts/color-management/`：各浏览器 `report.json`、设置／工作区截图、`pillow-verification.json`、独立色值参考与合成 TIFF。用户工程、私有 ICC、输出附件和测试日志均未加入源码。源码公开内容扫描和 `git diff --check` 通过。
+
 ## 图片导入、重复引用与容量修复（2026-11-07）
 
 - 用用户提供的约 7.7 MB 工程在本地复现：同一图片在 `href` 和 `xlink:href` 各存约 3.84 MB 数据；继续导入照片后，整张 SVG 超过旧 8 MB 检查，新图只留在旧 `layers`，画布没有图片但提示添加成功。原始文件未修改，私人工程和测试导出只在 Git 忽略的本地验证目录中。

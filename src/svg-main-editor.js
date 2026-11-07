@@ -15,7 +15,8 @@ import './svg-main-editor.css';
 import {appendImageTools} from './svg-image-tools.js';
 import {barcodeStatus} from './barcode.js';
 import {qrStatus} from './qrcode.js';
-import {proofColor} from './color.js';
+import {colorStatus} from './color.js';
+import {renderPrintSurface} from './print-surface.js';
 import {arrangeSvgInspector} from './svg-inspector.js';
 import {alignSvgSelection} from './svg-alignment.js';
 import {typographyTargets,toggleTypography,readSvgText,replaceSvgText} from './svg-typography.js';
@@ -59,6 +60,11 @@ export class SvgMainEditor {
     document.querySelector('#inspector').innerHTML='<div id="properties" class="native-main-properties"></div>';
     const message=document.createElement('div');message.id='message';message.className='native-main-message';host.after(message);
     this.proofStyle=document.createElement('style');document.head.append(this.proofStyle);
+    // Keep native hit testing and selection handles above the proof image.
+    // While manipulating artwork show the live source, then refresh the proof.
+    host.addEventListener('pointerdown',()=>{this.proofInteracting=true;this.proofStyle.disabled=true;if(this.proofImage)this.proofImage.style.display='none';},true);
+    const finishProofInteraction=()=>{if(!this.proofInteracting)return;this.proofInteracting=false;this.proofStyle.disabled=false;requestAnimationFrame(()=>this.structure());};
+    document.addEventListener('pointerup',finishProofInteraction);document.addEventListener('pointercancel',finishProofInteraction);
     const text=document.createElement('textarea');text.id='text';text.className='native-text-input';text.setAttribute('aria-label','SVG 画布文字输入');document.body.append(text);
     const source=document.createElement('dialog');source.id='source-dialog';source.className='native-source-dialog';
     source.innerHTML='<h3>当前印刷面 SVG 源码</h3><textarea id="source-text" spellcheck="false"></textarea><div class="dialog-actions"><button id="source-cancel">取消</button><button id="source-apply">验证并应用源码</button></div>';document.body.append(source);
@@ -190,7 +196,7 @@ export class SvgMainEditor {
       validateProject(next);
       this.pendingInput=false;
       if(JSON.stringify(next)===JSON.stringify(project))return;
-      Object.assign(project,next);this.key=JSON.stringify([this.side,svg,[],this.dieline.type,project.dimensions]);
+      Object.assign(project,next);this.proofRevision=(this.proofRevision??0)+1;this.key=JSON.stringify([this.side,svg,[],this.dieline.type,project.dimensions]);
       this.images.preload(svgSceneLayers(project,this.dieline)).then(()=>{this.images.retain([...svgSceneLayers(this.project,this.dieline),...this.project.layers]);this.callbacks.change();}).catch(error=>this.callbacks.notify(error.message));
       if(normalize)this.callbacks.normalize?.();else if(this.textEditing){this.textDirty=true;this.callbacks.draft?.();}else this.callbacks.commit();
     }catch(error){this.callbacks.notify(`SVG 修改未保存：${error.message}`);}
@@ -210,7 +216,7 @@ export class SvgMainEditor {
     const key=JSON.stringify([this.side,this.colorMode,this.guides,colors,fill]);
     if(this.guideDieline!==d||this.guideKey!==key||!paper.children.length){
       paper.replaceChildren();lines.replaceChildren();
-      for(const p of d.panels)paper.append(element('path',{d:path(printRegions(d,{panel:p.id,clipToPanel:true})),fill:proofColor(p.kind==='glue'?'#deddd0':colors?.[p.id]??fill,this.colorMode)}));
+      for(const p of d.panels)paper.append(element('path',{d:path(printRegions(d,{panel:p.id,clipToPanel:true})),fill:p.kind==='glue'?'#deddd0':colors?.[p.id]??fill}));
       lines.append(element('path',{d:cutSegments(d).map(([a,b])=>`M${a.join(' ')}L${b.join(' ')}`).join(' '),fill:'none',stroke:'#c05656','stroke-width':.35,'vector-effect':'non-scaling-stroke'}));
       if(this.guides)for(const p of creasePaths(d))lines.append(element('path',{d:p.d,fill:'none',stroke:'#688d61','stroke-width':.5,'stroke-dasharray':'3 2','vector-effect':'non-scaling-stroke'}));
       this.guideDieline=d;this.guideKey=key;
@@ -306,15 +312,29 @@ export class SvgMainEditor {
   renderInspector(){this.api?.refreshProperties();}
   setTheme(value){this.host.dataset.theme=value;}
   refreshProof(holder){
-    const rules=new Set();
-    if(this.colorMode==='cmyk')for(const node of holder.querySelectorAll('[fill],[stroke],[color]')){
-      if(node.closest('defs,mask,clipPath,filter'))continue;
-      for(const key of ['fill','stroke','color']){
-        const value=node.getAttribute(key);
-        if(/^#(?:[a-f0-9]{3}|[a-f0-9]{6})$/i.test(value??''))rules.add(`#svgcontent [${key}="${value}"]:not(defs *,mask *,clipPath *,filter *){${key}:${proofColor(value,'cmyk')}}`);
-      }
-    }
-    const css=[...rules].join('\n');if(this.proofStyle.textContent!==css)this.proofStyle.textContent=css;
+    if(this.colorMode!=='cmyk'||!colorStatus().ready){this.proofKey=null;this.proofStyle.textContent='';this.proofImage?.remove();this.proofDefs?.remove();this.host.dataset.proofReady='false';if(this.proofUrl){URL.revokeObjectURL(this.proofUrl);this.proofUrl=null;}return;}
+    const d=this.dieline,image=this.proofImage??=element('image',{id:'fold-proof-image','pointer-events':'none',preserveAspectRatio:'none'});
+    for(const [k,v]of Object.entries({x:d.minX,y:d.minY,width:d.width,height:d.height,transform:holder.getAttribute('transform')??''}))if(image.getAttribute(k)!==String(v))image.setAttribute(k,v);
+    if(image.parentNode!==holder.parentNode||image.previousSibling!==holder)holder.after(image);
+    const key=JSON.stringify([this.sequence,this.proofRevision,this.guideKey,colorStatus().revision]);
+    if(key===this.proofKey){image.style.display=this.proofInteracting||this.proofRenderedKey!==key?'none':'';return;}
+    this.proofKey=key;image.style.display='none';this.proofStyle.textContent='';this.host.dataset.proofReady='false';
+    const defs=this.proofDefs??=element('defs',{id:'fold-proof-definitions'}),bounds=holder.getBBox();
+    const mask=element('mask',{id:'fold-proof-source-mask',maskUnits:'userSpaceOnUse',x:bounds.x-1,y:bounds.y-1,width:bounds.width+2,height:bounds.height+2});
+    mask.append(element('rect',{x:bounds.x-1,y:bounds.y-1,width:bounds.width+2,height:bounds.height+2,fill:'white'}),element('path',{d:path(printRegions(d,{},this.side,true)),fill:'black'}));
+    defs.replaceChildren(mask);if(!defs.parentNode)this.api.canvas.getSvgRoot().prepend(defs);
+    const copy=structuredClone(this.project),side=this.side;
+    this.proofPending=renderPrintSurface(copy,d,this.images,{side,max:2048,proof:true}).then(async canvas=>{
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw Error('软打样预览编码失败');
+      const url=URL.createObjectURL(blob),decoded=new Image();decoded.src=url;
+      try{await decoded.decode();}catch(error){URL.revokeObjectURL(url);throw error;}
+      if(this.proofKey!==key){URL.revokeObjectURL(url);return;}
+      if(this.proofUrl)URL.revokeObjectURL(this.proofUrl);this.proofUrl=url;this.proofRenderedKey=key;image.setAttribute('href',url);image.style.display=this.proofInteracting?'none':'';
+      // Mask only the printed area. Off-sheet artwork stays visible/editable
+      // in RGB, and computed source opacity remains intact for editing commands.
+      this.proofStyle.textContent=`[data-fold-svg-wrapper="${holder.getAttribute('data-fold-svg-wrapper')}"]{mask:url(#fold-proof-source-mask)!important}#fold-paper-guide{filter:opacity(0)!important}`;
+      this.host.dataset.proofReady='true';
+    }).catch(error=>{if(this.proofKey===key){this.proofStyle.textContent='';image.style.display='none';this.callbacks.notify(`ICC 软打样未完成：${error.message}`);}});
   }
   setColorMode(mode){this.colorMode=mode;this.structure();}
   resize(){this.api?.layout();}

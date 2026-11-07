@@ -30,12 +30,14 @@
     "test:import-svg:offline": "node tests/import-svg-standalone.mjs",
     "test:svg-common": "node --test tests/svg-common.test.js && node tests/svg-common-browser.mjs",
     "test:transforms": "node --test tests/text-transform.test.js && node tests/svg-main-browser.mjs && node tests/svg-gestures-browser.mjs",
-    "test:close-protection": "node --test tests/close-protection.test.js && node tests/close-protection-browser.mjs"
+    "test:close-protection": "node --test tests/close-protection.test.js && node tests/close-protection-browser.mjs",
+    "test:color": "node --test tests/cmyk-color.test.js && node tests/color-management-browser.mjs"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",
     "@svgedit/svgcanvas": "7.4.2",
     "fabric": "7.4.0",
+    "lcms-wasm": "1.0.5",
     "qrcode": "1.5.4",
     "three": "0.186.1",
     "vanilla-colorful": "0.7.2"

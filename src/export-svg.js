@@ -119,7 +119,8 @@ export class SvgDrawingContext {
   toSVG(){return this.nodes.join('');}
 }
 
-export async function exportSVG(project,dieline,images=new ImageCache(),{side='outside',colorMode='rgb'}={}){
+export async function exportSVG(project,dieline,images=new ImageCache(),{side='outside'}={}){
+  const colorMode='rgb'; // Editable SVG always keeps source paints, never proof pixels.
   if(!Object.hasOwn(SIDES,side))throw new Error('无效的印刷面');
   await images.preload(project.layers);await document.fonts.ready;
   const defs=[],surface=surfaceOf(project,side),sheet=pathFor(printRegions(dieline,{},side));
