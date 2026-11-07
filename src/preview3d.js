@@ -9,6 +9,7 @@ import {proofCanvas} from './color.js';
 import {updateCurvedSkinGeometry} from './curved-carton-mesh.js';
 import {updateBagBottomGeometry,bagBottomFrame,buildPaperBagHandles,updatePaperBagHandles} from './paper-bag.js';
 import {updateRoofGussetGeometry,roofGussetFrame} from './reference-cartons.js';
+import {fitPreviewDepth} from './preview-depth.js';
 
 const QUALITY = { economy: { dpr: 1, atlas: 768 }, balanced: { dpr: 1.35, atlas: 1536 }, crisp: { dpr: 1.8, atlas: 2048 } };
 
@@ -262,9 +263,10 @@ export class Preview3D {
 
   render() {
     if (this.disposed) return;
-    const start=performance.now(); this.renderer.render(this.scene,this.camera);
+    const start=performance.now();fitPreviewDepth(this.camera,this.root);this.renderer.render(this.scene,this.camera);
     this.stats.frames++; this.stats.lastFrameMs=performance.now()-start;
     this.stats.modelType=this.project?.type;this.stats.fold=this.foldValue;
+    this.stats.depthRange=[this.camera.near,this.camera.far];
     this.stats.drawCalls=this.renderer.info.render.calls;
     this.stats.triangles=this.renderer.info.render.triangles;
     this.stats.textures=this.renderer.info.memory.textures;

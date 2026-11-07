@@ -65,3 +65,14 @@
 #layer-context-menu{padding:5px}
 #layer-context-menu>button{display:block;width:100%;text-align:left;padding:7px 10px;font-size:12px;border-radius:var(--radius-sm)}
 #layer-context-menu>button:hover{background:var(--soft)}
+.svg-context-menu{position:fixed;inset:auto;margin:0;padding:5px;width:248px;max-height:calc(100vh - 16px);overflow:auto;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface);color:var(--text);box-shadow:0 10px 30px #20262038;font-size:12px}
+.svg-context-menu>button{display:flex;align-items:center;gap:8px;width:100%;min-height:29px;padding:4px 8px;border:0;border-radius:4px;background:none;color:inherit;text-align:left;white-space:nowrap;cursor:pointer;font:inherit}
+.svg-context-menu>button:is(:hover,:focus-visible):not(:disabled){background:var(--soft);outline:none}
+.svg-context-menu>button:disabled{opacity:.4;cursor:default}
+.svg-context-menu .svg-context-icon{display:flex;width:16px;flex:none}
+.svg-context-menu .icon{width:15px;height:15px}
+.svg-context-menu kbd{margin-left:auto;font-family:inherit;font-size:10px;opacity:.55;letter-spacing:0;border:0;background:none;padding:0}
+.svg-context-menu .svg-context-arrow{margin-left:auto;font-size:18px;line-height:1}
+.svg-context-menu>[role="separator"]{height:1px;background:var(--border);margin:4px 5px}
+.svg-context-menu .svg-context-back{font-weight:600;border-bottom:1px solid var(--border);border-radius:0;margin-bottom:4px;padding-bottom:8px}
+.svg-context-menu .svg-context-danger{color:var(--danger,#b4443c)}

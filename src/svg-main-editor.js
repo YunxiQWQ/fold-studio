@@ -63,7 +63,7 @@ export class SvgMainEditor {
     this.proofStyle=document.createElement('style');document.head.append(this.proofStyle);
     // Keep native hit testing and selection handles above the proof image.
     // While manipulating artwork show the live source, then refresh the proof.
-    host.addEventListener('pointerdown',()=>{cancelAnimationFrame(this.proofEndFrame);this.proofInteracting=true;this.proofStyle.disabled=true;if(this.proofImage)this.proofImage.style.display='none';},true);
+    host.addEventListener('pointerdown',event=>{if(event.button===2){if(!event.target.closest('input,textarea,[contenteditable="true"]'))event.stopImmediatePropagation();return;}cancelAnimationFrame(this.proofEndFrame);this.proofInteracting=true;this.proofStyle.disabled=true;if(this.proofImage)this.proofImage.style.display='none';},true);
     const finishProofInteraction=()=>{if(!this.proofInteracting||this.textEditing)return;cancelAnimationFrame(this.proofEndFrame);this.proofEndFrame=requestAnimationFrame(()=>{if(this.textEditing||this.api.canvas.getStarted())return;this.api.flush();this.proofInteracting=false;this.proofStyle.disabled=false;this.structure();});};
     document.addEventListener('pointerup',finishProofInteraction);document.addEventListener('pointercancel',finishProofInteraction);
     window.addEventListener('blur',finishProofInteraction);
@@ -107,6 +107,8 @@ export class SvgMainEditor {
     source.addEventListener('cancel',()=>{this.pendingInput=false;});
     this.observer=new ResizeObserver(()=>this.resize());this.observer.observe(host);
     host.addEventListener('wheel',event=>{event.preventDefault();const box=host.getBoundingClientRect();this.api.zoom(Math.exp(-event.deltaY*.001),event.clientX-box.left,event.clientY-box.top);},{passive:false});
+    host.addEventListener('mousedown',event=>{if(event.button===2&&!event.target.closest('input,textarea,[contenteditable="true"]')){event.preventDefault();event.stopImmediatePropagation();}},true);
+    host.addEventListener('contextmenu',event=>callbacks.context?.(event));
     host.addEventListener('mousedown',event=>{if(!this.api.selected&&this.dieline){const m=this.api.wrapper?.getScreenCTM();if(m){const p=new DOMPoint(event.clientX,event.clientY).matrixTransform(m.inverse());const x=this.side==='inside'?this.dieline.minX+this.dieline.maxX-p.x:p.x;const panel=panelAt(this.dieline,x,p.y);if(panel)callbacks.select(null,panel.id,[]);}}});
   }
   get hasSelection(){return this.api?.canvas.getSelectedElements().some(Boolean)??false;}

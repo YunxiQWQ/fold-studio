@@ -57,15 +57,19 @@ export function mountDesignTools({editor,menu,notify}){
     }catch(error){showError(error);}
   };
   dialog.addEventListener('close',()=>{session=null;document.querySelector('#edit-menu-toggle')?.focus({preventScroll:true});});
-  for(const [key,button]of buttons)button.onclick=()=>{
+  function run(key){
     try{
       if(key==='same-fill'||key==='same-type'){const count=selectSvgSimilar(editor,key==='same-fill'?'fill':'type');notify(`已选择 ${count} 个对象（当前面，跳过隐藏和锁定对象）`);}
       else if(key==='center'){placeSvgSelection(editor);notify('已居中到当前面板，可撤销');}
       else open(key);
     }catch(error){notify(error.message);}
-  };
-  return {sync(){
+  }
+  for(const [key,button]of buttons)button.onclick=()=>run(key);
+  function can(key){
     const state=svgCommandState(editor.api.canvas,editor.api.selected,editor.api.wrapper);
-    for(const [key,button]of buttons)button.disabled=!state.can(key==='same-type'||key==='same-fill'?'copy':'duplicate');
+    return state.can(key==='same-type'||key==='same-fill'?'copy':'duplicate');
+  }
+  return {run,can,sync(){
+    for(const [key,button]of buttons)button.disabled=!can(key);
   }};
 }

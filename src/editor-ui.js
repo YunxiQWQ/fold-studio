@@ -5,6 +5,7 @@ import {setTextScale} from './text-transform.js';
 import {svgSupport,svgLimitations} from './svg-support.js';
 import {svgCommandState} from './svg-editor-ui-state.js';
 import {mountDesignTools} from './design-tools-ui.js';
+import {mountSvgContextMenu} from './svg-context-menu.js';
 
 function mountNativeUI({editor,addShape,notify}){
   const buttonList=(items,attribute)=>items.map(([value,label])=>`<button type="button" data-${attribute}="${value}">${label}</button>`).join('');
@@ -50,6 +51,7 @@ function mountNativeUI({editor,addShape,notify}){
       select('node-actions','节点操作',[['node-add','插入节点'],['node-delete','删除节点'],['node-line','转直线'],['node-curve','转曲线'],['node-link','关联控制柄'],['node-unlink','独立控制柄'],['node-close','开合子路径'],['node-subpath','绘制子路径']]))+
     group('SVG', '<button type="button" data-action="source">编辑源码</button><button type="button" id="svg-support-button">支持说明</button>'));
   const designTools=mountDesignTools({editor,menu:edit,notify});
+  const contextMenu=mountSvgContextMenu({editor,designTools});
   const count=document.createElement('span');count.id='editor-selection-count';count.className='toolbar-selection-count';
   trigger.before(count);
   function sync(){
@@ -78,7 +80,7 @@ function mountNativeUI({editor,addShape,notify}){
   return {run(command){
     if(command==='select-all'){const root=editor.api.wrapper;editor.api.canvas.selectOnly([...root.children].filter(n=>!['defs','title','desc'].includes(n.localName)),true);return;}
     editor.run(command);
-  },showSvgSupport,context(){},decorateLayers(){},decorateInspector(){},renderMultiInspector(){}};
+  },showSvgSupport,context:event=>contextMenu.open(event),decorateLayers(){},decorateInspector(){},renderMultiInspector(){}};
 }
 
 const actions=[['group','组合','Ctrl G'],['ungroup','解组','Ctrl Shift G'],['duplicate','复制一份','Ctrl D'],['lock','锁定 / 解锁','Ctrl L'],['front','置于顶层','Ctrl Shift ]'],['back','置于底层','Ctrl Shift ['],['up','上移一层','Ctrl ]'],['down','下移一层','Ctrl ['],['flip-x','水平翻转',''],['flip-y','垂直翻转',''],['rotate-reset','清除旋转',''],['delete','删除','Del']];
