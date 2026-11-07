@@ -131,7 +131,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     }
     alignViewportSelector(selector);return selector;
   };
-  const pointerGestures=installSvgPointerGestures(canvas,container,{root:sourceElement,panActive:options.panActive,changed:()=>contentChanged(true),interaction:active=>{movingObject=active;refreshCursor();}});
+  const pointerGestures=installSvgPointerGestures(canvas,container,{root:sourceElement,panActive:options.panActive,changed:()=>contentChanged(true),interaction:active=>{movingObject=active;refreshCursor();},validate:()=>options.validate?.(snapshot()),error:showError});
   function syncSelectors(){
     const manager=canvas.selectorManager,nodes=new Set(canvas.getSelectedElements().filter(node=>node?.isConnected)),kept=new Map();
     for(const selector of manager.selectors){
@@ -641,6 +641,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     if(node&&['g','svg'].includes(tagName(node))&&sourceElement()?.contains(node)&&node!==wrapper){event.preventDefault();event.stopImmediatePropagation();canvas.setContext(graphicContext(node));}
   },true);
   canvas.bind('selected',(_window,elements)=>{syncSelectors();selected=elements?.filter(Boolean).at(-1)??null;layersPanel?.reveal(elements?.filter(Boolean)??[]);refreshProperties();options.selected?.(selected);});
+  canvas.bind('transition',()=>{const input=$('#object-rotation'),angle=pointerGestures.rotation;if(input&&document.activeElement!==input&&Number.isFinite(angle))input.value=String(+angle.toFixed(4));});
   canvas.bind('changed',()=>contentChanged());
   canvas.bind('updateCanvas',()=>layout());
   new ResizeObserver(()=>layout()).observe(container);
@@ -664,6 +665,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   if(!options.message)window.addEventListener('message',event=>{if(event.source===parent&&event.data?.channel==='fold-svg-editor')receive(event.data);});
   send('ready');
   return {canvas,receive,source:snapshot,run,layout,zoom,endText,select:selectElement,refreshTree,refreshProperties,refreshCursor,transaction,
+    get rotation(){return pointerGestures.rotation;},rotateTo:value=>pointerGestures.rotateTo(value),
     get textRange(){return inlineText.range;},formatTextRange:apply=>inlineText.formatSelection(apply),
     sourceStyles(action){return options.sourceStyles?options.sourceStyles(action):action();},
     endRename(){layersPanel.finishRename(true);},get layerDirty(){return layersPanel.dirty;},

@@ -37,7 +37,8 @@
     "test:inline-text": "node tests/svg-inline-text-browser.mjs",
     "test:marquee": "node tests/svg-marquee-after-drag-browser.mjs",
     "test:svg-interactions": "node tests/svg-import-interactions-browser.mjs && node tests/svg-rich-text-browser.mjs",
-    "pretest:browser": "npm run test:svg-interactions"
+    "pretest:browser": "npm run test:svg-interactions && npm run test:rotation-copy",
+    "test:rotation-copy": "node tests/svg-rotation-copy-browser.mjs"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",

@@ -63,9 +63,10 @@ export class SvgMainEditor {
     this.proofStyle=document.createElement('style');document.head.append(this.proofStyle);
     // Keep native hit testing and selection handles above the proof image.
     // While manipulating artwork show the live source, then refresh the proof.
-    host.addEventListener('pointerdown',()=>{this.proofInteracting=true;this.proofStyle.disabled=true;if(this.proofImage)this.proofImage.style.display='none';},true);
-    const finishProofInteraction=()=>{if(!this.proofInteracting||this.textEditing)return;this.proofInteracting=false;this.proofStyle.disabled=false;requestAnimationFrame(()=>this.structure());};
+    host.addEventListener('pointerdown',()=>{cancelAnimationFrame(this.proofEndFrame);this.proofInteracting=true;this.proofStyle.disabled=true;if(this.proofImage)this.proofImage.style.display='none';},true);
+    const finishProofInteraction=()=>{if(!this.proofInteracting||this.textEditing)return;cancelAnimationFrame(this.proofEndFrame);this.proofEndFrame=requestAnimationFrame(()=>{if(this.textEditing||this.api.canvas.getStarted())return;this.api.flush();this.proofInteracting=false;this.proofStyle.disabled=false;this.structure();});};
     document.addEventListener('pointerup',finishProofInteraction);document.addEventListener('pointercancel',finishProofInteraction);
+    window.addEventListener('blur',finishProofInteraction);
     const text=document.createElement('textarea');text.id='text';text.className='native-text-input';text.setAttribute('aria-label','SVG 画布文字输入');document.body.append(text);
     const source=document.createElement('dialog');source.id='source-dialog';source.className='native-source-dialog';
     source.innerHTML='<h3>当前印刷面 SVG 源码</h3><textarea id="source-text" spellcheck="false"></textarea><div class="dialog-actions"><button id="source-cancel">取消</button><button id="source-apply">验证并应用源码</button></div>';document.body.append(source);
@@ -198,6 +199,7 @@ export class SvgMainEditor {
       this.pendingInput=false;
       if(JSON.stringify(next)===JSON.stringify(project))return;
       Object.assign(project,next);this.proofRevision=(this.proofRevision??0)+1;this.key=JSON.stringify([this.side,svg,[],this.dieline.type,project.dimensions]);
+      this.proofKey=null;this.proofStyle.textContent='';if(this.proofImage)this.proofImage.style.display='none';this.host.dataset.proofReady='false';
       this.images.preload(svgSceneLayers(project,this.dieline)).then(()=>{this.images.retain([...svgSceneLayers(this.project,this.dieline),...this.project.layers]);this.callbacks.change();}).catch(error=>this.callbacks.notify(error.message));
       if(normalize)this.callbacks.normalize?.();else if(this.textEditing){this.textDirty=true;this.callbacks.draft?.();}else this.callbacks.commit();
     }catch(error){this.callbacks.notify(`SVG 修改未保存：${error.message}`);}

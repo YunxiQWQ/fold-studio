@@ -75,5 +75,15 @@ export function arrangeSvgInspector(host,node,editor){
       body.append(label);
     }
   }
+  const rotation=editor.api.rotation;
+  if(state.nodes.length===1&&Number.isFinite(rotation)){
+    const field=document.createElement('label');field.className='property-short';field.textContent='旋转角度（°）';
+    const input=document.createElement('input');input.id='object-rotation';input.type='number';input.step='any';input.value=String(+rotation.toFixed(4));input.setAttribute('aria-label','旋转角度（度）');
+    const apply=value=>{try{editor.up();editor.api.rotateTo(value);input.value=String(+editor.api.rotation.toFixed(4));input.removeAttribute('aria-invalid');}catch(error){input.setAttribute('aria-invalid','true');editor.callbacks.notify(error.message);}};
+    input.onchange=()=>{if(!input.value.trim())return;apply(Number(input.value));};
+    input.onkeydown=event=>{if(['ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();event.stopPropagation();apply(Number(input.value)+(event.key==='ArrowUp'?1:-1)*(event.shiftKey?1:.1));}};
+    field.append(input);take('geometry','位置与尺寸').append(field);
+    const note=document.createElement('p');note.className='svg-field-note';note.textContent='可输入小数；方向键微调 0.1°，Shift＋方向键为 1°。拖动旋转手柄时，Alt 精细旋转，Shift 按 15° 吸附。';take('geometry','位置与尺寸').append(note);
+  }
   appendAlignmentPanel(host,editor,state);
 }
