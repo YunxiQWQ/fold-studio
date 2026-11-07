@@ -29,6 +29,8 @@ async function fileInput(selector,name,source,mimeType='image/svg+xml'){await pa
 
 try{
   await page.goto(url);await page.waitForSelector('html[data-ready="true"]');await ready();
+  // Exact pointer-distance checks exercise transforms independently of snaps.
+  await page.evaluate(()=>window.__foldStudio.nativeEditor.setSnapping(false));
   const sheet=page.locator('#svgcontent'),host=await page.locator('#editor-host').boundingBox(),initial=await sheet.boundingBox();
   await click('#tool-pan');await dragFrom(host.x+host.width*.65,host.y+150,70,25);
   let moved=await sheet.boundingBox();assert.ok(Math.abs(moved.x-initial.x-70)<2&&Math.abs(moved.y-initial.y-25)<2);

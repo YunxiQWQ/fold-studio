@@ -47,7 +47,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     refreshCursor();
   };
   let sourceRoot, wrapperId, wrapper, viewport, loading=true, selected=null, clipboard=null;
-  let changedTimer,layersPanel,propertyNode;
+  let changedTimer,layersPanel,propertyNode,propertyText;
   let marqueeScope=null,marqueeBase=[];
   let pan={x:0,y:0},panDrag=null,inlineText,laidOutZoom,copying=false,movingObject=false;
   function refreshCursor(){
@@ -350,7 +350,7 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     return new XMLSerializer().serializeToString(root);
   }
   function loadDocument(source,dimensions,initial=true,preserveView=false) {
-    inlineText?.end(false);stopPan();snapping.end();
+    finishPropertyText();inlineText?.end(false);stopPan();snapping.end();
     const previousZoom=canvas.getZoom();
     clearTimeout(changedTimer);changedTimer=null;
     loading=true;
@@ -475,11 +475,37 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     if(result?.active?.isConnected&&next.some(node=>node===result.active||node.contains(result.active)))selected=result.active;
     contentChanged(true);return result;
   }
+  function finishPropertyText(){
+    if(!propertyText)return;
+    propertyText=null;
+    // Share the inline editor's draft/commit boundary: live updates save the
+    // project and repaint the preview, but a typing session is one undo step.
+    options.textEditing?.(false);
+  }
+  function textControl(node){
+    const input=document.createElement('textarea');input.id='node-text';input.maxLength=5000;
+    input.setAttribute('aria-label','文字内容');input.value=readSvgText(node);
+    const apply=()=>{
+      if(!node.isConnected||node.closest('[data-locked="true"]'))return;
+      if(input.value.length>5000){input.value=readSvgText(node);showError('文字内容最多 5000 字');return;}
+      if(readSvgText(node)===input.value)return;
+      if(propertyText?.input!==input){
+        finishPropertyText();inlineText?.end();propertyText={input,node};options.textEditing?.(true);
+      }
+      // Edit the selected SVG node in place. Replacing it on every input
+      // loses focus/caret and leaves subsequent events bound to a stale node.
+      writeSvgText(node,input.value);syncSelectors();canvas.call('changed',[node]);
+    };
+    input.oninput=apply;input.onchange=apply;
+    input.onblur=()=>{if(propertyText?.input===input)finishPropertyText();};
+    return input;
+  }
   function refreshProperties(force=false) {
     const host=$('#properties');
     // Layout/selection notifications can repeat while a field is being typed.
     // Keep that draft and its focused DOM control until selection actually changes.
     if(!force&&propertyNode===selected&&host.contains(document.activeElement))return;
+    finishPropertyText();
     propertyNode=selected;host.replaceChildren();
     const heading=document.createElement('h3');heading.textContent=selected?`${label(selected)} · ${tagName(selected)}`:'选择图层或对象';host.appendChild(heading);
     if(!selected){options.properties?.(host,null,canvas);return;}
@@ -488,10 +514,9 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
     const name=document.createElement('input');name.id='node-name';name.value=label(selected);
     name.onchange=()=>changeAttribute(selected,'data-name',name.value);
     nameLabel.appendChild(name);host.appendChild(nameLabel);
-    if(['text','tspan'].includes(tagName(selected))&&![...selected.children].some(child=>['tspan','textPath'].includes(tagName(child)))){
+    if(['text','tspan','textPath'].includes(tagName(selected))){
       const label=document.createElement('label');label.textContent='文字内容';
-      const text=document.createElement('textarea');text.id='node-text';text.value=selected.textContent;
-      text.onchange=()=>changeAttribute(selected,'#text',text.value);label.appendChild(text);host.appendChild(label);
+      label.appendChild(textControl(selected));host.appendChild(label);
     }
     const defaults={rect:['x','y','width','height','rx'],circle:['cx','cy','r'],ellipse:['cx','cy','rx','ry'],text:['x','y','font-size','font-family','font-weight','font-style','text-decoration','text-anchor','letter-spacing'],path:['d']};
     const names=new Set([...(defaults[tagName(selected)]??[]),...selected.getAttributeNames().filter(n=>!['id','data-name','style','class'].includes(n)),...selected.style, 'fill','stroke','stroke-width','opacity']);
@@ -669,10 +694,8 @@ export function initializeSvgFrame(SvgCanvas, options={}) {
   });
   $('#source-apply').onclick=()=>send('source-request',{source:$('#source-text').value});
   $('#source-cancel').onclick=()=>$('#source-dialog').close();
-  function textValue(node){return readSvgText(node);}
-  function writeText(node,value){writeSvgText(node,value);}
-  inlineText=installSvgInlineText(canvas,container,{input:$('#text'),root:sourceElement,context:graphicContext,changed:()=>canvas.call('changed',[selected]),editing:active=>options.textEditing?.(active),selectionChanged:()=>refreshProperties(true),validate:()=>options.validate?.(snapshot()),command:run});
-  const endText=()=>inlineText.end();
+  inlineText=installSvgInlineText(canvas,container,{input:$('#text'),root:sourceElement,context:graphicContext,changed:()=>canvas.call('changed',[selected]),editing:active=>{if(active)finishPropertyText();options.textEditing?.(active);},selectionChanged:()=>refreshProperties(true),validate:()=>options.validate?.(snapshot()),command:run});
+  const endText=()=>{finishPropertyText();inlineText.end();};
   container.addEventListener('dblclick',event=>{
     const node=canvas.getMouseTarget(event);
     if(node?.localName==='path'&&selectableSvgNode(node,sourceElement())){event.preventDefault();event.stopImmediatePropagation();canvas.selectOnly([node],true);run('nodes');return;}

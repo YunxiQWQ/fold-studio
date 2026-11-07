@@ -20,7 +20,7 @@ import {renderPrintSurface} from './print-surface.js';
 import {proofSvgSource} from './export-svg-color.js';
 import {arrangeSvgInspector} from './svg-inspector.js';
 import {alignSvgSelection} from './svg-alignment.js';
-import {typographyTargets,toggleTypography,readSvgText,replaceSvgText} from './svg-typography.js';
+import {typographyTargets,toggleTypography} from './svg-typography.js';
 import {validSvgHref} from './svg-format.js';
 
 const ns='http://www.w3.org/2000/svg';
@@ -244,12 +244,6 @@ export class SvgMainEditor {
     if(node?.closest('[data-locked="true"]'))return;
     if(node)appendImageTools(host,node,this);
     const generator=node&&(this.project.svgGenerators?.[node.id]??this.project.layers.find(l=>l.id===node.id&&['barcode','qrcode'].includes(l.type)));
-    if(node?.localName==='text'){
-      let input=host.querySelector('#node-text');
-      if(!input){const label=document.createElement('label');label.textContent='文字内容';input=document.createElement('textarea');input.id='node-text';label.append(input);host.prepend(label);}
-      input.value=readSvgText(node);
-      input.onchange=()=>{try{replaceSvgText(this,node,input.value);}catch(error){this.callbacks.notify(error.message);}};
-    }
     if(generator){
       const barcode=generator.type==='barcode',section=document.createElement('section');
       const field=(label,control)=>{const wrapper=document.createElement('label');wrapper.textContent=label;wrapper.append(control);section.append(wrapper);return control;};
@@ -341,6 +335,10 @@ export class SvgMainEditor {
       // Mask only the printed area. Off-sheet artwork stays visible/editable
       // in RGB, and computed source opacity remains intact for editing commands.
       this.proofStyle.textContent=`[data-fold-svg-wrapper="${holder.getAttribute('data-fold-svg-wrapper')}"]{mask:url(#fold-proof-source-mask)!important}#fold-paper-guide{filter:opacity(0)!important}`;
+      // Replacing a style's contents creates a new, enabled sheet. A proof
+      // finishing during typing/dragging must not mask the live artwork while
+      // its replacement image is deliberately hidden for the interaction.
+      this.proofStyle.disabled=!!this.proofInteracting;
       this.host.dataset.proofReady='true';
     }).catch(error=>{if(this.proofKey===key){this.proofStyle.textContent='';image.style.display='none';this.callbacks.notify(`ICC 软打样未完成：${error.message}`);}});
   }
