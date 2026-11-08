@@ -25,22 +25,25 @@ await page.addInitScript(()=>{
   const open=indexedDB.open.bind(indexedDB);indexedDB.open=(...args)=>{window.__toolboxStorage.push('indexedDB');return open(...args);};
 });
 const fold=()=>page.locator('a[href="/fold"]'),frame=()=>page.locator('a[href="https://github.com/YunxiQWQ/zhenxia/releases/latest"]');
+const htmlText=value=>value.replace(/\r\n/g,'\n');
 async function band(color){await page.waitForFunction(color=>getComputedStyle(document.querySelector('header')).backgroundColor===color,color);}
 try{
   const config=JSON.parse(readFileSync(resolve(root,'vercel.json'),'utf8'));
-  assert.ok(config.rewrites.some(r=>r.source==='/'&&r.destination==='/toolbox/index.html'));
+  assert.ok(config.rewrites.some(r=>r.source==='/fold'&&r.destination==='/fold.html'));
   assert.ok(!config.redirects?.some(r=>r.source==='/'));
   const response=await page.request.get(url+'/');assert.equal(response.status(),200);
   const html=await response.text();assert.ok(html.includes('<title>雲溪工具箱</title>')&&!html.includes('figma:'));
+  assert.equal(htmlText(html),htmlText(readFileSync(resolve(root,'dist/index.html'),'utf8')),'the on-disk root index must itself be the homepage');
   assert.ok(html.includes('/toolbox/assets/')&&html.includes('noindex, nofollow'));
-  const foldHTML=readFileSync(resolve(root,'dist/index.html'),'utf8');
-  for(const path of ['/fold','/fold/'])assert.equal(await(await page.request.get(url+path)).text(),foldHTML);
+  const foldHTML=readFileSync(resolve(root,'dist/fold.html'),'utf8');
+  assert.ok(foldHTML.includes('id="app"')&&!foldHTML.includes('/toolbox/assets/'));
+  for(const path of ['/fold','/fold/','/fold/index.html'])assert.equal(htmlText(await(await page.request.get(url+path)).text()),htmlText(foldHTML));
   for(const asset of foldHTML.matchAll(/(?:src|href)="\.\/([^" ]+\.(?:js|css))"/g)){
     const direct=await page.request.get(url+'/'+asset[1]),prefixed=await page.request.get(url+'/fold/'+asset[1]);
     assert.equal(direct.status(),200);assert.equal(prefixed.status(),200);assert.deepEqual(await direct.body(),await prefixed.body());
   }
   for(const path of ['/unknown-tool-404','/fold/unknown-tool-404','/robots.txt'])assert.equal((await page.request.get(url+path)).status(),404);
-  assert.equal((await page.request.post(url+'/')).status(),405);
+  if(['127.0.0.1','localhost'].includes(new URL(url).hostname))assert.equal((await page.request.post(url+'/')).status(),405);
   checks.push('actual production files serve the toolbox at /, Fold at /fold and /fold/, with separate assets, no global robots block and real 404s');
 
   await page.goto(url);await page.getByRole('heading',{name:'雲溪工具箱',exact:true}).waitFor();

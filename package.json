@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "build:site": "vite build && node scripts/standalone.mjs && npm --prefix toolbox ci --include=dev --ignore-scripts --no-audit --no-fund && npm --prefix toolbox run build",
+    "build:site": "vite build && node scripts/standalone.mjs && npm --prefix toolbox ci --include=dev --ignore-scripts --no-audit --no-fund && npm --prefix toolbox run build && node scripts/assemble-site.mjs",
     "dev:toolbox": "npm --prefix toolbox run dev",
     "test:toolbox": "node tests/toolbox-home-browser.mjs",
     "postbuild": "node scripts/standalone.mjs",

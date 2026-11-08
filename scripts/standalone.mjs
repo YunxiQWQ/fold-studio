@@ -1,7 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const html=await readFile(resolve('dist/index.html'),'utf8');
+const html=await readFile(resolve('dist/fold.html'),'utf8').catch(error=>{
+  if(error.code!=='ENOENT')throw error;
+  return readFile(resolve('dist/index.html'),'utf8');
+});
 const script=html.match(/<script\b[^>]*src="([^"]+)"[^>]*><\/script>/);
 const stylesheet=html.match(/<link\b[^>]*href="([^"]+\.css)"[^>]*>/);
 if(!script||!stylesheet)throw new Error('没有找到可嵌入的构建资源');

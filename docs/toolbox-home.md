@@ -4,12 +4,12 @@
 
 | 访问路径 | 构建文件 |
 | --- | --- |
-| `/` | `dist/toolbox/index.html` |
+| `/` | `dist/index.html`（导航页） |
 | `/toolbox/assets/*` | 导航页资源 |
-| `/fold`、`/fold/` | `dist/index.html` |
+| `/fold`、`/fold/` | `dist/fold.html` |
 | `/assets/*`、`/fold/assets/*` | 折间资源 |
 
-`vercel.json` 将首页改为导航页，不再重定向到折间。折间已有路径保留，不增加把未知路径吞进导航页的通配回退。首页只访问自己的资源，不加载折间的编辑器或 ICC 引擎。
+站点组装把导航页直接放在根 `index.html`，折间保存在 `fold.html`，由 `vercel.json` 保留原访问路径。Vercel 的静态文件优先于改写，不能用根路径 rewrite 覆盖已有的折间首页。不增加把未知路径吞进导航页的通配回退。首页只访问自己的资源，不加载折间的编辑器或 ICC 引擎。
 
 ## 本地预览
 
@@ -21,7 +21,7 @@ node server.mjs --port 4195
 
 首页为 `http://127.0.0.1:4195/`，折间为 `/fold`。原“启动折间”快捷启动方式仍直接打开编辑器。仅执行 `npm run build` 会生成折间专用构建；同时需要导航页时执行 `npm run build:site`。
 
-Vercel 使用 `npm run build:site`：先构建折间和离线 HTML，再按导航页的锁文件安装依赖、检查类型并构建至独立子目录。构建直接使用已提交的盒型预览，不依赖部署环境安装浏览器。
+Vercel 使用 `npm run build:site`：先构建折间和离线 HTML，再按导航页的锁文件安装依赖、检查类型并构建至独立子目录，最后运行 `scripts/assemble-site.mjs` 组装两个入口。构建直接使用已提交的盒型预览，不依赖部署环境安装浏览器。
 
 ## 验证
 

@@ -18,8 +18,9 @@ const server=createServer(async(request,response)=>{
     if(pathname==='/__health'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});response.end(JSON.stringify({app:'fold-studio',version:'0.9.4'}));return;}
     // Match the deployed site's two entrypoints without a catch-all fallback.
     // Keep Fold at / when only its standalone build is present.
-    const entry=pathname==='/'?(existsSync(resolve(directory,'toolbox/index.html'))?'/toolbox/index.html':'/index.html')
-      :pathname==='/fold'||pathname==='/fold/'?'/index.html'
+    const foldEntry=existsSync(resolve(directory,'fold.html'))?'/fold.html':'/index.html';
+    const entry=pathname==='/'?'/index.html'
+      :['/fold','/fold/','/fold/index.html'].includes(pathname)?foldEntry
       :pathname.startsWith('/fold/')?pathname.slice('/fold'.length):pathname;
     const file=resolve(directory,`.${entry}`),rel=relative(directory,file);
     if(rel.startsWith('..')||isAbsolute(rel)||pathname.includes('\0')){response.writeHead(403);response.end('Forbidden');return;}
