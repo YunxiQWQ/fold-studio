@@ -1,6 +1,7 @@
 {
-  "geometryHash": "fd46abed8f6ca3ff370d5ee5c1ae7d1b5baa48a9cf196a5dea079b7e12be6710",
+  "geometryHash": "ee52d0da1b1d02affe8fc57f28b5bff0132993dbe9a3052fd35943fc86b79c4f",
   "sources": [
+    "src/template-catalog.js",
     "src/retail-cartons.js",
     "src/wrapped-lidbox.js",
     "src/geometry.js",
@@ -383,8 +384,8 @@
       "panels": 15,
       "occupied": 51439
     },
-    "retail-carton": {
-      "fold": 1,
+    "retail-carton-straight": {
+      "fold": 0.72,
       "dimensions": {
         "length": 60,
         "depth": 50,
@@ -397,7 +398,119 @@
         "hangHoleHeight": 8
       },
       "panels": 13,
-      "occupied": 39747
+      "occupied": 20975
+    },
+    "retail-carton-same": {
+      "fold": 0.72,
+      "dimensions": {
+        "length": 60,
+        "depth": 50,
+        "height": 80,
+        "retailStyle": "same",
+        "tuckLength": 12,
+        "glueWidth": 11,
+        "hangHeight": 50,
+        "hangHoleWidth": 28,
+        "hangHoleHeight": 8
+      },
+      "panels": 13,
+      "occupied": 19940
+    },
+    "retail-carton-upper": {
+      "fold": 0.72,
+      "dimensions": {
+        "length": 60,
+        "depth": 50,
+        "height": 80,
+        "retailStyle": "upper",
+        "tuckLength": 12,
+        "glueWidth": 11,
+        "hangHeight": 50,
+        "hangHoleWidth": 28,
+        "hangHoleHeight": 8
+      },
+      "panels": 13,
+      "occupied": 20120
+    },
+    "retail-carton-airplane": {
+      "fold": 0.72,
+      "dimensions": {
+        "length": 60,
+        "depth": 50,
+        "height": 80,
+        "retailStyle": "airplane",
+        "tuckLength": 12,
+        "glueWidth": 11,
+        "hangHeight": 50,
+        "hangHoleWidth": 28,
+        "hangHoleHeight": 8
+      },
+      "panels": 13,
+      "occupied": 18291
+    },
+    "retail-carton-lock": {
+      "fold": 0.72,
+      "dimensions": {
+        "length": 60,
+        "depth": 50,
+        "height": 80,
+        "retailStyle": "lock",
+        "tuckLength": 12,
+        "glueWidth": 11,
+        "hangHeight": 50,
+        "hangHoleWidth": 28,
+        "hangHoleHeight": 8
+      },
+      "panels": 13,
+      "occupied": 19578
+    },
+    "retail-carton-glue": {
+      "fold": 0.72,
+      "dimensions": {
+        "length": 60,
+        "depth": 50,
+        "height": 80,
+        "retailStyle": "glue",
+        "tuckLength": 12,
+        "glueWidth": 11,
+        "hangHeight": 50,
+        "hangHoleWidth": 28,
+        "hangHoleHeight": 8
+      },
+      "panels": 13,
+      "occupied": 16795
+    },
+    "retail-carton-hanging": {
+      "fold": 0.72,
+      "dimensions": {
+        "length": 60,
+        "depth": 50,
+        "height": 80,
+        "retailStyle": "hanging",
+        "tuckLength": 12,
+        "glueWidth": 11,
+        "hangHeight": 50,
+        "hangHoleWidth": 28,
+        "hangHoleHeight": 8
+      },
+      "panels": 14,
+      "occupied": 15572
+    },
+    "retail-carton-hanging-lock": {
+      "fold": 0.72,
+      "dimensions": {
+        "length": 60,
+        "depth": 50,
+        "height": 80,
+        "retailStyle": "hanging-lock",
+        "tuckLength": 12,
+        "glueWidth": 11,
+        "hangHeight": 50,
+        "hangHoleWidth": 28,
+        "hangHoleHeight": 8
+      },
+      "panels": 14,
+      "occupied": 17483
     },
     "paper-bag-basic": {
       "fold": 1,

@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
-import { BOX_TYPES } from '../src/geometry.js';
+import {TEMPLATE_CATALOG} from '../src/template-catalog.js';
 
 const projectRoot = resolve(import.meta.dirname, '..');
 const artifacts = resolve(projectRoot, 'artifacts');
@@ -130,11 +130,11 @@ try {
   console.log('Passed: Multi-theme selection (Gray/Dark/Slate/Light/Warm), persistence, Shift+T, and screenshots');
 
   // 2. Test All Packaging Types via the Template Dialog
-  console.log(`Testing ${Object.keys(BOX_TYPES).length} Packaging Types via Templates Dialog...`);
+  console.log(`Testing ${Object.keys(TEMPLATE_CATALOG).length} Packaging Types via Templates Dialog...`);
   await page.locator('#open-templates').click();
   await page.waitForSelector('#templates-dialog[open]');
   const templateButtons = await page.locator('#box-templates button[data-template]').all();
-  assert.equal(templateButtons.length, Object.keys(BOX_TYPES).length, `Expected ${Object.keys(BOX_TYPES).length} packaging template buttons in the dialog`);
+  assert.equal(templateButtons.length, Object.keys(TEMPLATE_CATALOG).length, `Expected ${Object.keys(TEMPLATE_CATALOG).length} packaging template buttons in the dialog`);
 
   // Screenshot of templates dialog
   await page.screenshot({ path: resolve(artifacts, 'templates-dialog.png') });
@@ -142,13 +142,13 @@ try {
   // Test category filtering in the dialog
   await page.locator('.filter-tab[data-filter="container"]').click();
   const visibleContainerCards = await page.locator('#box-templates button[data-template]:not([hidden])').count();
-  const expectedContainers = Object.values(BOX_TYPES).filter(t => t.category === 'container').length;
+  const expectedContainers = Object.values(TEMPLATE_CATALOG).filter(t => t.category === 'container').length;
   assert.equal(visibleContainerCards, expectedContainers, `Expected ${expectedContainers} container cards when container category filter is active`);
 
   // Switch back to all
   await page.locator('.filter-tab[data-filter="all"]').click();
 
-  const expectedTypes = Object.keys(BOX_TYPES);
+  const expectedTypes = Object.keys(TEMPLATE_CATALOG);
   for (const type of expectedTypes) {
     if (!await page.locator('#templates-dialog').isVisible()) {
       await page.locator('#open-templates').click();
@@ -168,20 +168,20 @@ try {
 
     // Verify project switched
     const currentType = await page.evaluate(() => window.__foldStudio.project.type);
-    assert.equal(currentType, type, `Project type should be ${type}`);
+    assert.equal(currentType, TEMPLATE_CATALOG[type].type, `Project type should be ${TEMPLATE_CATALOG[type].type}`);
 
     // Verify current-template card updated
     const cardTitle = await page.locator('#current-template-name').textContent();
-    assert.equal(cardTitle.trim(), BOX_TYPES[type].name);
+    assert.equal(cardTitle.trim(), TEMPLATE_CATALOG[type].name);
 
     // Verify 3D geometry rendered
-    await page.waitForFunction(type => window.__foldStudio?.stats?.modelType===type && window.__foldStudio.stats.triangles>0,type);
+    await page.waitForFunction(type => window.__foldStudio?.stats?.modelType===type && window.__foldStudio.stats.triangles>0,TEMPLATE_CATALOG[type].type);
     const stats = await page.evaluate(() => window.__foldStudio.stats);
     assert.ok(stats.triangles > 0, `Box type ${type} should have > 0 triangles`);
-    console.log(`  ✓ Packaging type: ${type} (${BOX_TYPES[type].name}) - triangles: ${stats.triangles}`);
+    console.log(`  ✓ Packaging type: ${type} (${TEMPLATE_CATALOG[type].name}) - triangles: ${stats.triangles}`);
 
     await page.locator('.preview-stage').screenshot({path:resolve(artifacts,`${type}-3d-stage.png`)});
-    if (BOX_TYPES[type].family === 'container') await page.screenshot({ path: resolve(artifacts, `${type}-3d.png`) });
+    if (TEMPLATE_CATALOG[type].family === 'container') await page.screenshot({ path: resolve(artifacts, `${type}-3d.png`) });
   }
 
   // 3. Test Standalone Offline HTML file

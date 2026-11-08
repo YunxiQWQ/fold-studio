@@ -4,6 +4,7 @@ import {existsSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import assert from 'node:assert/strict';
 import {BOX_TYPES} from '../src/geometry.js';
+import {TEMPLATE_CATALOG} from '../src/template-catalog.js';
 
 const root=resolve(import.meta.dirname,'..'),artifacts=resolve(root,'artifacts');mkdirSync(artifacts,{recursive:true});
 const server=await createServer({root,server:{host:'127.0.0.1',port:0}});await server.listen();
@@ -21,7 +22,7 @@ try{
   assert.equal(await dialog.isVisible(),true,'dialog padding must not dismiss structure library');
   for(const filter of ['carton','gift','shipping','container','all']){
     await page.locator(`[data-filter="${filter}"]`).click();
-    assert.equal(await page.locator('.template-card:visible').count(),Object.values(BOX_TYPES).filter(t=>filter==='all'||t.category===filter).length);
+    assert.equal(await page.locator('.template-card:visible').count(),Object.values(TEMPLATE_CATALOG).filter(t=>filter==='all'||t.category===filter).length);
   }
   const before=await page.evaluate(()=>window.__foldStudio.project);
   await page.locator('[data-template="drawer-box"]').click();await page.locator('#cancel-confirm').click();
@@ -44,7 +45,7 @@ try{
   }
   checks.push('phone and short desktop structure library: all templates reachable');
   await page.setViewportSize({width:1366,height:900});
-  for(const [type,config] of Object.entries(BOX_TYPES)){
+  for(const [type,config] of Object.entries(TEMPLATE_CATALOG)){
     await page.locator('#open-templates').click();await page.locator(`[data-template="${type}"]`).click();
     if(await page.locator('#confirm-dialog').isVisible())await page.locator('#accept-confirm').click();
     await page.locator('#unfold').click();await page.locator('#panel-selector').selectOption(config.printPanel);
@@ -54,7 +55,7 @@ try{
     assert.equal(selection.panelId,config.printPanel);assert.equal(selection.side,'inside');
     await page.locator('#inspect-panel').click();
   }
-  checks.push(`native pointer clicks on all ${Object.keys(BOX_TYPES).length} isolated inside panels keep dropdown and active surface synchronized`);
+  checks.push(`native pointer clicks on all ${Object.keys(TEMPLATE_CATALOG).length} isolated inside panels keep dropdown and active surface synchronized`);
   // A real WebGL viewport with diagnostic quadrants checks handedness of both printed sides.
   await page.close();page=await browser.newPage({viewport:{width:520,height:520}});
   page.on('pageerror',e=>errors.push(e.message));
@@ -134,5 +135,5 @@ try{
   writeFileSync(resolve(artifacts,'model-selection-report.json'),JSON.stringify({checks,...result,errors},null,2));
   const diagnostic=await page.evaluate(()=>window.trayDiagnostic);writeFileSync(resolve(artifacts,'tray-outside-orientation.png'),Buffer.from(diagnostic.split(',')[1],'base64'));
   assert.deepEqual(result.failures,[]);assert.deepEqual(errors,[]);
-  console.log(`Passed: ${result.count} real WebGL panel/side/fold quadrant checks, ${Object.keys(BOX_TYPES).length} inside picking checks, library selection and responsive modal flows`);
+  console.log(`Passed: ${result.count} real WebGL panel/side/fold quadrant checks, ${Object.keys(TEMPLATE_CATALOG).length} inside picking checks, library selection and responsive modal flows`);
 }finally{await browser.close();await server.close();}

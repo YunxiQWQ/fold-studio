@@ -5,7 +5,7 @@ import {resolve} from 'node:path';
 import {chromium} from 'playwright';
 import {createServer} from 'vite';
 
-const sources=['src/retail-cartons.js','src/wrapped-lidbox.js','src/geometry.js','src/reference-cartons.js','src/rigid-reference-cartons.js','src/slotted-handle-carton.js','src/paper-bag.js','src/selected-structures.js','src/selected-containers.js','src/source-containers.generated.js','src/curved-carton.js','src/curved-carton-mesh.js','src/folding.js','src/model3d.js','src/preview3d.js','src/project.js','src/artwork.js','src/artwork-space.js','scripts/render-template-previews.mjs'];
+const sources=['src/template-catalog.js','src/retail-cartons.js','src/wrapped-lidbox.js','src/geometry.js','src/reference-cartons.js','src/rigid-reference-cartons.js','src/slotted-handle-carton.js','src/paper-bag.js','src/selected-structures.js','src/selected-containers.js','src/source-containers.generated.js','src/curved-carton.js','src/curved-carton-mesh.js','src/folding.js','src/model3d.js','src/preview3d.js','src/project.js','src/artwork.js','src/artwork-space.js','scripts/render-template-previews.mjs'];
 const hash=createHash('sha256');for(const file of sources)hash.update(await readFile(file));const geometryHash=hash.digest('hex');
 async function writeAtomic(file,content){const temporary=`${file}.${process.pid}.tmp`;try{await writeFile(temporary,content);await rename(temporary,file);}finally{await unlink(temporary).catch(()=>{});}}
 const manifestPath='src/template-previews.manifest.json',modulePath='src/template-previews.generated.js';
@@ -17,19 +17,19 @@ try{
  browser=await chromium.launch({headless:true,...(existsSync(installed)?{executablePath:installed}:{}),args:['--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
  const page=await browser.newPage({viewport:{width:384,height:288}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(`http://127.0.0.1:${server.httpServer.address().port}/__template-previews`);
  const previews=await page.evaluate(async()=>{
-   const [{Preview3D},{ImageCache},{BOX_TYPES,makeDieline},{newProject}]=await Promise.all([import('/src/preview3d.js'),import('/src/artwork.js'),import('/src/geometry.js'),import('/src/project.js')]);
+   const [{Preview3D},{ImageCache},{makeDieline},{newProject},{TEMPLATE_CATALOG}]=await Promise.all([import('/src/preview3d.js'),import('/src/artwork.js'),import('/src/geometry.js'),import('/src/project.js'),import('/src/template-catalog.js')]);
    const THREE=await import('/node_modules/three/build/three.module.js');
    const preview=new Preview3D(document.querySelector('#host'),new ImageCache(),()=>{},()=>{});preview.setQuality('economy');preview.renderer.toneMappingExposure=.95;
    const result={},folds={carton:.94,'reverse-carton':.94,'lock-bottom':.94,mailer:.88,lidbox:1,'drawer-box':1,'book-box':.90,shipper:.90,'display-hinged':.82,'card-deck-lock':.96};
-   try{for(const [type,info]of Object.entries(BOX_TYPES)){
-     const project=newProject(type);project.layers=[];project.paper='#9bb184';project.insidePaper='#e4e4cb';project.fold=folds[type]??1;
+   try{for(const [id,info]of Object.entries(TEMPLATE_CATALOG)){
+     const type=info.type,project=newProject(type,info.defaults);project.layers=[];project.paper='#9bb184';project.insidePaper='#e4e4cb';project.fold=type==='retail-carton'?.72:folds[type]??1;
      const geometry=makeDieline(type,project.dimensions);preview.build(project,geometry);
      const edges=[];for(const mesh of preview.meshes.values()){const line=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry,35),new THREE.LineBasicMaterial({color:'#546747',transparent:true,opacity:.55}));mesh.add(line);edges.push(line);}
      preview.fit();preview.render();
      const canvas=document.createElement('canvas');canvas.width=384;canvas.height=288;const ctx=canvas.getContext('2d');ctx.drawImage(preview.renderer.domElement,0,0);
      const pixels=ctx.getImageData(0,0,384,288).data;let occupied=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i]>20)occupied++;
      if(occupied<1000)throw new Error(type+' 缩略图为空');
-     result[type]={src:canvas.toDataURL('image/png'),fold:project.fold,dimensions:info.defaults,panels:geometry.panels.length,occupied};
+     result[id]={src:canvas.toDataURL('image/png'),fold:project.fold,dimensions:info.defaults,panels:geometry.panels.length,occupied};
      for(const line of edges){line.removeFromParent();line.geometry.dispose();line.material.dispose();}
      await new Promise(r=>requestAnimationFrame(r));
    }}finally{preview.dispose();preview.renderer.forceContextLoss();}

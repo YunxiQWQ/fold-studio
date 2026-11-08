@@ -6,6 +6,7 @@ import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
 import {BOX_TYPES} from '../src/geometry.js';
+import {TEMPLATE_CATALOG} from '../src/template-catalog.js';
 import {RETAIL_STYLES} from '../src/retail-cartons.js';
 import {installBrowserModuleMap} from './browser-module-map.mjs';
 
@@ -16,14 +17,14 @@ const browser=await chromium.launch({headless:true,...(existsSync(exe)?{executab
 const dir=resolve(process.env.FOLD_TEST_ARTIFACTS??'artifacts/dieline-library');mkdirSync(dir,{recursive:true});
 const page=await browser.newPage({viewport:{width:1700,height:1100},acceptDownloads:true}),checks=[],errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(12000);
 const ready=()=>page.locator('#editor-host[data-svg-ready="true"]').waitFor();
-async function choose(type){await page.locator('#open-templates').click();await page.locator(`[data-template="${type}"]`).click();if(await page.locator('#confirm-dialog').isVisible())await page.locator('#accept-confirm').click();await page.waitForFunction(type=>window.__foldStudio.project.type===type,type);await ready();}
+async function choose(type){await page.locator('#open-templates').click();await page.locator(`[data-template="${type==='retail-carton'?'retail-carton-straight':type}"]`).click();if(await page.locator('#confirm-dialog').isVisible())await page.locator('#accept-confirm').click();await page.waitForFunction(type=>window.__foldStudio.project.type===type,type);await ready();}
 async function fold(n){await page.locator('#fold-slider').fill(String(n));await page.locator('#fold-slider').dispatchEvent('input');await page.waitForFunction(n=>window.__foldStudio.stats.fold===n/100,n);}
 async function number(key,value){const input=page.locator(`input[type="number"][data-extra-dim="${key}"]`);await input.fill(String(value));await input.dispatchEvent('input');await input.dispatchEvent('change');await page.waitForFunction(([key,value])=>window.__foldStudio.project.dimensions[key]===value,[key,value]);await ready();}
 async function download(id,file){const promise=page.waitForEvent('download');if(id==='#export-svg')await chooseExport(page,'flat','svg',true);else await page.locator(id).click();const path=resolve(dir,file);await(await promise).saveAs(path);return path;}
 try{
-  await page.goto(url);await ready();await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),Object.keys(BOX_TYPES).length);
-  for(const [query,type]of [['挂耳','retail-carton'],['自锁底','retail-carton'],['手提袋','paper-bag-basic'],['硬盒','wrapped-lidbox'],['软盒','lidbox']]){await page.locator('#template-search').fill(query);assert.equal(await page.locator(`[data-template="${type}"]`).isVisible(),true);}
-  await page.locator('#close-templates').click();checks.push('library contains 36 actual previews and searches both source names and structural aliases');
+  await page.goto(url);await ready();await page.locator('#open-templates').click();assert.equal(await page.locator('.template-card').count(),Object.keys(TEMPLATE_CATALOG).length);
+  for(const [query,type]of [['挂耳','retail-carton-hanging'],['自锁底','retail-carton-lock'],['手提袋','paper-bag-basic'],['硬盒','wrapped-lidbox'],['软盒','lidbox']]){await page.locator('#template-search').fill(query);assert.equal(await page.locator(`[data-template="${type==='retail-carton'?'retail-carton-straight':type}"]`).isVisible(),true);}
+  await page.locator('#close-templates').click();checks.push('library contains '+Object.keys(TEMPLATE_CATALOG).length+' actual previews and searches both source names and structural aliases');
   await choose('retail-carton');assert.equal(await page.locator('#retail-style option').count(),Object.keys(RETAIL_STYLES).length);
   for(const style of Object.keys(RETAIL_STYLES)){
     await page.locator('#retail-style').selectOption(style);await page.waitForFunction(style=>window.__foldStudio.geometry.retail.style===style,style);await ready();
@@ -69,7 +70,7 @@ try{
     return results;
   });await harness.close();assert.equal(glbs.length,9);checks.push('nine GLBs reload: flat, partially folded and formed geometry retains textures and has finite bounds; the basic bag adds no artificial handles');
   const offline=await browser.newPage(),requests=[];offline.on('request',r=>{if(/^https?:/.test(r.url()))requests.push(r.url());});offline.on('pageerror',e=>errors.push(e.message));await offline.goto(pathToFileURL(resolve('折间.html')).href);await offline.locator('#editor-host[data-svg-ready="true"]').waitFor();
-  for(const type of ['retail-carton','paper-bag-basic','wrapped-lidbox']){await offline.locator('#open-templates').click();await offline.locator(`[data-template="${type}"]`).click();if(await offline.locator('#confirm-dialog').isVisible())await offline.locator('#accept-confirm').click();await offline.waitForFunction(type=>window.__foldStudio.project.type===type,type);}
+  for(const type of ['retail-carton','paper-bag-basic','wrapped-lidbox']){await offline.locator('#open-templates').click();await offline.locator(`[data-template="${type==='retail-carton'?'retail-carton-straight':type}"]`).click();if(await offline.locator('#confirm-dialog').isVisible())await offline.locator('#accept-confirm').click();await offline.waitForFunction(type=>window.__foldStudio.project.type===type,type);}
   assert.deepEqual(requests,[]);await offline.close();checks.push('rebuilt standalone opens every added construction with zero HTTP requests');
   assert.deepEqual(errors,[]);writeFileSync(resolve(dir,'report.json'),JSON.stringify({checks,glbs,errors},null,2));console.log(checks.join('\n'));
 }catch(e){console.log({checks,errors});await page.screenshot({path:resolve(dir,'failure.png')});throw e;}

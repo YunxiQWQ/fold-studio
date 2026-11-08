@@ -16,7 +16,7 @@ export const BOX_TYPES={
   lidbox:{name:'天地盖盒',english:'TWO PIECE LID BOX',family:'tray',category:'gift',printPanel:'lid',description:'折叠软盒 · 分体上盖 · 角部粘耳',aliases:['天地盖盒子','软盒'],defaults:{length:185,depth:135,height:65}},
   'drawer-box':{name:'抽拉抽屉盒',english:'SLIDING DRAWER BOX',family:'tray',category:'gift',printPanel:'sleeve-top',description:'外封套 · 内抽屉 · 滑合',defaults:{length:150,depth:100,height:45}},
   'book-box':{name:'书型翻盖盒',english:'BOOK STYLE BOX',family:'tray',category:'gift',printPanel:'cover',description:'精装硬壳 · 书本翻盖',defaults:{length:160,depth:110,height:40}},
-  shipper:{name:'对口运输箱',english:'REGULAR SLOTTED CARTON',family:'carton',category:'shipping',printPanel:'front',description:'对口摇盖 · 运输包装',defaults:{length:260,depth:180,height:200}},
+  shipper:{name:'对口运输箱',english:'REGULAR SLOTTED CARTON',family:'carton',category:'shipping',printPanel:'front',description:'对口摇盖 · 运输包装',aliases:['纸箱','运输纸箱'],defaults:{length:260,depth:180,height:200}},
   sleeve:{name:'包装腰封',english:'PACKAGING SLEEVE',family:'carton',category:'shipping',printPanel:'front',description:'两端开放 · 四面围合',defaults:{length:140,depth:55,height:100}},
   tray:{name:'开放托盘',english:'OPEN TOP TRAY',family:'tray',category:'shipping',printPanel:'base',description:'四壁折起 · 角部粘耳',defaults:{length:170,depth:120,height:42}},
   'arch-handle-tote':{name:'一体成型弧顶手提盒',english:'ARCH HANDLE TOTE BOX',family:'tray',category:'gift',printPanel:'front',description:'一体成型 · 免胶自锁 · 弧顶提手 · 展开541×474mm',defaults:{length:120,depth:100,height:100,archH:87,flare:28,handleW:92}},

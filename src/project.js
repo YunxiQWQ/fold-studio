@@ -19,10 +19,10 @@ export const PALETTES = [
   { name: '海盐蓝', color: '#e6eff1', accent: '#305a69', highlight: '#afd4d8' },
 ];
 
-export function newProject(type = 'carton') {
+export function newProject(type = 'carton', dimensions = {}) {
   return {
     version: 2, name: '山野之间 · 包装练习', type,
-    dimensions: { ...BOX_TYPES[type].defaults },
+    dimensions: { ...BOX_TYPES[type].defaults, ...dimensions },
     paper: '#f3f0df', accent: '#39563c', highlight: '#d8e5a2', material: 'matte',
     fold: 1, quality: 'balanced', panelColors: {}, insidePaper: '#eeeadd', insidePanelColors: {}, layers: sampleLayers(type),
   };

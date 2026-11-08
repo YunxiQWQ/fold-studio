@@ -1,6 +1,6 @@
 // Independently parameterised from the user's flat-top handle carton reference.
 export const SLOTTED_HANDLE_CARTONS={
-  'slotted-handle-carton':{name:'插锁提手盒',english:'SLOTTED HANDLE CARTON',family:'carton',category:'gift',printPanel:'front',description:'平顶对合 · 双片镂空提手 · 穿槽侧翼 · 异形扣底',defaults:{length:250,depth:200,height:120,handleHeight:60,handleWidth:112,handleHoleHeight:25,sideFlapHeight:90,sideFlapAngle:38,bottomFlap:158,glueWidth:18}},
+  'slotted-handle-carton':{name:'插锁提手盒',english:'SLOTTED HANDLE CARTON',family:'carton',category:'gift',printPanel:'front',description:'平顶对合 · 双片镂空提手 · 穿槽侧翼 · 异形扣底',aliases:['手提盒'],defaults:{length:250,depth:200,height:120,handleHeight:60,handleWidth:112,handleHoleHeight:25,sideFlapHeight:90,sideFlapAngle:38,bottomFlap:158,glueWidth:18}},
 };
 const bounded=(dims,key,fallback,min,max)=>{
   const value=dims[key]??fallback;if(!Number.isFinite(value))throw Error('手提盒参数需为有效数值');return Math.max(min,Math.min(max,value));

@@ -7,6 +7,7 @@ import {mountColorUI} from './color-ui.js';
 import {initWorkspaceResizers} from './workspace-resizer.js';
 import {initWorkspaceShell} from './workspace-shell.js';
 import {TEMPLATE_PREVIEWS} from './template-previews.generated.js';
+import {TEMPLATE_CATALOG,templateId,projectTemplate} from './template-catalog.js';
 import {expandGroups,layerRect} from './editor-commands.js';
 import { BOX_TYPES, makeDieline } from './geometry.js';
 import {PAPER_BAG_PRESETS} from './paper-bag.js';
@@ -90,14 +91,14 @@ $('#app').innerHTML=`
     <div class="drawer-head"><strong>结构与图层</strong><button id="close-left-panel" class="icon-button" aria-label="关闭结构与图层">${icon('close')}</button></div>
     <div class="document-settings" id="document-settings" aria-label="包装结构与纸张设置">
     <section class="sidebar-section template-section collapsible-section" data-section="template">
-      <div class="section-heading" title="点击折叠 / 展开"><h2>包装结构</h2><span class="section-summary">${Object.keys(BOX_TYPES).length} 款</span><span class="collapse-icon">${icon('down')}</span></div>
+      <div class="section-heading" title="点击折叠 / 展开"><h2>包装结构</h2><span class="section-summary">${Object.keys(TEMPLATE_CATALOG).length} 款</span><span class="collapse-icon">${icon('down')}</span></div>
       <div class="collapsible-content">
         <button type="button" class="current-template-card" id="current-template-card" title="打开结构库，更换包装盒型与容器">
-          <span class="template-art" id="current-template-art">${boxIllustration(project.type)}</span>
+          <span class="template-art" id="current-template-art">${boxIllustration(templateId(project))}</span>
           <span class="current-template-info">
-            <strong id="current-template-name">${esc(BOX_TYPES[project.type].name)}</strong>
-            <span class="template-eng" id="current-template-eng">${esc(BOX_TYPES[project.type].english)}</span>
-            <small id="current-template-desc">${esc(BOX_TYPES[project.type].description)}</small>
+            <strong id="current-template-name">${esc(projectTemplate(project).name)}</strong>
+            <span class="template-eng" id="current-template-eng">${esc(projectTemplate(project).english)}</span>
+            <small id="current-template-desc">${esc(projectTemplate(project).description)}</small>
             <span class="change-hint">${icon('grid')}更换结构</span>
           </span>
         </button>
@@ -189,7 +190,7 @@ $('#app').innerHTML=`
 </main>
 <input id="image-input" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" hidden/><input id="project-input" type="file" accept=".fold,.foldproj,.json,.svg" hidden/>
 <div id="toast" class="toast" role="status" hidden></div>
-<dialog id="help-dialog" aria-labelledby="help-title"><button id="close-help" class="dialog-close" aria-label="关闭">${icon('close')}</button><span class="dialog-kicker">FOLD STUDIO · <span class="version-tag">v0.15.0</span></span><h2 id="help-title">让设计，折起来。</h2><p>在平面刀版上排版，三维模型实时折叠成型。每一次编辑都会同步到折叠预览。</p><ol class="help-steps"><li><span>1</span><div><strong>选择结构</strong><small>左侧“更换结构”打开 ${Object.keys(BOX_TYPES).length} 款盒型与容器，再调整尺寸和纸张。</small></div></li><li><span>2</span><div><strong>平面排版</strong><small>工具栏添加文字、图片 / SVG、图形、条码与标志；外面、内面分别设计。</small></div></li><li><span>3</span><div><strong>折叠检查与导出</strong><small>拖动折叠进度检查成型效果，导出 GLB、PNG 或带刀线的 SVG。</small></div></li></ol><div class="help-grid"><div><kbd>V</kbd><span>选择工具</span></div><div><kbd>H / 空格</kbd><span>平移画布</span></div><div><kbd>Ctrl Z</kbd><span>撤销编辑</span></div><div><kbd>?</kbd><span>全部快捷键</span></div></div><p class="help-note local-note">${icon('check')}<span><span class="local-badge">文件留在本地</span>：工程自动保存在当前浏览器，不需要账号，也不会上传。重要设计请用“保存”下载 .fold 备份；SVG 导出包含工程信息，可重新打开。模型与刀版用于视觉预览及结构草图。</span></p><div class="dialog-actions"><button id="dismiss-help" class="button primary">开始设计 ${icon('chevron')}</button></div></dialog>
+<dialog id="help-dialog" aria-labelledby="help-title"><button id="close-help" class="dialog-close" aria-label="关闭">${icon('close')}</button><span class="dialog-kicker">FOLD STUDIO · <span class="version-tag">v0.15.0</span></span><h2 id="help-title">让设计，折起来。</h2><p>在平面刀版上排版，三维模型实时折叠成型。每一次编辑都会同步到折叠预览。</p><ol class="help-steps"><li><span>1</span><div><strong>选择结构</strong><small>左侧“更换结构”打开 ${Object.keys(TEMPLATE_CATALOG).length} 款盒型与容器，再调整尺寸和纸张。</small></div></li><li><span>2</span><div><strong>平面排版</strong><small>工具栏添加文字、图片 / SVG、图形、条码与标志；外面、内面分别设计。</small></div></li><li><span>3</span><div><strong>折叠检查与导出</strong><small>拖动折叠进度检查成型效果，导出 GLB、PNG 或带刀线的 SVG。</small></div></li></ol><div class="help-grid"><div><kbd>V</kbd><span>选择工具</span></div><div><kbd>H / 空格</kbd><span>平移画布</span></div><div><kbd>Ctrl Z</kbd><span>撤销编辑</span></div><div><kbd>?</kbd><span>全部快捷键</span></div></div><p class="help-note local-note">${icon('check')}<span><span class="local-badge">文件留在本地</span>：工程自动保存在当前浏览器，不需要账号，也不会上传。重要设计请用“保存”下载 .fold 备份；SVG 导出包含工程信息，可重新打开。模型与刀版用于视觉预览及结构草图。</span></p><div class="dialog-actions"><button id="dismiss-help" class="button primary">开始设计 ${icon('chevron')}</button></div></dialog>
 <dialog id="shortcuts-dialog"><button id="close-shortcuts" class="dialog-close" aria-label="关闭快捷键">${icon('close')}</button><span class="dialog-kicker">KEYBOARD SHORTCUTS</span><h2>让操作，更顺手。</h2><div class="shortcut-list">${[['Ctrl / ⌘ C','复制选中图层'],['Ctrl / ⌘ X','剪切选中图层'],['Ctrl / ⌘ V','粘贴到当前面板与内外面'],['Ctrl / ⌘ Shift V','粘贴并保留原位置'],['Ctrl / ⌘ D','复制一份图层'],['Ctrl / ⌘ Z','撤销'],['Ctrl / ⌘ Shift Z / Y','重做'],['Ctrl / ⌘ S','下载工程'],['1 / 2','编辑外面 / 内面'],['V / H / 空格','选择 / 平移 / 临时平移'],['T / I / R','添加文字 / 图片 / 矩形'],['M','展开 / 恢复平面画布'],['P','切换 RGB 屏幕 / CMYK 印刷打样'],['Shift T','切换界面主题（中灰/深黑/蓝调/浅色/纸本）'],['F / Shift F','适应平面 / 适应三维'],['G','切换辅助线'],['方向键 / Shift 方向键','移动 1 mm / 5 mm'],['Delete / Esc','删除 / 取消选择'],['?','打开本快捷键表']].map(([key,label])=>`<div><span>${label}</span><kbd>${key}</kbd></div>`).join('')}</div><p class="help-note">复制图层后，可在另一个折间标签页、离线页面或工程中粘贴，图片会一起携带。也可粘贴剪贴板中的普通文字或图片。输入框里的复制粘贴仍按浏览器惯例工作；若粘贴按钮受浏览器限制，请直接按 Ctrl / ⌘ V。</p></dialog>
 <dialog id="confirm-dialog"><h2>切换盒型？</h2><p>将建立一份新盒型示例，替换当前设计。你可以先保存工程；切换后也可以撤销。</p><div class="dialog-actions"><button id="cancel-confirm" class="button subtle">保留当前设计</button><button id="accept-confirm" class="button primary">切换盒型</button></div></dialog>
 <dialog id="templates-dialog" class="templates-dialog">
@@ -202,17 +203,17 @@ $('#app').innerHTML=`
   <p class="template-contribute">没找到想要的盒型？${repositoryLink('template-contribute-link','在 GitHub 上提交 PR 或者贡献！')}</p>
   <div class="template-toolbar">
   <div class="template-filter-tabs" role="tablist" aria-label="包装结构分类">
-    <button class="filter-tab active" data-filter="all">全部 <span>${Object.keys(BOX_TYPES).length}</span></button>
-    <button class="filter-tab" data-filter="carton">卡纸彩盒 <span>${Object.values(BOX_TYPES).filter(t=>t.category==='carton').length}</span></button>
-    <button class="filter-tab" data-filter="gift">精品礼盒 <span>${Object.values(BOX_TYPES).filter(t=>t.category==='gift').length}</span></button>
-    <button class="filter-tab" data-filter="shipping">电商物流 <span>${Object.values(BOX_TYPES).filter(t=>t.category==='shipping').length}</span></button>
-    <button class="filter-tab" data-filter="container">瓶罐容器 <span>${Object.values(BOX_TYPES).filter(t=>t.category==='container').length}</span></button>
+    <button class="filter-tab active" data-filter="all">全部 <span>${Object.keys(TEMPLATE_CATALOG).length}</span></button>
+    <button class="filter-tab" data-filter="carton">卡纸彩盒 <span>${Object.values(TEMPLATE_CATALOG).filter(t=>t.category==='carton').length}</span></button>
+    <button class="filter-tab" data-filter="gift">精品礼盒 <span>${Object.values(TEMPLATE_CATALOG).filter(t=>t.category==='gift').length}</span></button>
+    <button class="filter-tab" data-filter="shipping">电商物流 <span>${Object.values(TEMPLATE_CATALOG).filter(t=>t.category==='shipping').length}</span></button>
+    <button class="filter-tab" data-filter="container">瓶罐容器 <span>${Object.values(TEMPLATE_CATALOG).filter(t=>t.category==='container').length}</span></button>
   </div>
   <label class="template-search">${icon('search')}<input id="template-search" type="search" placeholder="搜索名称、英文或特征，如“提手”" aria-label="搜索包装结构" autocomplete="off"/></label>
   </div>
   <p id="template-empty" class="template-empty" role="status" hidden>没有匹配的结构，换个关键词或分类试试。</p>
   <div id="box-templates" class="box-templates dialog-template-grid">
-    ${Object.entries(BOX_TYPES).map(([id,t])=>`<button class="template-card ${id===project.type?'active':''}" data-template="${id}" data-category="${t.category}" data-search="${esc([t.name,t.english,t.description,...(t.aliases??[]),categoryLabel(t.category)].join(' ').toLowerCase())}" aria-pressed="${id===project.type}"><span class="template-card-badge">${categoryLabel(t.category)}</span><span class="template-art ${id}">${boxIllustration(id)}</span><div class="template-card-info"><strong>${t.name}</strong><span class="template-eng">${t.english}</span><small>${t.description}</small><span class="template-dim">${t.defaults.length} × ${t.defaults.depth} × ${t.defaults.height} mm</span></div><span class="template-check">${icon('check')}</span></button>`).join('')}
+    ${Object.entries(TEMPLATE_CATALOG).map(([id,t])=>`<button class="template-card ${id===templateId(project)?'active':''}" data-template="${id}" data-category="${t.category}" data-search="${esc([t.name,t.english,t.description,...(t.aliases??[]),categoryLabel(t.category)].join(' ').toLowerCase())}" aria-pressed="${id===templateId(project)}"><span class="template-card-badge">${categoryLabel(t.category)}</span><span class="template-art ${id}">${boxIllustration(id)}</span><div class="template-card-info"><strong>${t.name}</strong><span class="template-eng">${t.english}</span><small>${t.description}</small><span class="template-dim">${t.defaults.length} × ${t.defaults.depth} × ${t.defaults.height} mm</span></div><span class="template-check">${icon('check')}</span></button>`).join('')}
   </div>
 </dialog>`;
 
@@ -223,7 +224,7 @@ function categoryLabel(cat){
 
 function boxIllustration(type){
   const item=TEMPLATE_PREVIEWS[type];if(!item)return '';
-  return '<span class="model-thumbnail"><img src="'+item.src+'" alt="'+esc(BOX_TYPES[type].name)+'实际模型预览" width="384" height="288"/><small>'+(item.fold<1?'模型结构预览':'成型结构预览')+'</small></span>';
+  return '<span class="model-thumbnail"><img src="'+item.src+'" alt="'+esc(TEMPLATE_CATALOG[type].name)+'实际模型预览" width="384" height="288"/><small>'+(item.fold<1?'模型结构预览':'成型结构预览')+'</small></span>';
 }
 
 
@@ -349,11 +350,11 @@ function refresh({fit=false,build=true}={}){
   const paperCmyk=colorMode==='cmyk'?` · ${formatCmyk(project.paper)}`:'';
   $('#paper-color').value=project.paper;$('#paper-hex').textContent=`${project.paper.toUpperCase()}${paperCmyk}`;$('#material').value=project.material;$('#quality').value=project.quality;
   $('#sheet-size').textContent=`${dieline.width.toFixed(0)} × ${dieline.height.toFixed(0)} mm`;
-  $('#current-template-art').innerHTML=boxIllustration(project.type);
-  $('#current-template-name').textContent=BOX_TYPES[project.type].name;
-  $('#current-template-eng').textContent=BOX_TYPES[project.type].english;
-  $('#current-template-desc').textContent=BOX_TYPES[project.type].description;
-  document.querySelectorAll('[data-template]').forEach(b=>{b.classList.toggle('active',b.dataset.template===project.type);b.setAttribute('aria-pressed',b.dataset.template===project.type);});
+  $('#current-template-art').innerHTML=boxIllustration(templateId(project));
+  $('#current-template-name').textContent=projectTemplate(project).name;
+  $('#current-template-eng').textContent=projectTemplate(project).english;
+  $('#current-template-desc').textContent=projectTemplate(project).description;
+  document.querySelectorAll('[data-template]').forEach(b=>{b.classList.toggle('active',b.dataset.template===templateId(project));b.setAttribute('aria-pressed',b.dataset.template===templateId(project));});
   document.querySelectorAll('[data-palette]').forEach(b=>b.classList.toggle('active',PALETTES[+b.dataset.palette].color===project.paper));
   renderExtraDimensions();
   setFoldUI();renderHistory();renderSurface();renderLayers();renderInspector();
@@ -445,7 +446,7 @@ function renderInspector(){
   if(!layer){
     const panelColor=surface.colors[panel.id]??surface.paper;
     const panelCmyk=colorMode==='cmyk'?`<span class="cmyk-badge" title="CMYK 印刷打样色值">${formatCmyk(panelColor)}</span>`:'';
-    $('#inspector').innerHTML=`<section class="inspector-section panel-summary"><span class="inspector-overline">${activeSide==='inside'?'INSIDE':'OUTSIDE'} PANEL</span><div class="panel-preview">${boxIllustration(project.type)}</div><h3>${esc(panel.label)} · ${SIDES[activeSide]}</h3><span>${panel.w.toFixed(1)} × ${panel.h.toFixed(1)} mm</span></section><section class="inspector-section"><div class="section-heading"><h2>面板填色</h2><button id="reset-panel-color" class="text-button">重置</button></div><label class="color-field"><input id="panel-color" type="color" value="${panelColor}" aria-label="面板背景颜色"/><span>${panelColor.toUpperCase()}</span>${panelCmyk}${icon('down')}</label></section><section class="inspector-section"><h2>在这个面上添加</h2><div class="panel-add-grid"><button class="wide-button" id="panel-add-text">${icon('text')}添加文字${icon('plus')}</button><button class="wide-button" id="panel-add-image">${icon('image')}添加图片${icon('plus')}</button><button class="wide-button" id="panel-add-shape">${icon('shape')}添加图形${icon('plus')}</button><button class="wide-button" id="panel-add-barcode">${icon('barcode')}添加条码${icon('plus')}</button><button class="wide-button" id="panel-add-qrcode">${icon('qrcode')}添加二维码${icon('plus')}</button><button class="wide-button" id="panel-add-symbol">${icon('symbol')}常用标志${icon('plus')}</button></div><p class="field-note">图文默认可跨面板连续排版。<br/>直接拖过折线即可延伸到相邻面。</p></section><section class="inspector-section selection-note"><span class="tiny-badge">${panel.kind==='glue'?'粘合区':'当前盒型'}</span><p>${BOX_TYPES[project.type].name}<br/><span>${BOX_TYPES[project.type].english}</span></p></section>`;
+    $('#inspector').innerHTML=`<section class="inspector-section panel-summary"><span class="inspector-overline">${activeSide==='inside'?'INSIDE':'OUTSIDE'} PANEL</span><div class="panel-preview">${boxIllustration(templateId(project))}</div><h3>${esc(panel.label)} · ${SIDES[activeSide]}</h3><span>${panel.w.toFixed(1)} × ${panel.h.toFixed(1)} mm</span></section><section class="inspector-section"><div class="section-heading"><h2>面板填色</h2><button id="reset-panel-color" class="text-button">重置</button></div><label class="color-field"><input id="panel-color" type="color" value="${panelColor}" aria-label="面板背景颜色"/><span>${panelColor.toUpperCase()}</span>${panelCmyk}${icon('down')}</label></section><section class="inspector-section"><h2>在这个面上添加</h2><div class="panel-add-grid"><button class="wide-button" id="panel-add-text">${icon('text')}添加文字${icon('plus')}</button><button class="wide-button" id="panel-add-image">${icon('image')}添加图片${icon('plus')}</button><button class="wide-button" id="panel-add-shape">${icon('shape')}添加图形${icon('plus')}</button><button class="wide-button" id="panel-add-barcode">${icon('barcode')}添加条码${icon('plus')}</button><button class="wide-button" id="panel-add-qrcode">${icon('qrcode')}添加二维码${icon('plus')}</button><button class="wide-button" id="panel-add-symbol">${icon('symbol')}常用标志${icon('plus')}</button></div><p class="field-note">图文默认可跨面板连续排版。<br/>直接拖过折线即可延伸到相邻面。</p></section><section class="inspector-section selection-note"><span class="tiny-badge">${panel.kind==='glue'?'粘合区':'当前盒型'}</span><p>${projectTemplate(project).name}<br/><span>${projectTemplate(project).english}</span></p></section>`;
     return;
   }
   const layerCmyk=colorMode==='cmyk'&&layer.type!=='image'?`<span class="cmyk-badge" title="CMYK 印刷打样色值">${formatCmyk(layer.color)}</span>`:'';
@@ -562,15 +563,15 @@ document.querySelectorAll('.filter-tab').forEach(tab=>{
 
 $('#box-templates').addEventListener('click',e=>{
   const btn=e.target.closest('[data-template]');if(!btn)return;
-  if(btn.dataset.template===project.type){
+  if(btn.dataset.template===templateId(project)){
     $('#templates-dialog').close();
     return;
   }
-  const type=btn.dataset.template;
+  const template=TEMPLATE_CATALOG[btn.dataset.template],type=template.type;
   confirmAction=async()=>{
     try{await snapshotCurrent('切换盒型前');}
     catch(error){notify(`无法安全切换盒型：${error.message}`);return;}
-    stopAnimation();clearTimeout(geometryTimer);editor.up();project=newProject(type);panelId=BOX_TYPES[type].printPanel;activeSide='outside';selected=null;dirtySides.clear();refresh({fit:true});commit();notify(`已切换为${BOX_TYPES[type].name}`);$('#templates-dialog').close();
+    stopAnimation();clearTimeout(geometryTimer);editor.up();project=newProject(type,template.defaults);panelId=template.printPanel;activeSide='outside';selected=null;dirtySides.clear();refresh({fit:true});commit();notify(`已切换为${template.name}`);$('#templates-dialog').close();
   };
   $('#confirm-dialog').showModal();
 });
