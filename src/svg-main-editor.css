@@ -84,3 +84,5 @@
 .native-snap-guides line.snap-distance{stroke-dasharray:none}
 .native-snap-guides text{fill:currentColor;stroke:var(--surface,#fff);stroke-width:3px;paint-order:stroke;font:10px system-ui,sans-serif}
 .native-snap-note{grid-column:1/-1;font-size:10px;line-height:1.6;color:var(--muted);margin:0 0 4px}
+
+.barcode-settings .svg-field-note{overflow-wrap:anywhere}.barcode-settings .code-error{color:#a34b1b}.barcode-settings input:disabled,.barcode-settings select:disabled{opacity:.5}

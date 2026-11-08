@@ -13,7 +13,7 @@ import {selectSvgArtwork} from './svg-document.js';
 import {download} from './storage.js';
 import './svg-main-editor.css';
 import {appendImageTools} from './svg-image-tools.js';
-import {barcodeStatus} from './barcode.js';
+import {appendBarcodeInspector} from './barcode-inspector.js';
 import {qrStatus} from './qrcode.js';
 import {colorStatus} from './color.js';
 import {renderPrintSurface} from './print-surface.js';
@@ -195,7 +195,7 @@ export class SvgMainEditor {
     try{
       const svg=svgSceneAsset(source),project=this.project;
       const migrated=layer=>sideOf(layer)===this.side&&this.loadedLegacyIds.has(layer.id);
-      const generators={...project.svgGenerators};for(const l of project.layers)if(migrated(l)&&['barcode','qrcode'].includes(l.type))generators[l.id]=structuredClone(l);
+      const generators={...project.svgGenerators};for(const l of project.layers)if(migrated(l)&&['barcode','qrcode'].includes(l.type)&&!generators[l.id])generators[l.id]=structuredClone(l);
       const artwork={...project.svgArtwork,[this.side]:svg},ids=new Set();
       const collect=node=>{if(typeof node==='string')return;if(node.attrs.id)ids.add(node.attrs.id);node.children.forEach(collect);};for(const asset of Object.values(artwork))asset.nodes.forEach(collect);
       const next={...project,version:3,svgArtwork:artwork,svgGenerators:Object.fromEntries(Object.entries(generators).filter(([id])=>ids.has(id))),layers:project.layers.filter(l=>!migrated(l))};
@@ -244,15 +244,16 @@ export class SvgMainEditor {
     if(node?.closest('[data-locked="true"]'))return;
     if(node)appendImageTools(host,node,this);
     const generator=node&&(this.project.svgGenerators?.[node.id]??this.project.layers.find(l=>l.id===node.id&&['barcode','qrcode'].includes(l.type)));
-    if(generator){
-      const barcode=generator.type==='barcode',section=document.createElement('section');
+    if(generator?.type==='barcode')appendBarcodeInspector(host,node,generator,this);
+    else if(generator){
+      const section=document.createElement('section');
       const field=(label,control)=>{const wrapper=document.createElement('label');wrapper.textContent=label;wrapper.append(control);section.append(wrapper);return control;};
       const options=(name,id,values,current)=>{const select=document.createElement('select');select.id=id;for(const [value,title]of values)select.append(new Option(title,value,value===current,value===current));return field(name,select);};
-      const input=field(barcode?'条码内容':'二维码内容',document.createElement('textarea'));input.id='native-code';input.value=barcode?generator.code:generator.text;input.maxLength=barcode?120:2000;
-      const format=barcode?options('条码制式','native-barcode-format',[['ean13','EAN-13'],['code128','Code 128']],generator.format??'ean13'):options('二维码纠错等级','native-qrcode-level',['L','M','Q','H'].map(v=>[v,v]),generator.errorCorrectionLevel??'M');
+      const input=field('二维码内容',document.createElement('textarea'));input.id='native-code';input.value=generator.text;input.maxLength=2000;
+      const format=options('二维码纠错等级','native-qrcode-level',['L','M','Q','H'].map(v=>[v,v]),generator.errorCorrectionLevel??'M');
       const note=document.createElement('p');note.id='native-code-status';note.setAttribute('aria-live','polite');section.append(note);host.prepend(section);
-      const candidate=()=>({...generator,...(barcode?{code:input.value,format:format.value}:{text:input.value,errorCorrectionLevel:format.value})});
-      const check=()=>{const next=candidate(),status=barcode?barcodeStatus(next):qrStatus(next.text,next.errorCorrectionLevel);input.setAttribute('aria-invalid',String(!!status.error));note.textContent=status.error??(barcode?'编码有效':`版本 ${status.version} · ${status.size} × ${status.size}`);return status;};
+      const candidate=()=>({...generator,text:input.value,errorCorrectionLevel:format.value});
+      const check=()=>{const next=candidate(),status=qrStatus(next.text,next.errorCorrectionLevel);input.setAttribute('aria-invalid',String(!!status.error));note.textContent=status.error??`版本 ${status.version} · ${status.size} × ${status.size}`;return status;};
       input.oninput=check;input.onchange=format.onchange=()=>{if(!check().error)this.regenerate(node,candidate());};check();
     }
     if(node)return;
@@ -264,9 +265,11 @@ export class SvgMainEditor {
     try{
       const d=this.dieline,panel=d.panels.find(p=>p.id===generator.panel),defs=[],ctx=new SvgDrawingContext(defs,'generator-'+node.id);
       drawLayer(ctx,generator,panel,this.images);const doc=new DOMParser().parseFromString(`<svg xmlns="${ns}">${ctx.toSVG()}</svg>`,'image/svg+xml');
-      const fresh=flattenGenerated(doc.documentElement.firstElementChild,generator.name);
-      if(!fresh||node.localName!=='g')throw Error('无法更新这个图形组');
-      node.replaceChildren(...[...fresh.childNodes].map(n=>document.importNode(n,true)));
+      // DrawingContext emits sibling paths/text, each with its own matrix.
+      // Keep all of them; taking firstElementChild drops the remaining bars,
+      // then taking a path's childNodes empties the generated object entirely.
+      if(!doc.documentElement.children.length||node.localName!=='g')throw Error('无法更新这个图形组');
+      node.replaceChildren(...[...doc.documentElement.childNodes].map(n=>document.importNode(n,true)));
       this.project.svgGenerators={...this.project.svgGenerators,[node.id]:generator};
       this.store(this.api.source());this.api.refreshProperties();
     }catch(error){this.callbacks.notify(error.message);}

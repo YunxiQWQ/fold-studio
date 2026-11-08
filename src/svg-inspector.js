@@ -57,7 +57,9 @@ export function arrangeSvgInspector(host,node,editor){
   const name=children.find(child=>child.querySelector('#node-name'));if(name)host.append(name);
   const content=children.filter(child=>child!==heading&&child!==name&&!child.querySelector('[data-attribute]'));
   for(const child of content)take('content',child.querySelector('#native-code')?'编码内容':node.localName==='image'?'图片':'内容').append(child);
-  appendTypographyPanel(host,editor);
+  // A generated barcode already owns its label font controls. Editing its
+  // descendants through generic typography would desynchronize the generator.
+  if(!content.some(child=>child.classList.contains('barcode-settings')))appendTypographyPanel(host,editor);
   // Keep every original control and its handler, including SVG-specific fields.
   // Only their presentation changes; advanced attributes remain fully editable.
   for(const [key,title,set]of [['geometry','位置与尺寸',geometry],['type','文字 SVG 属性',typography],['paint','外观',appearance],['advanced','高级 SVG 属性',null]]){

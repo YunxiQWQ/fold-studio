@@ -91,6 +91,7 @@ node server.mjs --open
 
 - **EAN-13**：内置校验算法，12 位自动补第 13 位；标准 95 模块、下沉护栏延长线与左右数字排版。
 - **Code 128**：大小写字母、数字与常用半角符号，最多 120 字符，自动生成模 103 校验码。
+- **扩展条形码**：共 14 个制式入口，包括 EAN-8、UPC-A／UPC-E、Code 128 A／B／C、Code 39／93、ITF-14／ITF、GS1-128 常用字段与 Codabar。右侧可选识别文字位置、字体和大小，调整颜色与底色；旧工程继续可用。[支持范围与用法](docs/barcodes.md)。
 - **二维码**：本地打包 [node-qrcode](https://github.com/soldair/node-qrcode) 1.5.4（MIT），支持 L/M/Q/H 纠错、中英文与长内容，容量不足直接提示不截断。
 - **标志库**：34 款可搜索、分类、预览的矢量图形，分运输储存、回收材质、食品日用；其中 26 款选自 [Pictogrammers MDI](https://github.com/Templarian/MaterialDesign-SVG)（Apache-2.0）。
 - 条码与二维码支持白色工业底衬开关、透明底、下方文字开关；编辑即时重绘。

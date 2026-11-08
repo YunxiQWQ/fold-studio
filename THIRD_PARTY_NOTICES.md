@@ -1,5 +1,21 @@
 # Reference and third-party notices
 
+## JsBarcode
+
+Project: https://github.com/lindell/JsBarcode
+
+JsBarcode 3.12.3 supplies the additional linear barcode encoders. Fold Studio renders their module data as editable SVG paths and Canvas primitives. The locally supplied Illustrator script was used only to inspect its interface; none of its compiled code, fonts or generated reference artwork is distributed with Fold Studio.
+
+Copyright (c) 2016 Johan Lindell (johan@lindell.me)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The test-only `zxing-wasm` dependency independently checks barcode readability using ZXing-C++. It is not shipped in the application bundle; its package includes the applicable MIT / Apache-2.0 notices.
+
 ## 雲溪工具箱导航页
 
 The independent navigation page uses React 19.2.4, React DOM 19.2.4, Scheduler and Tailwind CSS 4.2.2, under MIT. Their copyright and license notices are included in [toolbox/public/THIRD_PARTY_NOTICES.txt](toolbox/public/THIRD_PARTY_NOTICES.txt) and copied into the static toolbox distribution.
