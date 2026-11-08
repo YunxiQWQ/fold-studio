@@ -5,6 +5,7 @@
 一个以流畅编辑为优先的本地网页包装工作台。参考 [OpenBox3D](https://github.com/yuyou-dev/OpenBox3D) 的“参数化刀版 → 平面设计 → 三维折叠”工作流，重新实现轻量渲染与交互。原项目仅作设计和技术研究参考，未复制其应用源码、预设或素材。
 
 **在线体验：** [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold)
+**工具导航页：** 源码位于 [toolbox](toolbox/README.md)，整站构建为首页导航和 `/fold` 编辑器提供独立资源路径；接入与扩展说明见 [导航首页](docs/toolbox-home.md)。
 **开源许可：** MIT，版权署名 Yun-xi、OpenAI Codex 与 DeepSeek Harness。第三方代码和图标的许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 **贡献者：** [Yun-xi 与 OpenAI Codex](CONTRIBUTORS.md)。
 

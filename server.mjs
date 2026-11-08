@@ -16,10 +16,15 @@ const server=createServer(async(request,response)=>{
     if(!['GET','HEAD'].includes(request.method)){response.writeHead(405);response.end();return;}
     const pathname=decodeURIComponent(new URL(request.url,'http://127.0.0.1').pathname);
     if(pathname==='/__health'){response.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});response.end(JSON.stringify({app:'fold-studio',version:'0.9.4'}));return;}
-    const file=resolve(directory,`.${pathname==='/'?'/index.html':pathname}`),rel=relative(directory,file);
+    // Match the deployed site's two entrypoints without a catch-all fallback.
+    // Keep Fold at / when only its standalone build is present.
+    const entry=pathname==='/'?(existsSync(resolve(directory,'toolbox/index.html'))?'/toolbox/index.html':'/index.html')
+      :pathname==='/fold'||pathname==='/fold/'?'/index.html'
+      :pathname.startsWith('/fold/')?pathname.slice('/fold'.length):pathname;
+    const file=resolve(directory,`.${entry}`),rel=relative(directory,file);
     if(rel.startsWith('..')||isAbsolute(rel)||pathname.includes('\0')){response.writeHead(403);response.end('Forbidden');return;}
     const info=await stat(file);if(!info.isFile())throw new Error('Not a file');
-    response.writeHead(200,{'Content-Type':mime[extname(file)]??'application/octet-stream','Content-Length':info.size,'Cache-Control':pathname.startsWith('/assets/')?'public, max-age=31536000, immutable':'no-cache'});
+    response.writeHead(200,{'Content-Type':mime[extname(file)]??'application/octet-stream','Content-Length':info.size,'Cache-Control':entry.includes('/assets/')?'public, max-age=31536000, immutable':'no-cache'});
     if(request.method==='HEAD')response.end();else createReadStream(file).on('error',()=>response.destroy()).pipe(response);
   }catch{response.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'});response.end('文件不存在');}
 });
@@ -29,9 +34,10 @@ if(!Number.isInteger(port)||port<0||port>65535){console.error('端口无效');pr
 server.on('error',error=>{if(error.code==='EADDRINUSE'&&!explicit&&attempt++<15){port++;server.listen(port,'127.0.0.1');}else{console.error(error.message);process.exitCode=1;}});
 server.on('listening',()=>{
   const address=`http://127.0.0.1:${server.address().port}`;
-  console.log(`\n  折间 Fold Studio\n  ${address}\n\n  仅在本机运行。关闭此窗口或按 Ctrl+C 即可停止。\n`);
+  console.log(`\n  雲溪工具箱 / 折间 Fold Studio\n  ${address}\n  折间：${address}/fold\n\n  仅在本机运行。关闭此窗口或按 Ctrl+C 即可停止。\n`);
   if(process.argv.includes('--open')){
-    const [command,args]=process.platform==='win32'?['explorer.exe',[address]]:process.platform==='darwin'?['open',[address]]:['xdg-open',[address]];
+    const foldAddress=address+'/fold';
+    const [command,args]=process.platform==='win32'?['explorer.exe',[foldAddress]]:process.platform==='darwin'?['open',[foldAddress]]:['xdg-open',[foldAddress]];
     const child=spawn(command,args,{detached:true,stdio:'ignore',windowsHide:true});child.on('error',()=>console.log('请在浏览器手动打开上方地址。'));child.unref();
   }
 });

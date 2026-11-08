@@ -1,5 +1,9 @@
 # Reference and third-party notices
 
+## 雲溪工具箱导航页
+
+The independent navigation page uses React 19.2.4, React DOM 19.2.4, Scheduler and Tailwind CSS 4.2.2, under MIT. Their copyright and license notices are included in [toolbox/public/THIRD_PARTY_NOTICES.txt](toolbox/public/THIRD_PARTY_NOTICES.txt) and copied into the static toolbox distribution.
+
 ## OpenBox3D (reference)
 
 Project: https://github.com/yuyou-dev/OpenBox3D

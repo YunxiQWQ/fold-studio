@@ -4,6 +4,7 @@ artifacts/
 dist/
 折间.html
 node_modules/
+toolbox/node_modules/
 .vercel/
 .env*
 *.bak*
