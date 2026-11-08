@@ -25,7 +25,7 @@ await page.addInitScript(()=>{
   const open=indexedDB.open.bind(indexedDB);indexedDB.open=(...args)=>{window.__toolboxStorage.push('indexedDB');return open(...args);};
 });
 const fold=()=>page.locator('a[href="/fold"]'),frame=()=>page.locator('a[href="https://github.com/YunxiQWQ/zhenxia/releases/latest"]');
-const htmlText=value=>value.replace(/\r\n/g,'\n');
+const htmlText=value=>value.replace(/\r/g,'');
 async function band(color){await page.waitForFunction(color=>getComputedStyle(document.querySelector('header')).backgroundColor===color,color);}
 try{
   const config=JSON.parse(readFileSync(resolve(root,'vercel.json'),'utf8'));

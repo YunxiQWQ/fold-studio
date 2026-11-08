@@ -7,6 +7,7 @@
 - 新 `npm run test:toolbox` 在 Edge 正式构建通过五组真实 HTTP／浏览器检查：根首页与 `/fold`／`/fold/` 分开，原资源和 `/fold/assets/` 字节一致，未知页返回 404；1280／1440／1920 桌面无横溢；完整文案与入口、悬停折叠／换色、键盘导航和减少动效；首页无存储访问、Cookie、外部字体／统计请求或折间包加载；真实进入编辑器并经首页返回后，浏览器已保存的工程保留。页面错误与意外确认框均为空。
 - 182 单测通过，截图和报告在忽略目录 `artifacts/toolbox-home/edge-release/`。导航页禁止索引仅使用本页 meta，未生成影响 `/fold` 的全局 `robots.txt`。本轮完成本地接入，部署状态另行核实。
 - 首次上线核对发现根路径仍为折间，新增导航文件已存在；去掉查询缓存因素后仍可复现。Vercel 优先返回已有静态根文件，本地原先直接模拟导航改写漏掉了这一点。构建现直接生成导航 `dist/index.html` 和折间 `dist/fold.html`，本地服务器同步按根文件提供首页，专项增加根文件字节相等检查及 `/fold/index.html` 校验。[Vercel 官方优先级说明](https://vercel.com/docs/project-configuration/vercel-json#rewrites)。
+- 路由修正后，真实 `https://tool.heyunxi.top` 五组专项全部通过，页面错误和意外确认框为空；帧匣入口实际返回公开 v0.2.1 发行页。证据在 `artifacts/toolbox-home/production-20261108/`。HTML 比较只规范化 Windows／Linux 的回车换行（含本机构建产生的重复回车），保留页面结构与资源内容断言；线上验证不发送本地服务器专用的 POST 检查。
 
 ## 彩盒平铺与原工具入口核对（2026-11-08）
 
