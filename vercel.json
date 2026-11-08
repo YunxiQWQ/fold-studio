@@ -2,6 +2,8 @@
   "buildCommand": "npm run build:site",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/fold/guide", "destination": "/fold-guide.html" },
+    { "source": "/fold/guide/", "destination": "/fold-guide.html" },
     { "source": "/fold", "destination": "/fold.html" },
     { "source": "/fold/", "destination": "/fold.html" },
     { "source": "/fold/index.html", "destination": "/fold.html" },

@@ -34,7 +34,7 @@ try{
   const response=await page.request.get(url+'/');assert.equal(response.status(),200);
   const html=await response.text();assert.ok(html.includes('<title>雲溪工具箱</title>')&&!html.includes('figma:'));
   assert.equal(htmlText(html),htmlText(readFileSync(resolve(root,'dist/index.html'),'utf8')),'the on-disk root index must itself be the homepage');
-  assert.ok(html.includes('/toolbox/assets/')&&html.includes('noindex, nofollow'));
+  assert.ok(html.includes('/toolbox/assets/')&&!html.includes('noindex, nofollow'));
   const foldHTML=readFileSync(resolve(root,'dist/fold.html'),'utf8');
   assert.ok(foldHTML.includes('id="app"')&&!foldHTML.includes('/toolbox/assets/'));
   for(const path of ['/fold','/fold/','/fold/index.html'])assert.equal(htmlText(await(await page.request.get(url+path)).text()),htmlText(foldHTML));
@@ -42,7 +42,8 @@ try{
     const direct=await page.request.get(url+'/'+asset[1]),prefixed=await page.request.get(url+'/fold/'+asset[1]);
     assert.equal(direct.status(),200);assert.equal(prefixed.status(),200);assert.deepEqual(await direct.body(),await prefixed.body());
   }
-  for(const path of ['/unknown-tool-404','/fold/unknown-tool-404','/robots.txt'])assert.equal((await page.request.get(url+path)).status(),404);
+  for(const path of ['/unknown-tool-404','/fold/unknown-tool-404'])assert.equal((await page.request.get(url+path)).status(),404);
+  const robots=await page.request.get(url+'/robots.txt');assert.equal(robots.status(),200);assert.ok(!(await robots.text()).includes('Disallow: /'));
   if(['127.0.0.1','localhost'].includes(new URL(url).hostname))assert.equal((await page.request.post(url+'/')).status(),405);
   checks.push('actual production files serve the toolbox at /, Fold at /fold and /fold/, with separate assets, no global robots block and real 404s');
 

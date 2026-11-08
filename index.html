@@ -4,12 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#faf9f6" />
-    <meta name="description" content="折间：轻巧的包装平面编辑与实时三维折叠工作台。" />
-    <title>折间 Fold Studio · 包装设计工作台</title>
+    <meta name="description" content="%FOLD_DESCRIPTION%" />
+    <title>%FOLD_TITLE%</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <main style="max-width:900px;margin:64px auto;padding:32px;font:17px/1.9 system-ui,sans-serif;color:#28362c">
+        <h1>折间 Fold Studio：在线包装刀版设计与3D折叠预览</h1>
+        <p>免费开源的包装设计工作台：选择参数化盒型，编辑 SVG、文字与图片，并实时预览三维折叠。支持 PNG、SVG、JPG、PDF 与 GLB 导出。</p>
+        <p>无需注册，工程保存在本机浏览器，也可以下载 .fold 文件备份。</p>
+        <p>编辑器正在加载。您也可以先阅读<a href="https://tool.heyunxi.top/fold/guide">折间功能与使用指南</a>，或查看<a href="https://github.com/YunxiQWQ/fold-studio">开源代码</a>。</p>
+        <noscript><p>交互式编辑器需要启用 JavaScript；功能说明和使用指南无需 JavaScript 即可阅读。</p></noscript>
+      </main>
+    </div>
     <script type="module" src="src/main.js"></script>
   </body>
 </html>

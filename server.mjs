@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 
 const directory=resolve(dirname(fileURLToPath(import.meta.url)),'dist');
 if(!existsSync(resolve(directory,'index.html'))){console.error('没有找到构建文件，请先运行 npm install 和 npm run build。');process.exit(1);}
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.json':'application/json; charset=utf-8','.woff2':'font/woff2'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.webp':'image/webp','.json':'application/json; charset=utf-8','.xml':'application/xml; charset=utf-8','.txt':'text/plain; charset=utf-8','.woff2':'font/woff2'};
 const server=createServer(async(request,response)=>{
   response.setHeader('X-Content-Type-Options','nosniff');
   response.setHeader('Referrer-Policy','no-referrer');
@@ -20,6 +20,7 @@ const server=createServer(async(request,response)=>{
     // Keep Fold at / when only its standalone build is present.
     const foldEntry=existsSync(resolve(directory,'fold.html'))?'/fold.html':'/index.html';
     const entry=pathname==='/'?'/index.html'
+      :['/fold/guide','/fold/guide/'].includes(pathname)?'/fold-guide.html'
       :['/fold','/fold/','/fold/index.html'].includes(pathname)?foldEntry
       :pathname.startsWith('/fold/')?pathname.slice('/fold'.length):pathname;
     const file=resolve(directory,`.${entry}`),rel=relative(directory,file);

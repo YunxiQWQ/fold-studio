@@ -25,10 +25,10 @@
 - 折间：同站 `/fold`，保持本地与线上地址一致。
 - 帧匣：`https://github.com/YunxiQWQ/zhenxia/releases/latest`，已核实仓库公开发行版；页面显示 Windows 下载入口。
 - 仅使用系统字体，无账号、统计脚本、Cookie 或本地存储。
-- `site.indexable` 保留初版的 `false`。它只设置本页的 `noindex`，不会生成禁止整个工具域名抓取的 `robots.txt`。
+- `site.indexable` 为 `true`，让工具导航成为可抓取的折间入口；不涉及个人主页和博客。站点地图只列出折间和使用指南。
 
 ## 开发与构建
 
-在本目录执行 `npm ci --ignore-scripts` 和 `npm run dev`，开发地址使用 `/toolbox/` 基础路径。`npm run build` 包含 TypeScript 检查，输出到仓库的 `dist/toolbox/`。
+在本目录执行 `npm ci --ignore-scripts` 和 `npm run dev`，开发地址使用 `/toolbox/` 基础路径。`npm run build` 包含 TypeScript 检查和导航预渲染，输出到仓库的 `dist/toolbox/`；浏览器激活交互时保留同一份页面内容。
 
 整站构建及路由说明见 [docs/toolbox-home.md](../docs/toolbox-home.md)。导航页的 React / React DOM / Scheduler 与 Tailwind CSS 许可证见 [THIRD_PARTY_NOTICES.txt](public/THIRD_PARTY_NOTICES.txt)。

@@ -68,5 +68,5 @@ export const site = {
   domain: "tool.heyunxi.top",
   intro: "为设计工作而做的小工具",
   description: "雲溪工具箱：折间包装刀版与三维设计、帧匣 Windows 截图贴图与剪贴板工具。",
-  indexable: false,
+  indexable: true,
 };

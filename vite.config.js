@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite';
+import {foldSeo} from './scripts/seo.mjs';
 
 export default defineConfig({
   base: './',
   optimizeDeps:{exclude:['lcms-wasm']},
-  plugins:[{
+  plugins:[foldSeo(),{
     name:'lcms-browser-runtime',enforce:'pre',
     transform(source,id){
       if(!id.replaceAll('\\','/').endsWith('/lcms-wasm/dist/lcms.js'))return;

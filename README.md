@@ -6,6 +6,7 @@
 
 **在线体验：** [tool.heyunxi.top/fold](https://tool.heyunxi.top/fold)
 **工具导航页：** 源码位于 [toolbox](toolbox/README.md)，整站构建为首页导航和 `/fold` 编辑器提供独立资源路径；接入与扩展说明见 [导航首页](docs/toolbox-home.md)。
+**功能与使用指南：** [折间指南](https://tool.heyunxi.top/fold/guide)。折间的搜索配置和发布后站长平台提交步骤见 [收录维护](docs/search-seo.md)。
 **开源许可：** MIT，版权署名 Yun-xi、OpenAI Codex 与 DeepSeek Harness。第三方代码和图标的许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 **贡献者：** [Yun-xi 与 OpenAI Codex](CONTRIBUTORS.md)。
 
