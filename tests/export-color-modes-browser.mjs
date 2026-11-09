@@ -38,7 +38,13 @@ try{
         }
         if(format==='pdf'&&mode==='cmyk'&&side==='inside'){await page.locator('#export-font').setInputFiles(resolve('src/fonts/FoldPrintSans-Regular.woff2'));await page.waitForFunction(()=>document.querySelector('#export-font-name').textContent==='FoldPrintSans-Regular.woff2');}
         const data=await download(()=>page.locator('#confirm-export').click(),`${mode}-${side}.${format}`);
-        if(format==='pdf')assert.equal(data.subarray(0,5).toString(),'%PDF-');else assert.deepEqual([...data.subarray(0,2)],[255,216]);
+        if(format==='pdf'){
+          assert.equal(data.subarray(0,5).toString(),'%PDF-');
+          if(mode==='cmyk'){
+            assert.doesNotMatch(data.toString('latin1'),/\/DCTDecode/,'CMYK PDF images must use lossless positive samples for Illustrator compatibility');
+            assert.doesNotMatch(data.toString('latin1'),/\/Decode\s*\[1 0 1 0 1 0 1 0\]/,'CMYK PDF must not require JPEG channel inversion');
+          }
+        }else assert.deepEqual([...data.subarray(0,2)],[255,216]);
       }
     }
     await page.locator('#export-toggle').click();await chooseExport(page,'3d','jpg');await download(()=>page.locator('#confirm-export').click(),mode+'-3d.jpg');

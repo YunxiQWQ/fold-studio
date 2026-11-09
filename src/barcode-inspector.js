@@ -1,5 +1,7 @@
 import {barcodeStatus} from './barcode.js';
 import {BARCODE_FORMATS,barcodeFormat} from './barcode-formats.js';
+import {colorFieldButton} from './color-picker-request.js';
+import {normalizeHex} from './color-values.js';
 
 export function appendBarcodeInspector(host,node,generator,editor){
   const section=document.createElement('section');section.className='barcode-settings';
@@ -16,7 +18,9 @@ export function appendBarcodeInspector(host,node,generator,editor){
   const position=select('文字位置','native-barcode-text-position',[['bottom','条码下方'],['top','条码上方']],generator.barcodeTextPosition??'bottom');
   const font=select('识别文字字体','native-barcode-font',[['monospace','等宽字体'],['ocrb','OCR-B（需本机安装）'],['sans','无衬线字体']],generator.barcodeFont??'monospace');
   const size=field('识别文字大小（%）',document.createElement('input'),'native-barcode-text-scale');size.type='number';size.min='60';size.max='160';size.step='1';size.value=String(Math.round((generator.barcodeTextScale??1)*100));
-  const color=field('条码颜色',document.createElement('input'),'native-barcode-color');color.type='color';color.dataset.nativeBarcodeColor='true';color.value=generator.color??'#000000';color.setAttribute('aria-label','条码颜色');
+  const color=field('条码颜色',document.createElement('input'),'native-barcode-color');color.value=generator.color??'#000000';color.maxLength=7;color.dataset.nativeBarcodeColor='true';color.setAttribute('aria-label','条码颜色');
+  const paint=document.createElement('div');paint.className='svg-paint-value';color.before(paint);paint.append(colorFieldButton(color,{title:'条码颜色'}),color);
+  color.addEventListener('change',event=>{const hex=normalizeHex(color.value);color.setAttribute('aria-invalid',String(!hex));if(!hex){event.stopImmediatePropagation();return;}color.value=hex;},{capture:true});
   const bg=select('底色','native-barcode-bg',[['#ffffff','白底'],['transparent','透明'],...(generator.bgColor&&!['#ffffff','transparent'].includes(generator.bgColor)?[[generator.bgColor,'保留工程底色']]:[])],generator.bgColor??'#ffffff');
   const note=document.createElement('p');note.id='native-code-status';note.className='svg-field-note';note.setAttribute('aria-live','polite');section.append(note);
   const dimensions=document.createElement('p');dimensions.className='svg-field-note';dimensions.textContent='宽高在“位置与尺寸”中调整，左右保留制式所需静区。条码可继续解组编辑；需要多个条码时，可使用“排列与变换”中的阵列复制。';section.append(dimensions);

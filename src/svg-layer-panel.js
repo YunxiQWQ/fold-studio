@@ -153,7 +153,7 @@ export function mountSvgLayerPanel({host,canvas,root,select,change,run,move,coun
       const hiddenParent=node.parentElement?.closest('[display="none"],[visibility="hidden"]');
       if(hiddenParent){eye.disabled=true;eye.title='由组合 '+svgLayerName(hiddenParent)+' 隐藏，请先显示该组合';eye.setAttribute('aria-label',eye.title);}
       eye.onclick=event=>{event.preventDefault();event.stopPropagation();toggleVisibility(node);};line.append(eye);
-      const lock=document.createElement('button');lock.type='button';lock.className='tree-lock';lock.dataset.lockNode=node.id;lock.title='锁定 / 解锁 '+svgLayerName(node);lock.setAttribute('aria-label',lock.title);lock.setAttribute('aria-pressed',String(locked(node)));lock.innerHTML=icon('lock');
+      const lock=document.createElement('button'),isLocked=locked(node);lock.type='button';lock.className='tree-lock';lock.dataset.lockNode=node.id;lock.title=`${isLocked?'已锁定':'可编辑'}：${svgLayerName(node)}；点击${isLocked?'解锁':'锁定'}`;lock.setAttribute('aria-label',lock.title);lock.setAttribute('aria-pressed',String(isLocked));lock.innerHTML=icon(isLocked?'lock':'unlock');
       const lockedParent=node.parentElement?.closest('[data-locked="true"]');
       if(lockedParent){lock.disabled=true;lock.title='由组合 '+svgLayerName(lockedParent)+' 锁定，请先解锁该组合';lock.setAttribute('aria-label',lock.title);}
       lock.onclick=event=>{event.preventDefault();event.stopPropagation();change(node,'data-locked',node.getAttribute('data-locked')==='true'?null:'true');};line.append(lock);

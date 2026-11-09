@@ -3,6 +3,7 @@ import SVGtoPDF from 'svg-to-pdfkit';
 import {create as readFont} from 'fontkit';
 import fallbackUrl from './fonts/FoldPrintSans-Regular.woff2?url&inline';
 import {exportJpeg} from './export-jpeg.js';
+import {canvasCmykPixels} from './export-cmyk.js';
 
 let fallback;
 async function fallbackBytes(){if(!fallback)fallback=fallbackUrl.startsWith('data:')?Uint8Array.from(atob(fallbackUrl.slice(fallbackUrl.indexOf(',')+1)),c=>c.charCodeAt(0)):new Uint8Array(await(await fetch(fallbackUrl)).arrayBuffer());return fallback;}
@@ -23,7 +24,7 @@ export async function exportVectorPdf(source,{widthMm,heightMm,mode='cmyk',trans
   const bytes=fontBytes??await fallbackBytes(),font=validatePdfFont(bytes),text=[...svg.querySelectorAll('text')].map(n=>n.textContent).join('');
   const missing=[...new Set([...text].filter(c=>!/[\s\u200b-\u200f\u202a-\u202e\ufe00-\ufe0f]/u.test(c)&&!font.hasGlyphForCodePoint(c.codePointAt(0))))];
   if(missing.length)throw Error(`PDF 字体缺少字符“${missing.slice(0,12).join('')}”，请导入包含这些字符的字体`);
-  const pictures=new Map(),alphaByBytes=new Map();
+  const pictures=new Map(),alphaByBytes=new Map(),cmykImages=new Map();
   for(const node of svg.querySelectorAll('image')){
     const src=node.getAttribute('href')??node.getAttributeNS('http://www.w3.org/1999/xlink','href');if(!src?.startsWith('data:image/'))throw Error('PDF 图片必须先内嵌');
     if(pictures.has(src))continue;
@@ -34,7 +35,12 @@ export async function exportVectorPdf(source,{widthMm,heightMm,mode='cmyk',trans
     // Color and alpha remain independent; don't flatten photographs onto white
     // before applying the PDF soft mask over other vector objects.
     ctx.putImageData(new ImageData(pixels,w,h),0,0);
-    const blob=await exportJpeg(canvas,{mode,transform,quality:98});const imageBytes=new Uint8Array(await blob.arrayBuffer());pictures.set(src,imageBytes);
+    // Inverted CMYK JPEGs rely on /Decode [1 0 ...]. Illustrator's PDF
+    // importer can ignore that inversion and turn otherwise valid images
+    // black. Embed positive CMYK samples losslessly instead; the PDF stream
+    // compressor supplies FlateDecode and no inversion is required.
+    const imageBytes=mode==='cmyk'?await canvasCmykPixels(canvas,transform):new Uint8Array(await(await exportJpeg(canvas,{mode,quality:98})).arrayBuffer());pictures.set(src,imageBytes);
+    if(mode==='cmyk')cmykImages.set(imageBytes,{width:w,height:h,label:'FoldCMYK'+cmykImages.size,pixels:imageBytes});
     if(transparent)alphaByBytes.set(imageBytes,{alpha,w,h});onProgress(.2);
   }
   const doc=new PDFDocument({font:bytes,size:[widthMm*72/25.4,heightMm*72/25.4],margin:0,pdfVersion:'1.7',compress:true,info:{Title:'Fold Studio vector dieline',Creator:'Fold Studio',Subject:mode==='cmyk'?`ICC CMYK - ${transform.name}`:'sRGB vector dieline'}}),chunks=[],warnings=[];
@@ -65,7 +71,12 @@ export async function exportVectorPdf(source,{widthMm,heightMm,mode='cmyk',trans
   };
   const openImage=doc.openImage.bind(doc);
   doc.openImage=src=>{
-    const image=openImage(src),alpha=alphaByBytes.get(src);
+    const image=cmykImages.get(src)??openImage(src),alpha=alphaByBytes.get(src);
+    if(cmykImages.has(src)&&!image.embed)image.embed=function(document){
+      if(this.obj)return;
+      this.obj=document.ref({Type:'XObject',Subtype:'Image',Width:this.width,Height:this.height,BitsPerComponent:8,ColorSpace:['ICCBased',profileRef]});
+      this.obj.end(this.pixels);this.pixels=null;
+    };
     if(alpha&&!image.foldMaskWrapped){image.foldMaskWrapped=true;const embed=image.embed;image.embed=function(document){const previous=softMask;try{if(!this.obj){softMask=originalRef({Type:'XObject',Subtype:'Image',Width:alpha.w,Height:alpha.h,BitsPerComponent:8,ColorSpace:'DeviceGray'});softMask.end(alpha.alpha);}embed.call(this,document);}finally{softMask=previous;}};}
     return image;
   };

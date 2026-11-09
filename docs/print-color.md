@@ -59,3 +59,8 @@ ICC 文件最大 4 MB，验证 CMYK 输出类型、长度和标签范围；不�
 - `npm run test:export-color`：JPEG 四通道／ICC 分段、工程模式、实际 JPG／SVG／PDF 下载、双面、三维、字体错误、明确拒绝不支持内容和手机布局。
 - `FOLD_TEST_URL=offline`：运行对应浏览器专项，确认离线零 HTTP 请求。
 - 另使用 Pillow／libjpeg、pypdf、Poppler／MuPDF 独立读取、提取文字、检查 CMYK 操作符／ICC／图片通道并渲染核对，不只根据文件名判断色彩模式。
+## Illustrator 打开 CMYK PDF 的图片兼容性
+
+CMYK PDF 中的图片以正向四色像素无损嵌入，并保留 ICC 和独立透明蒙版。旧导出方式使用带反转 Decode 数组的 CMYK JPEG，部分 Illustrator 导入流程会忽略反转，从而将图片显示为黑色／负片；标准 PDF 浏览器通常能正常还原。
+
+本轮保留矢量刀线、图形、文字及裁切，不将整张刀版栅格化。JPG 独立导出仍使用原 CMYK JPEG 格式；PDF 中的图片改用 Flate 无损压缩，相同来源图片可复用一个资源。无损压缩的文件大小随内容变化。

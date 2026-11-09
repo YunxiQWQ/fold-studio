@@ -50,7 +50,8 @@
     "test:lock-state": "node tests/svg-lock-state-browser.mjs",
     "test:snapping": "node --test tests/svg-snap-math.test.js && node tests/svg-snapping-browser.mjs",
     "test:preview-depth": "node --test tests/preview-depth.test.js && node tests/preview-depth-browser.mjs",
-    "test:barcodes": "node --test tests/barcode-library.test.js tests/code-decoding.test.js && node tests/barcode-library-browser.mjs"
+    "test:barcodes": "node --test tests/barcode-library.test.js tests/code-decoding.test.js && node tests/barcode-library-browser.mjs",
+    "test:color-picker": "node tests/page-color-picker-browser.mjs"
   },
   "dependencies": {
     "@mdi/js": "7.4.47",

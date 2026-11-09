@@ -1,6 +1,7 @@
 import {icon} from './icons.js';
 import {svgCommandState} from './svg-editor-ui-state.js';
 import {appendTypographyPanel,appendAlignmentPanel} from './svg-inspector-panels.js';
+import {colorFieldButton} from './color-picker-request.js';
 
 const expanded=new Map();
 const geometry=new Set('x y width height cx cy r rx ry x1 y1 x2 y2 points'.split(' '));
@@ -23,14 +24,7 @@ function action(host,command,title,glyph,run,disabled=false){
 
 function paintPreview(input){
   const wrap=document.createElement('div');wrap.className='svg-paint-value';input.before(wrap);wrap.append(input);
-  const chip=document.createElement('span');chip.className='svg-paint-chip';chip.setAttribute('aria-hidden','true');wrap.prepend(chip);
-  const sync=()=>{
-    const value=input.value||input.placeholder;
-    const solid=CSS.supports('color',value)&&value!=='none';
-    chip.style.backgroundColor=solid?value:'';
-    chip.textContent=value==='none'?'∅':solid?'':'◈';
-  };
-  input.addEventListener('input',sync);sync();
+  wrap.prepend(colorFieldButton(input,{title:input.dataset.attribute==='stroke'?'描边颜色':'填充颜色'}));
 }
 
 export function arrangeSvgInspector(host,node,editor){

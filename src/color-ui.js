@@ -9,7 +9,12 @@ export function mountColorUI(api){
   const pop=document.createElement('div');pop.id='color-studio';pop.setAttribute('popover','manual');pop.setAttribute('role','dialog');pop.setAttribute('aria-label','调色盘');
   pop.innerHTML=`<div class="color-studio-header"><div><small>COLOR STUDIO</small><h2 id="color-studio-title">选择颜色</h2></div><button type="button" id="color-eyedropper" aria-label="屏幕取色" title="屏幕取色">⌖</button></div><hex-color-picker aria-label="色彩选择区域"></hex-color-picker><div class="color-studio-values"><i id="color-studio-preview"></i><label>HEX<input id="color-hex-value" aria-label="HEX 颜色" maxlength="7" spellcheck="false"/></label><button type="button" id="copy-color-value" aria-label="复制 HEX 颜色">复制</button></div><div class="color-rgb-fields">${['R','G','B'].map(c=>`<label>${c}<input type="number" min="0" max="255" step="1" data-color-channel="${c}" aria-label="${c} 通道"/></label>`).join('')}</div><p id="color-studio-proof"></p><div class="color-swatch-section"><h3>工程颜色</h3><div data-color-swatches="project"></div></div><div class="color-swatch-section"><h3>最近使用</h3><div data-color-swatches="recent"></div></div><div class="color-swatch-section"><h3>常用颜色</h3><div data-color-swatches="default"></div></div><p id="color-studio-message" aria-live="polite"></p><div class="color-studio-actions"><button type="button" id="cancel-color">取消</button><button type="button" id="apply-color">完成</button></div>`;
   document.body.appendChild(pop);const picker=pop.querySelector('hex-color-picker'),hex=pop.querySelector('#color-hex-value'),channels=[...pop.querySelectorAll('[data-color-channel]')],message=pop.querySelector('#color-studio-message');
-  let active,history=[],observing=false;try{const stored=JSON.parse(localStorage.getItem('fold-studio-colors-v1')??'[]');if(Array.isArray(stored))history=recentColors(stored,null);}catch{}
+  let active,sampling,history=[],observing=false;try{const stored=JSON.parse(localStorage.getItem('fold-studio-colors-v1')??'[]');if(Array.isArray(stored))history=recentColors(stored,null);}catch{}
+  function paletteHex(value){
+    const hex=normalizeHex(value);if(hex)return hex;
+    if(!CSS.supports('color',value))return '#000000';
+    const ctx=document.createElement('canvas').getContext('2d');ctx.fillStyle=value;ctx.fillRect(0,0,1,1);return rgbHex([...ctx.getImageData(0,0,1,1).data].slice(0,3));
+  }
   function remember(color){history=recentColors(history,color);try{localStorage.setItem('fold-studio-colors-v1',JSON.stringify(history));}catch{}}
   function bindings(input){const s=api.getState();if(input.id==='paper-color')return [[s.project,s.side==='inside'?'insidePaper':'paper']];if(input.id==='panel-color')return [[s.side==='inside'?s.project.insidePanelColors:s.project.panelColors,s.panelId]];
     const key=input.dataset.editorProp==='stroke'?'stroke':'color';return s.project.layers.filter(l=>s.ids.includes(l.id)&&!l.locked&&l.type!=='image'&&!(l.type==='svg'&&l.svgOriginal!==false)).map(l=>[l,key]);}
@@ -17,15 +22,26 @@ export function mountColorUI(api){
     const host=pop.querySelector(`[data-color-swatches="${kind}"]`);host.innerHTML=values.length?values.map(c=>`<button type="button" data-picked-color="${c}" style="--color:${c}" aria-label="${c}" title="${c.toUpperCase()}" aria-pressed="${active?.value===c}"></button>`).join(''):'<span class="color-empty">选定颜色后会显示在这里</span>';
   }}
   function showValue(color){picker.color=color;hex.value=color.toUpperCase();hex.removeAttribute('aria-invalid');hexRgb(color).forEach((v,i)=>{channels[i].value=v;channels[i].removeAttribute('aria-invalid');});pop.querySelector('#color-studio-preview').style.background=color;pop.querySelector('#color-studio-proof').textContent=`CMYK 参考 · ${formatCmyk(color)}`;message.textContent='';for(const button of pop.querySelectorAll('[data-picked-color]'))button.setAttribute('aria-pressed',String(button.dataset.pickedColor===color));}
-  function preview(color){if(!active||!color)return;const editing=document.activeElement,raw=editing?.value,preserve=editing===hex||channels.includes(editing);active.value=color;active.input.value=color;active.input.dispatchEvent(new Event('input',{bubbles:true}));showValue(color);if(preserve)editing.value=raw;}
+  function preview(color){if(!active||!color)return;const editing=document.activeElement,raw=editing?.value,preserve=editing===hex||channels.includes(editing);active.value=color;active.dirty=true;active.input.value=color;active.input.dispatchEvent(new Event('input',{bubbles:true}));showValue(color);if(preserve)editing.value=raw;}
   function close(cancel=false,focus=false){
-    if(!active)return;const session=active;active=null;pop.hidePopover();session.button.setAttribute('aria-expanded','false');
-    if(cancel){for(const {object,key,value,had}of session.snapshot){if(had)object[key]=value;else delete object[key];}api.update({render:true});}
+    if(!active)return;const session=active;active=null;sampling?.abort();sampling=null;pop.style.removeProperty('visibility');pop.hidePopover();session.button.setAttribute('aria-expanded','false');
+    if(session.external){
+      if(cancel||!session.dirty){session.input.value=session.raw;session.input.dispatchEvent(new Event('input',{bubbles:true}));}
+      else if(session.input.isConnected&&!session.input.disabled){remember(session.value);session.input.dispatchEvent(new Event('change',{bubbles:true}));}
+    }
+    else if(cancel){for(const {object,key,value,had}of session.snapshot){if(had)object[key]=value;else delete object[key];}api.update({render:true});}
     else {if(session.snapshot.some(s=>s.object[s.key]!==s.value)){remember(session.value);api.update({commit:true});}}
-    if(focus){const input=session.input.isConnected?session.input:session.input.id?document.getElementById(session.input.id):document.querySelector(session.input.dataset.editorProp?`[data-editor-prop="${session.input.dataset.editorProp}"]`:'[data-editor-batch="color"]');input?.parentElement.querySelector('.modern-color-trigger')?.focus();}
+    if(focus){const input=session.input.isConnected?session.input:session.input.id?document.getElementById(session.input.id):document.querySelector(session.input.dataset.attribute?`[data-attribute="${session.input.dataset.attribute}"]`:session.input.dataset.editorProp?`[data-editor-prop="${session.input.dataset.editorProp}"]`:'[data-editor-batch="color"]');input?.parentElement.querySelector('.modern-color-trigger,.svg-paint-chip')?.focus();}
   }
   function position(){if(!active)return;const r=active.button.getBoundingClientRect(),width=Math.min(312,innerWidth-24);pop.style.width=width+'px';const height=Math.min(pop.scrollHeight,innerHeight-24);pop.style.left=Math.max(12,Math.min(innerWidth-width-12,r.left>innerWidth/2?r.right-width:r.left))+'px';pop.style.top=Math.max(12,Math.min(innerHeight-height-12,r.bottom+9))+'px';}
-  function open(input,button){if(active?.input===input){close();return;}close();const targets=bindings(input);if(!targets.length)return;const color=normalizeHex(input.value)??'#000000';active={input,button,value:color,snapshot:targets.map(([object,key])=>({object,key,value:object[key],had:Object.hasOwn(object,key)}))};pop.querySelector('#color-studio-title').textContent=input.getAttribute('aria-label')??'选择颜色';showValue(color);swatches();pop.showPopover();button.setAttribute('aria-expanded','true');position();hex.focus({preventScroll:true});hex.select();}
+  function open(input,button){if(active?.input===input){close();return;}close();const targets=bindings(input);if(!targets.length)return;const color=normalizeHex(input.value)??'#000000';active={project:api.getState().project,input,button,value:color,snapshot:targets.map(([object,key])=>({object,key,value:object[key],had:Object.hasOwn(object,key)}))};pop.querySelector('#color-studio-title').textContent=input.getAttribute('aria-label')??'选择颜色';showValue(color);syncDropper();swatches();pop.showPopover();button.setAttribute('aria-expanded','true');position();hex.focus({preventScroll:true});hex.select();}
+  document.addEventListener('fold-color-picker',event=>{
+    const input=event.target,{button,title}=event.detail??{};
+    if(!(input instanceof HTMLInputElement)||!(button instanceof HTMLButtonElement)||!input.isConnected||input.disabled)return;
+    if(active?.input===input){close();return;}close();
+    active={project:api.getState().project,external:true,input,button,raw:input.value,value:paletteHex(input.value||input.placeholder),dirty:false};
+    pop.querySelector('#color-studio-title').textContent=title??'选择颜色';showValue(active.value);syncDropper();swatches();pop.showPopover();button.setAttribute('aria-expanded','true');position();hex.focus({preventScroll:true});hex.select();
+  });
   function sync(){
     for(const input of document.querySelectorAll('input[type="color"],input[data-color-input]')){
       // SVG generators own their native picker and commit their vector artwork;
@@ -34,12 +50,12 @@ export function mountColorUI(api){
       if(!input.dataset.colorInput){input.type='text';input.dataset.colorInput='true';input.maxLength=7;input.spellcheck=false;input.setAttribute('autocomplete','off');input.classList.add('modern-color-input');const wrapper=document.createElement('div');wrapper.className='modern-color-control';input.replaceWith(wrapper);const button=document.createElement('button');button.type='button';button.className='modern-color-trigger';button.setAttribute('aria-label',`打开${input.getAttribute('aria-label')??'颜色'}调色盘`);button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-expanded','false');button.setAttribute('aria-controls',pop.id);wrapper.append(button,input);button.onclick=e=>{e.preventDefault();e.stopPropagation();open(input,button);};}
       const value=normalizeHex(input.value);if(value){input.dataset.lastColor=value;input.parentElement.style.setProperty('--color',value);const badge=input.closest('.color-field')?.querySelector('.cmyk-badge');if(badge&&badge.textContent!==formatCmyk(value))badge.textContent=formatCmyk(value);}const disabled=!bindings(input).length;input.disabled=disabled;input.parentElement.querySelector('button').disabled=disabled;
     }
-    if(active&&!active.input.isConnected)close();
+    if(active&&(!active.input.isConnected||active.project!==api.getState().project))close(!!active.external||active.project!==api.getState().project);
   }
   document.addEventListener('input',e=>{const input=e.target;if(!input.matches?.('[data-color-input]'))return;const color=normalizeHex(input.value);input.setAttribute('aria-invalid',String(!color));if(!color||input.value.replace(/^#/,'').length===3){e.stopImmediatePropagation();return;}input.value=color;input.dataset.lastColor=color;input.parentElement.style.setProperty('--color',color);const badge=input.closest('.color-field')?.querySelector('.cmyk-badge');if(badge&&badge.textContent!==formatCmyk(color))badge.textContent=formatCmyk(color);},true);
   document.addEventListener('change',e=>{const input=e.target;if(!input.matches?.('[data-color-input]'))return;const color=normalizeHex(input.value);if(!color){input.value=input.dataset.lastColor;input.removeAttribute('aria-invalid');e.stopImmediatePropagation();}else{if(input.value!==color){input.value=color;input.dispatchEvent(new Event('input',{bubbles:true}));}remember(color);}},true);
   document.addEventListener('click',e=>{if(active&&!pop.contains(e.target)&&!active.input.parentElement.contains(e.target))close();},true);
-  document.addEventListener('keydown',e=>{if(active&&e.key==='Escape'&&!pop.contains(e.target)){e.preventDefault();e.stopImmediatePropagation();close(true,true);}},true);
+  document.addEventListener('keydown',e=>{if(sampling&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();sampling.abort();return;}if(active&&e.key==='Escape'&&!pop.contains(e.target)){e.preventDefault();e.stopImmediatePropagation();close(true,true);}},true);
   pop.addEventListener('beforetoggle',e=>{if(e.newState==='closed'&&active)close();});
   pop.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();close(true,true);}if(e.key==='Enter'&&e.target.tagName==='INPUT'&&!pop.querySelector('[aria-invalid="true"]')){e.preventDefault();close(false,true);}});
   pop.addEventListener('click',e=>{const swatch=e.target.closest('[data-picked-color]');if(swatch)preview(swatch.dataset.pickedColor);});picker.addEventListener('color-changed',e=>preview(normalizeHex(e.detail.value)));
@@ -47,7 +63,16 @@ export function mountColorUI(api){
   for(const input of channels)input.addEventListener('input',()=>{const color=rgbHex(channels.map(i=>i.value));if(color)preview(color);else{input.setAttribute('aria-invalid','true');message.textContent='RGB 通道请输入 0–255 的整数';}});
   pop.querySelector('#cancel-color').onclick=()=>close(true,true);pop.querySelector('#apply-color').onclick=()=>{if(!pop.querySelector('[aria-invalid="true"]'))close(false,true);};
   pop.querySelector('#copy-color-value').onclick=async()=>{try{await navigator.clipboard.writeText(active.value.toUpperCase());message.textContent='颜色已复制';}catch{hex.focus();hex.select();message.textContent='按 Ctrl / ⌘ C 复制颜色';}};
-  const dropper=pop.querySelector('#color-eyedropper');dropper.hidden=!('EyeDropper'in window);dropper.onclick=async()=>{const session=active;try{const result=await new EyeDropper().open();if(active===session)preview(normalizeHex(result.sRGBHex));}catch(error){if(error.name!=='AbortError')message.textContent='屏幕取色未完成，请用色板或输入色值';}};
+  const dropper=pop.querySelector('#color-eyedropper');
+  dropper.textContent='⌖ 页面取色';dropper.setAttribute('aria-label','拾取页面颜色');
+  function syncDropper(){dropper.disabled=typeof window.EyeDropper!=='function'||!window.isSecureContext;dropper.title=dropper.disabled?'当前浏览器不支持屏幕取色，请使用桌面版 Chrome 或 Edge':'点击后选取页面或屏幕上的颜色；Esc 取消取色';if(dropper.disabled)message.textContent=dropper.title;}
+  dropper.onclick=async()=>{
+    const session=active;if(!session||sampling)return;
+    const controller=new AbortController();sampling=controller;dropper.disabled=true;pop.style.visibility='hidden';
+    try{const result=await new EyeDropper().open({signal:controller.signal});if(active===session&&session.project===api.getState().project&&!controller.signal.aborted){const color=normalizeHex(result.sRGBHex);if(!color)throw Error('无效取色结果');preview(color);}}
+    catch(error){if(active===session&&error.name!=='AbortError')message.textContent='页面取色未完成，请重试或输入色值';}
+    finally{if(sampling===controller)sampling=null;if(active===session){pop.style.removeProperty('visibility');syncDropper();dropper.focus({preventScroll:true});}}
+  };
   window.addEventListener('resize',position);document.addEventListener('scroll',position,true);
   const observer=new MutationObserver(()=>{if(!observing){observing=true;queueMicrotask(()=>{observing=false;sync();});}});observer.observe(document.querySelector('#inspector'),{childList:true,subtree:true});
   for(const button of document.querySelectorAll('[data-palette]')){const p=api.palettes[+button.dataset.palette];button.innerHTML=`<span class="palette-bars"><i style="background:${p.color}"></i><i style="background:${p.accent}"></i><i style="background:${p.highlight}"></i></span><b>${esc(p.name)}</b>`;}
