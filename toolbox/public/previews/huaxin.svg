@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360" fill="none">
+  <title>画芯的报纸分栏与多页画册示意</title>
+  <path fill="#fff" fill-opacity=".08" d="M0 0h480v360H0z"/>
+  <g transform="rotate(9 250 180)"><path fill="#e9d8cf" d="M120 42h258v290H120z"/><path stroke="#b92424" stroke-opacity=".25" d="M142 70h212M142 84h212M142 98h212M142 292h212"/></g>
+  <g transform="rotate(-5 225 175)">
+    <path fill="#fffaf0" d="M90 28h260v296H90z"/>
+    <path stroke="#b92424" stroke-width="2" d="M110 48h220M110 110h220"/>
+    <rect x="110" y="61" width="30" height="32" rx="2" fill="#b92424"/>
+    <text x="125" y="84" fill="#fffaf0" text-anchor="middle" font-family="serif" font-size="23">画</text>
+    <text x="152" y="91" fill="#b92424" font-family="serif" font-size="36" font-weight="700">画芯</text>
+    <text x="260" y="76" fill="#8d7267" font-family="sans-serif" font-size="7" letter-spacing="1.5">HUAXIN</text>
+    <path stroke="#b92424" d="M260 84h68M260 91h50"/>
+    <path stroke="#292b27" stroke-width="5" d="M110 129h220M132 143h176"/>
+    <path fill="#d4bba9" d="M110 160h136v79H110z"/>
+    <path fill="#a67e6c" d="m110 218 42-40 35 25 24-17 35 31v22H110z"/>
+    <circle cx="220" cy="178" r="10" fill="#fff4d4"/>
+    <g stroke="#9a9082" stroke-width="2">
+      <path d="M258 162h72M258 172h72M258 182h72M258 192h72M258 202h72M258 212h72M258 222h72M258 232h55"/>
+      <path d="M110 252h64M110 262h64M110 272h64M110 282h64M110 292h51M186 252h64M186 262h64M186 272h64M186 282h64M186 292h49M262 252h68M262 262h68M262 272h68M262 282h68M262 292h54"/>
+    </g>
+    <path stroke="#b92424" d="M110 306h220"/>
+    <text x="110" y="316" fill="#9a9082" font-family="sans-serif" font-size="5" letter-spacing="1">LOCAL FIRST · TYPE &amp; IMAGE</text>
+  </g>
+</svg>

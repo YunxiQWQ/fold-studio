@@ -25,6 +25,7 @@ await page.addInitScript(()=>{
   const open=indexedDB.open.bind(indexedDB);indexedDB.open=(...args)=>{window.__toolboxStorage.push('indexedDB');return open(...args);};
 });
 const fold=()=>page.locator('a[href="/fold"]'),frame=()=>page.locator('a[href="https://github.com/YunxiQWQ/zhenxia/releases/latest"]');
+const huaxin=()=>page.locator('a[href="/huaxin/"]');
 const htmlText=value=>value.replace(/\r/g,'');
 async function band(color){await page.waitForFunction(color=>getComputedStyle(document.querySelector('header')).backgroundColor===color,color);}
 try{
@@ -49,22 +50,25 @@ try{
 
   await page.goto(url);await page.getByRole('heading',{name:'雲溪工具箱',exact:true}).waitFor();
   assert.equal(await page.title(),'雲溪工具箱');assert.equal(await page.locator('html').getAttribute('lang'),'zh-CN');
-  assert.equal(await page.locator('section[aria-label="工具列表"] h2').count(),2);await fold().waitFor();await frame().waitFor();
+  assert.equal(await page.locator('section[aria-label="工具列表"] h2').count(),3);await fold().waitFor();await huaxin().waitFor();await frame().waitFor();
+  assert.ok((await huaxin().textContent()).includes('本机自动备份'));
+  assert.equal(await page.locator('a[href="/huaxin/guide"]').count(),1);
+  assert.equal(await page.getByRole('img',{name:'画芯的报纸分栏与多页画册示意'}).count(),1);
   assert.ok((await frame().textContent()).includes('下载 Windows 版'));assert.equal(await page.getByText(/筹备中|介绍待补充|图待补/).count(),0);
   assert.equal(await page.getByRole('img',{name:'截图、贴图和剪贴板功能示意'}).count(),1);
   await page.waitForFunction(()=>document.fonts.status==='loaded');
   for(const width of [1280,1440,1920]){await page.setViewportSize({width,height:1100});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),width+' desktop overflow');}
   await page.setViewportSize({width:1440,height:1100});await page.screenshot({path:resolve(dir,'toolbox-desktop.png'),fullPage:true,animations:'disabled'});
-  checks.push('desktop layout at 1280/1440/1920 keeps the original design; both real tools have complete copy, illustrations and usable entry links');
+  checks.push('desktop layout at 1280/1440/1920 keeps the original design; three real tools have complete copy, illustrations and usable entry links');
 
   await fold().hover();await band('rgb(255, 68, 22)');assert.equal(await fold().locator('[data-folded]').getAttribute('data-folded'),'true');
   assert.equal(await fold().evaluate(n=>!!n.style.getPropertyValue('--spin')),true);
   await page.screenshot({path:resolve(dir,'toolbox-fold-hover.png'),fullPage:true,animations:'disabled'});
   await page.locator('header').hover();await band('rgb(30, 43, 255)');
-  await fold().focus();await band('rgb(255, 68, 22)');await page.keyboard.press('Tab');assert.equal(await frame().evaluate(n=>document.activeElement===n),true);await band('rgb(10, 10, 10)');
+  await page.mouse.move(0,0);await fold().focus();await band('rgb(255, 68, 22)');await page.keyboard.press('Tab');assert.equal(await huaxin().evaluate(n=>document.activeElement===n),true);await band('rgb(185, 36, 36)');await page.keyboard.press('Tab');assert.equal(await frame().evaluate(n=>document.activeElement===n),true);await band('rgb(10, 10, 10)');
   await page.emulateMedia({reducedMotion:'reduce'});
   assert.ok(await page.locator('h1').evaluate(n=>parseFloat(getComputedStyle(n).animationDuration)<.001&&parseFloat(getComputedStyle(n).animationDelay)===0));
-  checks.push('hover folds the CSS preview and changes the band; keyboard focus reaches both links; reduced motion removes animation and entry delays');
+  checks.push('hover folds the CSS preview and changes the band; keyboard focus reaches all three links; reduced motion removes animation and entry delays');
 
   assert.deepEqual(await page.evaluate(()=>window.__toolboxStorage),[]);assert.deepEqual(await context.cookies(),[]);
   assert.ok(requests.every(r=>new URL(r).origin===new URL(url).origin));assert.ok(!requests.some(r=>new URL(r).pathname.startsWith('/assets/')));

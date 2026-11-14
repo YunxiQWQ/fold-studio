@@ -31,7 +31,7 @@ async function head(path,canonical){
 try{
   await head('/',origin+'/');
   await page.getByRole('heading',{name:'雲溪工具箱',exact:true}).waitFor();
-  assert.equal(await page.locator('section[aria-label="工具列表"] h2').count(),2);
+  assert.equal(await page.locator('section[aria-label="工具列表"] h2').count(),3);
   assert.equal(await page.locator('a[href="/fold"]').count(),1);assert.equal(await page.locator('a[href="/fold/guide"]').count(),1);
   assert.ok((await page.content()).includes('下载 Windows 版'));
   await page.screenshot({path:resolve(dir,'homepage-no-javascript.png'),fullPage:true,animations:'disabled'});
@@ -61,11 +61,13 @@ try{
   const robots=await page.request.get(url+'/robots.txt');assert.equal(robots.status(),200);assert.ok(robots.headers()['content-type'].includes('text/plain'));
   assert.match(await robots.text(),/Sitemap: https:\/\/tool\.heyunxi\.top\/sitemap\.xml/);assert.ok(!(await robots.text()).includes('Disallow: /'));
   const xml=await page.request.get(url+'/sitemap.xml');assert.equal(xml.status(),200);assert.ok(xml.headers()['content-type'].includes('xml'));
-  const urls=[...(await xml.text()).matchAll(/<loc>(.*?)<\/loc>/g)].map(m=>m[1]);assert.deepEqual(urls,[origin+'/fold',origin+'/fold/guide']);
-  for(const address of urls){const path=new URL(address).pathname;await head(path,address);}
+  const urls=[...(await xml.text()).matchAll(/<loc>(.*?)<\/loc>/g)].map(m=>m[1]);assert.deepEqual(urls,[origin+'/fold',origin+'/fold/guide',origin+'/huaxin/guide']);
+  // Huaxin is built in its own repository and reached through Vercel's external rewrite.
+  // The static local preview serves this repository's pages; deployment checks cover Huaxin.
+  for(const address of urls.filter(address=>new URL(address).pathname.startsWith('/fold'))){const path=new URL(address).pathname;await head(path,address);}
   const image=await page.request.get(url+'/social/fold-studio.png');assert.equal(image.status(),200);const png=await image.body();assert.equal(png.readUInt32BE(16),1600);assert.equal(png.readUInt32BE(20),1000);
   assert.equal((await page.request.get(url+'/no-such-seo-page')).status(),404);
-  checks.push('robots permits crawling; the sitemap lists only Fold and its guide, the screenshot is available and unknown paths remain 404');
+  checks.push('robots permits crawling; the sitemap lists Fold, its guide and the Huaxin introduction, the screenshot is available and unknown paths remain 404');
 
   const client=await browser.newPage({viewport:{width:1440,height:1100}});client.on('pageerror',e=>errors.push(e.stack));
   client.on('console',m=>{if(m.type()==='error')errors.push(m.text());});

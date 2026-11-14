@@ -50,6 +50,17 @@ export const tools: Tool[] = [
     visual: { kind: "illustration", name: "fold" },
   },
   {
+    id: "huaxin",
+    name: "画芯",
+    latin: "Huaxin",
+    tagline: "中文报刊与电子画册排版工具",
+    description: "从多页模板开始编排文字与图片，支持中文分栏、本机自动备份与本机字体，导出 PDF、页面图片或可编辑工程。无需账号，内容留在本机。",
+    href: "/huaxin/",
+    tags: ["报刊排版", "电子画册", "本机备份"],
+    accent: "#b92424",
+    visual: { kind: "image", src: "previews/huaxin.svg", alt: "画芯的报纸分栏与多页画册示意" },
+  },
+  {
     id: "zhenxia",
     name: "帧匣",
     latin: "Zhenxia",
@@ -67,6 +78,6 @@ export const site = {
   name: "雲溪工具箱",
   domain: "tool.heyunxi.top",
   intro: "为设计工作而做的小工具",
-  description: "雲溪工具箱：折间包装刀版与三维设计、帧匣 Windows 截图贴图与剪贴板工具。",
+  description: "雲溪工具箱：折间包装刀版与三维设计、画芯中文报刊与电子画册排版、帧匣 Windows 截图贴图与剪贴板工具。",
   indexable: true,
 };

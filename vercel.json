@@ -2,6 +2,8 @@
   "buildCommand": "npm run build:site",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/huaxin", "destination": "https://huaxin-six.vercel.app/huaxin" },
+    { "source": "/huaxin/:path*", "destination": "https://huaxin-six.vercel.app/huaxin/:path*" },
     { "source": "/fold/guide", "destination": "/fold-guide.html" },
     { "source": "/fold/guide/", "destination": "/fold-guide.html" },
     { "source": "/fold", "destination": "/fold.html" },

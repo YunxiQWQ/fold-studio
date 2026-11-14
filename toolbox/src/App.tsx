@@ -69,7 +69,7 @@ export default function App({year=new Date().getFullYear()}:{year?:number}={}) {
       </main>
 
       <footer className="mx-auto flex w-full max-w-[1280px] justify-between px-16 py-12 text-[12px] text-muted">
-        <span>更多工具陆续收录。 <a href="/fold/guide" className="ml-4 underline underline-offset-4">折间功能与使用指南</a></span>
+        <span>更多工具陆续收录。 <a href="/fold/guide" className="ml-4 underline underline-offset-4">折间使用指南</a><a href="/huaxin/guide" className="ml-4 underline underline-offset-4">画芯介绍与使用指南</a></span>
         <span>不使用 Cookie，不收集个人信息</span>
       </footer>
     </div>

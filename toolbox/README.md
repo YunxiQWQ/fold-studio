@@ -24,8 +24,9 @@
 
 - 折间：同站 `/fold`，保持本地与线上地址一致。
 - 帧匣：`https://github.com/YunxiQWQ/zhenxia/releases/latest`，已核实仓库公开发行版；页面显示 Windows 下载入口。
+- 画芯：同站 `/huaxin/`，由独立 Vercel 项目提供；`/huaxin/guide` 为项目介绍与使用指南。无需账号，稿件、图片与工程保存在用户本机。
 - 仅使用系统字体，无账号、统计脚本、Cookie 或本地存储。
-- `site.indexable` 为 `true`，让工具导航成为可抓取的折间入口；不涉及个人主页和博客。站点地图只列出折间和使用指南。
+- `site.indexable` 为 `true`，让工具导航成为可抓取的折间入口；不涉及个人主页和博客。站点地图列出折间、折间使用指南和画芯介绍页。
 
 ## 开发与构建
 

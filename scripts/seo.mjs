@@ -41,7 +41,7 @@ export function foldSeo(){return {
   ]};},
   generateBundle(){
     this.emitFile({type:'asset',fileName:'robots.txt',source:`User-agent: *\nAllow: /\n\nSitemap: ${ORIGIN}/sitemap.xml\n`});
-    this.emitFile({type:'asset',fileName:'sitemap.xml',source:`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${[FOLD_URL,GUIDE_URL].map(url=>`<url><loc>${url}</loc></url>`).join('')}</urlset>\n`});
+    this.emitFile({type:'asset',fileName:'sitemap.xml',source:`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${[FOLD_URL,GUIDE_URL,`${ORIGIN}/huaxin/guide`].map(url=>`<url><loc>${url}</loc></url>`).join('')}</urlset>\n`});
     this.emitFile({type:'asset',fileName:'fold-guide.html',source:guide()});
   },
 };}
