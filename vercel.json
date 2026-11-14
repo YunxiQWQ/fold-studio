@@ -1,8 +1,11 @@
 {
   "buildCommand": "npm run build:site",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/huaxin", "destination": "/huaxin/", "permanent": true }
+  ],
   "rewrites": [
-    { "source": "/huaxin", "destination": "https://huaxin-six.vercel.app/huaxin" },
+    { "source": "/huaxin/", "destination": "https://huaxin-six.vercel.app/index.html" },
     { "source": "/huaxin/:path*", "destination": "https://huaxin-six.vercel.app/huaxin/:path*" },
     { "source": "/fold/guide", "destination": "/fold-guide.html" },
     { "source": "/fold/guide/", "destination": "/fold-guide.html" },
